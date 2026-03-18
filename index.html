@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>CAESAR 凱撒衛浴</title>
+  <style>
+    body {
+      margin: 0;
+      background: #121212;
+      color: #ffffff;
+      font-family: Arial, "Noto Sans TC", sans-serif;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card {
+      width: 86%;
+      max-width: 420px;
+      background: #1e1e1e;
+      border: 1px solid #333;
+      border-radius: 16px;
+      padding: 28px 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.35);
+      text-align: center;
+    }
+
+    h1 {
+      margin: 0 0 20px;
+      color: #EBA13A;
+      font-size: 32px;
+      letter-spacing: 2px;
+    }
+
+    #msg {
+      white-space: pre-line;
+      line-height: 1.7;
+      color: #dddddd;
+      font-size: 16px;
+    }
+
+    .ok { color: #2ecc71; }
+    .err { color: #ff6b6b; }
+
+    .spinner {
+      width: 28px;
+      height: 28px;
+      border: 3px solid #333;
+      border-top: 3px solid #EBA13A;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 18px;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to   { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1>CAESAR</h1>
+    <div class="spinner" id="spinner"></div>
+    <div id="msg">正在驗證身分，請稍候...</div>
+  </div>
+
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script>
+    /** ====== 你要改的只有這兩個 ====== */
+    const LIFF_ID = "2009380550-ow9SlJK4";
+    const GAS_BIND_URL = "https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec";
+
+    const msgEl = document.getElementById("msg");
+    const spinnerEl = document.getElementById("spinner");
+
+    function setMsg(text, cls = "") {
+      msgEl.className = cls;
+      msgEl.innerText = text;
+    }
+
+    function getCid() {
+      const params = new URLSearchParams(window.location.search);
+      return (params.get("cid") || "NEW").trim();
+    }
+
+    async function postBind(payload) {
+      const res = await fetch(GAS_BIND_URL, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const text = await res.text();
+
+      try {
+        return JSON.parse(text);
+      } catch (err) {
+        return { ok: false, error: "後端回應非 JSON: " + text };
+      }
+    }
+
+    async function main() {
+      try {
+        setMsg("步驟 1/4：初始化 LIFF...");
+
+        await liff.init({
+          liffId: LIFF_ID,
+          withLoginOnExternalBrowser: true
+        });
+
+        if (!liff.isLoggedIn()) {
+          setMsg("步驟 2/4：導向 LINE 登入...");
+          liff.login();
+          return;
+        }
+
+        setMsg("步驟 2/4：取得 LINE 身分...");
+        const profile = await liff.getProfile();
+
+        const payload = {
+          uid: profile.userId,
+          displayName: profile.displayName,
+          cid: getCid()
+        };
+
+        setMsg("步驟 3/4：綁定資料寫入中...");
+        const result = await postBind(payload);
+
+        if (!result.ok) {
+          throw new Error(result.error || "綁定失敗");
+        }
+
+        spinnerEl.style.display = "none";
+        setMsg(
+          "✅ 驗證流程完成\n\n" +
+          profile.displayName + " 您好\n" +
+          "系統已完成綁定，視窗即將關閉",
+          "ok"
+        );
+
+        setTimeout(() => {
+          if (liff.isInClient()) {
+            liff.closeWindow();
+          }
+        }, 1500);
+
+      } catch (err) {
+        console.error("LIFF Error:", err);
+        spinnerEl.style.display = "none";
+        setMsg(
+          "❌ 驗證失敗\n\n" +
+          (err && err.message ? err.message : String(err)),
+          "err"
+        );
+      }
+    }
+
+    main();
+  </script>
+</body>
+</html>
