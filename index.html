@@ -123,6 +123,7 @@
     };
 
     let currentStep = "未開始";
+    let DEBUG_MODE = false;
 
     function setStep(stepText) {
       currentStep = stepText;
@@ -135,7 +136,10 @@
       msg.innerHTML = titleHtml;
       msg.className = "success";
       document.getElementById("detail").innerHTML = detailHtml;
-      document.getElementById("debug").style.display = "none";
+
+      const debugEl = document.getElementById("debug");
+      debugEl.style.display = "none";
+      debugEl.textContent = "";
     }
 
     function setWarn(titleHtml, detailHtml = "", debugText = "") {
@@ -143,10 +147,10 @@
       const msg = document.getElementById("msg");
       msg.innerHTML = titleHtml;
       msg.className = "warn";
-      document.getElementById("detail").innerHTML = detailHtml;
+      document.getElementById("detail").innerHTML = "";
 
       const debugEl = document.getElementById("debug");
-      if (debugText) {
+      if (DEBUG_MODE && debugText) {
         debugEl.style.display = "block";
         debugEl.textContent = debugText;
       } else {
@@ -160,10 +164,10 @@
       const msg = document.getElementById("msg");
       msg.innerHTML = titleHtml;
       msg.className = "error";
-      document.getElementById("detail").innerHTML = detailHtml;
+      document.getElementById("detail").innerHTML = "";
 
       const debugEl = document.getElementById("debug");
-      if (debugText) {
+      if (DEBUG_MODE && debugText) {
         debugEl.style.display = "block";
         debugEl.textContent = debugText;
       } else {
@@ -188,6 +192,7 @@
       try {
         const urlParams = new URLSearchParams(window.location.search);
         const cid = urlParams.get("cid") || "NEW";
+        DEBUG_MODE = urlParams.get("debug") === "1";
 
         setStep(`[${CODE.LIFF_INITING}] 步驟 1/5：檢查 LIFF SDK...`);
         if (typeof liff === "undefined") {
@@ -274,7 +279,7 @@
 
         setWarn(
           result.error || `[${CODE.LIFF_UNKNOWN}] 驗證未完成`,
-          result.error || "系統已回覆失敗訊息",
+          "",
           [
             "步驟位置：" + currentStep,
             "LIFF ID：" + LIFF_ID,
@@ -288,7 +293,7 @@
 
         setError(
           detail,
-          detail,
+          "",
           [
             "步驟位置：" + currentStep,
             "LIFF ID：" + LIFF_ID,
