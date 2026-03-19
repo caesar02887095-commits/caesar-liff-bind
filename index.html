@@ -70,12 +70,6 @@
       word-break: break-word;
     }
 
-    .step {
-      color: #EBA13A;
-      font-size: 14px;
-      margin-top: 10px;
-    }
-
     .debug {
       color: #888;
       font-size: 12px;
@@ -121,6 +115,7 @@
       document.getElementById("msg").innerHTML = titleHtml;
       document.getElementById("msg").className = "success";
       document.getElementById("detail").innerHTML = detailHtml;
+      document.getElementById("debug").style.display = "none";
     }
 
     function setError(titleHtml, detailHtml = "", debugText = "") {
@@ -153,28 +148,26 @@
 
     async function main() {
       try {
-        // Step 0: 基本資訊
         const urlParams = new URLSearchParams(window.location.search);
         const cid = urlParams.get("cid") || "NEW";
 
-        // Step 1: SDK 是否存在
+        // Step 1
         setStep("步驟 1/5：檢查 LIFF SDK...");
         if (typeof liff === "undefined") {
-          throw new Error("LIFF SDK 未載入，可能是網路或 LINE SDK 載入失敗");
+          throw new Error("LIFF SDK 未載入，可能是網路或 SDK 載入失敗");
         }
 
-        // Step 2: init
+        // Step 2
         setStep("步驟 2/5：初始化 LIFF...");
         await liff.init({ liffId: LIFF_ID });
 
-        // Step 2.5: login
         if (!liff.isLoggedIn()) {
           setStep("步驟 2/5：尚未登入，導向 LINE 登入...");
           liff.login();
           return;
         }
 
-        // Step 3: profile
+        // Step 3
         setStep("步驟 3/5：取得 LINE 使用者資料...");
         const profile = await liff.getProfile();
 
@@ -184,16 +177,14 @@
           cid: cid
         };
 
-        // Step 4: fetch GAS
+        // Step 4
         setStep("步驟 4/5：送出驗證請求到系統...");
+        const query = new URLSearchParams(payload).toString();
+
         let response;
         try {
-          response = await fetch(GAS_URL, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json"
-            },
-            body: JSON.stringify(payload)
+          response = await fetch(`${GAS_URL}?${query}`, {
+            method: "GET"
           });
         } catch (fetchErr) {
           throw new Error(
@@ -206,7 +197,6 @@
           );
         }
 
-        // Step 4.5: HTTP 狀態
         const rawText = await response.text();
 
         if (!response.ok) {
@@ -217,7 +207,7 @@
           );
         }
 
-        // Step 5: parse JSON
+        // Step 5
         setStep("步驟 5/5：解析系統回應...");
         let result;
         try {
@@ -230,7 +220,6 @@
           );
         }
 
-        // Step 6: business result
         if (result.ok) {
           setSuccess(
             "✅ 綁定成功",
@@ -242,10 +231,10 @@
               liff.closeWindow();
             } catch (_) {}
           }, 1800);
+
           return;
         }
 
-        // 業務邏輯失敗（例如已綁定）
         setError(
           "⚠️ 驗證未完成",
           result.error || "系統已回覆失敗訊息",
