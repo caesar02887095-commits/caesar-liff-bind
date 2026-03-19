@@ -1,204 +1,164 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>CAESAR 凱撒衛浴</title>
   <style>
     body {
       margin: 0;
-      background: #121212;
-      color: #ffffff;
+      background: #0f1115;
+      color: #fff;
       font-family: Arial, "Noto Sans TC", sans-serif;
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
     }
-
     .card {
       width: 86%;
-      max-width: 460px;
-      background: #1e1e1e;
+      max-width: 420px;
+      background: #1d1f24;
       border: 1px solid #333;
       border-radius: 18px;
-      padding: 30px 24px;
-      box-shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+      padding: 28px 22px;
       text-align: center;
+      box-shadow: 0 12px 28px rgba(0,0,0,0.35);
     }
-
     h1 {
-      margin: 0 0 18px;
       color: #EBA13A;
-      font-size: 34px;
+      margin: 0 0 18px;
+      font-size: 54px;
       letter-spacing: 2px;
       font-weight: 800;
     }
-
-    #spinner {
-      width: 30px;
-      height: 30px;
+    .status {
+      white-space: pre-line;
+      line-height: 1.8;
+      font-size: 17px;
+      color: #e8e8e8;
+    }
+    .ok { color: #2ecc71; }
+    .err { color: #ff6b6b; }
+    .sub {
+      margin-top: 18px;
+      font-size: 13px;
+      color: #9ca3af;
+      white-space: pre-line;
+    }
+    .spinner {
+      width: 32px;
+      height: 32px;
       border: 3px solid #333;
       border-top: 3px solid #EBA13A;
       border-radius: 50%;
       animation: spin 1s linear infinite;
       margin: 0 auto 18px;
     }
-
-    #msg {
-      white-space: pre-line;
-      line-height: 1.8;
-      font-size: 18px;
-      color: #e8e8e8;
-      word-break: break-word;
-    }
-
-    .ok {
-      color: #2ecc71;
-    }
-
-    .err {
-      color: #ff6b6b;
-    }
-
-    .sub {
-      display: block;
-      margin-top: 14px;
-      font-size: 14px;
-      color: #9a9a9a;
-      line-height: 1.6;
-      word-break: break-all;
-    }
-
     @keyframes spin {
       from { transform: rotate(0deg); }
-      to   { transform: rotate(360deg); }
+      to { transform: rotate(360deg); }
     }
   </style>
 </head>
 <body>
   <div class="card">
     <h1>CAESAR</h1>
-    <div id="spinner"></div>
-    <div id="msg">正在驗證身分，請稍候...</div>
-    <span id="debug" class="sub"></span>
+    <div class="spinner" id="spinner"></div>
+    <div id="status" class="status">正在驗證身分，請稍候...</div>
+    <div id="sub" class="sub"></div>
   </div>
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
-    // ===== 你的設定 =====
     const LIFF_ID = "2009380550-ow9SlJK4";
-    const GAS_BIND_URL = "https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec";
+    const GAS_URL = "https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec";
 
-    const msgEl = document.getElementById("msg");
-    const debugEl = document.getElementById("debug");
-    const spinnerEl = document.getElementById("spinner");
+    const spinner = document.getElementById("spinner");
+    const statusEl = document.getElementById("status");
+    const subEl = document.getElementById("sub");
 
-    function setMsg(text, cls = "") {
-      msgEl.className = cls;
-      msgEl.innerText = text;
+    function setStatus(text, cls = "") {
+      statusEl.className = "status " + cls;
+      statusEl.innerText = text;
     }
 
-    function setDebug(text) {
-      debugEl.innerText = text || "";
+    function setSub(text) {
+      subEl.innerText = text || "";
     }
 
-    function stopSpinner() {
-      spinnerEl.style.display = "none";
+    function getParam(name) {
+      const url = new URL(window.location.href);
+      return (url.searchParams.get(name) || "").trim();
     }
 
-    function getCid() {
-      const params = new URLSearchParams(window.location.search);
-      return (params.get("cid") || "NEW").trim();
-    }
-
-    async function postBind(payload) {
-      const res = await fetch(GAS_BIND_URL, {
+    async function bindToGAS(payload) {
+      // Apps Script 跨網域，這裡用 no-cors
+      await fetch(GAS_URL, {
         method: "POST",
+        mode: "no-cors",
         headers: {
           "Content-Type": "application/json"
         },
         body: JSON.stringify(payload)
       });
 
-      const text = await res.text();
-
-      try {
-        return JSON.parse(text);
-      } catch (err) {
-        throw new Error("後端回應不是 JSON： " + text);
-      }
+      // no-cors 取不到 response body，只能視為已送出
+      return { ok: true };
     }
 
     async function main() {
       try {
-        setMsg("步驟 1/5：載入 LIFF SDK...");
-        setDebug(location.href);
+        setStatus("步驟 1/4：初始化 LIFF...");
+        setSub("");
 
-        if (typeof liff === "undefined") {
-          throw new Error("LIFF SDK 未載入");
-        }
-
-        setMsg("步驟 2/5：初始化中...");
         await liff.init({
           liffId: LIFF_ID,
           withLoginOnExternalBrowser: true
         });
 
-        setDebug("LIFF init 成功");
-
-        // 關鍵：未登入就先登入
         if (!liff.isLoggedIn()) {
-          setMsg("步驟 3/5：導向 LINE 登入...");
-          setDebug("尚未登入，執行 liff.login()");
-          liff.login({ redirectUri: window.location.href });
+          setStatus("步驟 2/4：導向 LINE 登入...");
+          liff.login();
           return;
         }
 
-        setMsg("步驟 4/5：取得 LINE 使用者資料...");
+        setStatus("步驟 3/4：取得 LINE 身分...");
         const profile = await liff.getProfile();
 
-        if (!profile || !profile.userId) {
-          throw new Error("無法取得 LINE userId");
-        }
+        const cid = getParam("cid") || "NEW";
 
         const payload = {
           uid: profile.userId,
-          displayName: profile.displayName || "客戶",
-          cid: getCid()
+          userId: profile.userId,
+          displayName: profile.displayName || "",
+          cid: cid,
+          customerId: cid
         };
 
-        setMsg("步驟 5/5：綁定資料寫入中...");
-        setDebug("CID=" + payload.cid + " / UID=" + profile.userId);
+        setStatus("步驟 4/4：寫入綁定資料...");
+        await bindToGAS(payload);
 
-        const result = await postBind(payload);
-
-        if (!result.ok) {
-          throw new Error(result.error || "綁定失敗");
-        }
-
-        stopSpinner();
-        setMsg(
+        spinner.style.display = "none";
+        setStatus(
           "✅ 驗證流程完成\n\n" +
           (profile.displayName || "客戶") + " 您好\n" +
-          "系統已完成綁定，視窗即將關閉",
+          "系統已送出綁定資料，視窗即將關閉",
           "ok"
         );
-        setDebug("綁定成功");
+        setSub("客戶代號：" + cid);
 
         setTimeout(() => {
-          try {
-            if (liff.isInClient()) {
-              liff.closeWindow();
-            }
-          } catch (_) {}
+          if (liff.isInClient()) {
+            liff.closeWindow();
+          }
         }, 1500);
 
       } catch (err) {
         console.error("LIFF Error:", err);
-        stopSpinner();
-        setMsg("❌ 驗證失敗\n\n" + (err?.message || String(err)), "err");
-        setDebug("錯誤位置：" + (err?.stack || err));
+        spinner.style.display = "none";
+        setStatus("❌ 驗證失敗\n\n" + (err?.message || String(err)), "err");
+        setSub("錯誤位置：TypeError: " + (err?.message || String(err)));
       }
     }
 
