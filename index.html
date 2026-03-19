@@ -23,7 +23,7 @@
       background: #1e1e1e;
       border: 1px solid #333;
       width: 85%;
-      max-width: 420px;
+      max-width: 460px;
       box-shadow: 0 10px 30px rgba(0,0,0,0.5);
     }
 
@@ -47,6 +47,7 @@
       color: #BBBBBB;
       line-height: 1.7;
       white-space: pre-line;
+      word-break: break-word;
     }
 
     .success {
@@ -64,7 +65,28 @@
     .sub {
       color: #999;
       font-size: 14px;
+      margin-top: 12px;
+      white-space: pre-line;
+      word-break: break-word;
+    }
+
+    .step {
+      color: #EBA13A;
+      font-size: 14px;
       margin-top: 10px;
+    }
+
+    .debug {
+      color: #888;
+      font-size: 12px;
+      margin-top: 14px;
+      text-align: left;
+      background: #151515;
+      border: 1px solid #2a2a2a;
+      border-radius: 8px;
+      padding: 12px;
+      white-space: pre-wrap;
+      word-break: break-word;
     }
 
     @keyframes spin {
@@ -78,6 +100,8 @@
     <h2>CAESAR</h2>
     <div id="loader"></div>
     <p id="msg">正在驗證身分，請稍候...</p>
+    <div id="detail" class="sub"></div>
+    <div id="debug" class="debug" style="display:none;"></div>
   </div>
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -85,26 +109,74 @@
     const LIFF_ID = "2009380550-ow9SlJK4";
     const GAS_URL = "https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec";
 
-    function setMessage(html, className = "") {
-      const loader = document.getElementById("loader");
-      const msg = document.getElementById("msg");
-      loader.style.display = "none";
-      msg.className = className;
-      msg.innerHTML = html;
+    let currentStep = "未開始";
+
+    function setStep(stepText) {
+      currentStep = stepText;
+      document.getElementById("msg").innerHTML = stepText;
+    }
+
+    function setSuccess(titleHtml, detailHtml = "") {
+      document.getElementById("loader").style.display = "none";
+      document.getElementById("msg").innerHTML = titleHtml;
+      document.getElementById("msg").className = "success";
+      document.getElementById("detail").innerHTML = detailHtml;
+    }
+
+    function setError(titleHtml, detailHtml = "", debugText = "") {
+      document.getElementById("loader").style.display = "none";
+      document.getElementById("msg").innerHTML = titleHtml;
+      document.getElementById("msg").className = "error";
+      document.getElementById("detail").innerHTML = detailHtml;
+
+      const debugEl = document.getElementById("debug");
+      if (debugText) {
+        debugEl.style.display = "block";
+        debugEl.textContent = debugText;
+      } else {
+        debugEl.style.display = "none";
+        debugEl.textContent = "";
+      }
+    }
+
+    function stringifyError(err) {
+      if (!err) return "未知錯誤";
+      if (typeof err === "string") return err;
+      if (err.stack) return err.stack;
+      if (err.message) return err.message;
+      try {
+        return JSON.stringify(err);
+      } catch (_) {
+        return String(err);
+      }
     }
 
     async function main() {
       try {
+        // Step 0: 基本資訊
+        const urlParams = new URLSearchParams(window.location.search);
+        const cid = urlParams.get("cid") || "NEW";
+
+        // Step 1: SDK 是否存在
+        setStep("步驟 1/5：檢查 LIFF SDK...");
+        if (typeof liff === "undefined") {
+          throw new Error("LIFF SDK 未載入，可能是網路或 LINE SDK 載入失敗");
+        }
+
+        // Step 2: init
+        setStep("步驟 2/5：初始化 LIFF...");
         await liff.init({ liffId: LIFF_ID });
 
+        // Step 2.5: login
         if (!liff.isLoggedIn()) {
+          setStep("步驟 2/5：尚未登入，導向 LINE 登入...");
           liff.login();
           return;
         }
 
+        // Step 3: profile
+        setStep("步驟 3/5：取得 LINE 使用者資料...");
         const profile = await liff.getProfile();
-        const urlParams = new URLSearchParams(window.location.search);
-        const cid = urlParams.get("cid") || "NEW";
 
         const payload = {
           uid: profile.userId,
@@ -112,46 +184,93 @@
           cid: cid
         };
 
-        const response = await fetch(GAS_URL, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify(payload)
-        });
-
-        const text = await response.text();
-
-        let result;
+        // Step 4: fetch GAS
+        setStep("步驟 4/5：送出驗證請求到系統...");
+        let response;
         try {
-          result = JSON.parse(text);
-        } catch (e) {
-          throw new Error("後端回傳格式異常：" + text);
+          response = await fetch(GAS_URL, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify(payload)
+          });
+        } catch (fetchErr) {
+          throw new Error(
+            "無法連線到 Apps Script。\n" +
+            "請優先檢查：\n" +
+            "1. Web App 是否重新部署\n" +
+            "2. GAS URL 是否為最新 exec\n" +
+            "3. Web App 權限是否允許任何人存取\n" +
+            "原始訊息：" + stringifyError(fetchErr)
+          );
         }
 
+        // Step 4.5: HTTP 狀態
+        const rawText = await response.text();
+
+        if (!response.ok) {
+          throw new Error(
+            "系統有回應，但 HTTP 狀態異常。\n" +
+            "HTTP " + response.status + "\n" +
+            "回應內容：" + rawText.substring(0, 300)
+          );
+        }
+
+        // Step 5: parse JSON
+        setStep("步驟 5/5：解析系統回應...");
+        let result;
+        try {
+          result = JSON.parse(rawText);
+        } catch (parseErr) {
+          throw new Error(
+            "系統回傳格式不是 JSON。\n" +
+            "這通常表示 Apps Script 端出錯，或回了 HTML/錯誤頁。\n" +
+            "原始內容：" + rawText.substring(0, 300)
+          );
+        }
+
+        // Step 6: business result
         if (result.ok) {
-          setMessage(
-            `<div class="success">✅ 綁定成功</div>
-             <div class="sub">${profile.displayName} 您好<br>系統已完成通知綁定，視窗即將關閉</div>`
+          setSuccess(
+            "✅ 綁定成功",
+            `${profile.displayName} 您好<br>系統已完成通知綁定，視窗即將關閉`
           );
 
           setTimeout(() => {
-            liff.closeWindow();
+            try {
+              liff.closeWindow();
+            } catch (_) {}
           }, 1800);
-
-        } else {
-          const errMsg = result.error || "綁定失敗，請稍後再試";
-          setMessage(
-            `<div class="error">⚠️ ${errMsg}</div>
-             <div class="sub">如需協助，請聯絡公司處理</div>`
-          );
+          return;
         }
 
+        // 業務邏輯失敗（例如已綁定）
+        setError(
+          "⚠️ 驗證未完成",
+          result.error || "系統已回覆失敗訊息",
+          [
+            "步驟位置：" + currentStep,
+            "LIFF ID：" + LIFF_ID,
+            "CID：" + cid,
+            "後端回應：" + JSON.stringify(result, null, 2)
+          ].join("\n")
+        );
+
       } catch (err) {
-        console.error("LIFF Frontend Error:", err);
-        setMessage(
-          `<div class="error">❌ 系統連線異常</div>
-           <div class="sub">${err.message || "請稍後再試"}</div>`
+        const detail = stringifyError(err);
+
+        setError(
+          "❌ 系統連線異常",
+          detail,
+          [
+            "步驟位置：" + currentStep,
+            "LIFF ID：" + LIFF_ID,
+            "GAS URL：" + GAS_URL,
+            "UserAgent：" + navigator.userAgent,
+            "錯誤內容：",
+            detail
+          ].join("\n")
         );
       }
     }
