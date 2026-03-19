@@ -1,72 +1,83 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CAESAR 凱撒衛浴</title>
   <style>
     body {
-      margin: 0;
-      background: #0f1115;
-      color: #fff;
-      font-family: Arial, "Noto Sans TC", sans-serif;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-    }
-    .card {
-      width: 86%;
-      max-width: 420px;
-      background: #1d1f24;
-      border: 1px solid #333;
-      border-radius: 18px;
-      padding: 28px 22px;
+      background: #121212;
+      color: white;
       text-align: center;
-      box-shadow: 0 12px 28px rgba(0,0,0,0.35);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      margin: 0;
+      font-family: sans-serif;
     }
-    h1 {
+
+    #card {
+      padding: 40px;
+      border-radius: 15px;
+      background: #1e1e1e;
+      border: 1px solid #333;
+      width: 85%;
+      max-width: 420px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    }
+
+    h2 {
       color: #EBA13A;
-      margin: 0 0 18px;
-      font-size: 54px;
-      letter-spacing: 2px;
-      font-weight: 800;
+      letter-spacing: 5px;
+      margin-bottom: 20px;
     }
-    .status {
-      white-space: pre-line;
-      line-height: 1.8;
-      font-size: 17px;
-      color: #e8e8e8;
-    }
-    .ok { color: #2ecc71; }
-    .err { color: #ff6b6b; }
-    .sub {
-      margin-top: 18px;
-      font-size: 13px;
-      color: #9ca3af;
-      white-space: pre-line;
-    }
-    .spinner {
-      width: 32px;
-      height: 32px;
+
+    #loader {
       border: 3px solid #333;
       border-top: 3px solid #EBA13A;
       border-radius: 50%;
+      width: 30px;
+      height: 30px;
       animation: spin 1s linear infinite;
-      margin: 0 auto 18px;
+      margin: 20px auto;
     }
+
+    p {
+      color: #BBBBBB;
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+
+    .success {
+      color: #2ecc71;
+      font-weight: bold;
+      font-size: 18px;
+    }
+
+    .error {
+      color: #ff6b6b;
+      font-weight: bold;
+      font-size: 17px;
+    }
+
+    .sub {
+      color: #999;
+      font-size: 14px;
+      margin-top: 10px;
+    }
+
     @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
   </style>
 </head>
 <body>
-  <div class="card">
-    <h1>CAESAR</h1>
-    <div class="spinner" id="spinner"></div>
-    <div id="status" class="status">正在驗證身分，請稍候...</div>
-    <div id="sub" class="sub"></div>
+  <div id="card">
+    <h2>CAESAR</h2>
+    <div id="loader"></div>
+    <p id="msg">正在驗證身分，請稍候...</p>
   </div>
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -74,91 +85,74 @@
     const LIFF_ID = "2009380550-ow9SlJK4";
     const GAS_URL = "https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec";
 
-    const spinner = document.getElementById("spinner");
-    const statusEl = document.getElementById("status");
-    const subEl = document.getElementById("sub");
-
-    function setStatus(text, cls = "") {
-      statusEl.className = "status " + cls;
-      statusEl.innerText = text;
-    }
-
-    function setSub(text) {
-      subEl.innerText = text || "";
-    }
-
-    function getParam(name) {
-      const url = new URL(window.location.href);
-      return (url.searchParams.get(name) || "").trim();
-    }
-
-    async function bindToGAS(payload) {
-      // Apps Script 跨網域，這裡用 no-cors
-      await fetch(GAS_URL, {
-        method: "POST",
-        mode: "no-cors",
-        headers: {
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify(payload)
-      });
-
-      // no-cors 取不到 response body，只能視為已送出
-      return { ok: true };
+    function setMessage(html, className = "") {
+      const loader = document.getElementById("loader");
+      const msg = document.getElementById("msg");
+      loader.style.display = "none";
+      msg.className = className;
+      msg.innerHTML = html;
     }
 
     async function main() {
       try {
-        setStatus("步驟 1/4：初始化 LIFF...");
-        setSub("");
-
-        await liff.init({
-          liffId: LIFF_ID,
-          withLoginOnExternalBrowser: true
-        });
+        await liff.init({ liffId: LIFF_ID });
 
         if (!liff.isLoggedIn()) {
-          setStatus("步驟 2/4：導向 LINE 登入...");
           liff.login();
           return;
         }
 
-        setStatus("步驟 3/4：取得 LINE 身分...");
         const profile = await liff.getProfile();
-
-        const cid = getParam("cid") || "NEW";
+        const urlParams = new URLSearchParams(window.location.search);
+        const cid = urlParams.get("cid") || "NEW";
 
         const payload = {
           uid: profile.userId,
-          userId: profile.userId,
-          displayName: profile.displayName || "",
-          cid: cid,
-          customerId: cid
+          displayName: profile.displayName || "客戶",
+          cid: cid
         };
 
-        setStatus("步驟 4/4：寫入綁定資料...");
-        await bindToGAS(payload);
+        const response = await fetch(GAS_URL, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify(payload)
+        });
 
-        spinner.style.display = "none";
-        setStatus(
-          "✅ 驗證流程完成\n\n" +
-          (profile.displayName || "客戶") + " 您好\n" +
-          "系統已送出綁定資料，視窗即將關閉",
-          "ok"
-        );
-        setSub("客戶代號：" + cid);
+        const text = await response.text();
 
-        setTimeout(() => {
-          if (liff.isInClient()) {
+        let result;
+        try {
+          result = JSON.parse(text);
+        } catch (e) {
+          throw new Error("後端回傳格式異常：" + text);
+        }
+
+        if (result.ok) {
+          setMessage(
+            `<div class="success">✅ 綁定成功</div>
+             <div class="sub">${profile.displayName} 您好<br>系統已完成通知綁定，視窗即將關閉</div>`
+          );
+
+          setTimeout(() => {
             liff.closeWindow();
-          }
-        }, 1500);
+          }, 1800);
+
+        } else {
+          const errMsg = result.error || "綁定失敗，請稍後再試";
+          setMessage(
+            `<div class="error">⚠️ ${errMsg}</div>
+             <div class="sub">如需協助，請聯絡公司處理</div>`
+          );
+        }
 
       } catch (err) {
-        console.error("LIFF Error:", err);
-        spinner.style.display = "none";
-        setStatus("❌ 驗證失敗\n\n" + (err?.message || String(err)), "err");
-        setSub("錯誤位置：TypeError: " + (err?.message || String(err)));
+        console.error("LIFF Frontend Error:", err);
+        setMessage(
+          `<div class="error">❌ 系統連線異常</div>
+           <div class="sub">${err.message || "請稍後再試"}</div>`
+        );
       }
     }
 
