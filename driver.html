@@ -12,166 +12,178 @@
       background: #f5f6f8;
       color: #222;
     }
-
     .wrap {
       max-width: 720px;
       margin: 0 auto;
       padding: 16px;
     }
-
     .topbar {
       background: #2c3e50;
       color: #fff;
-      border-radius: 12px;
-      padding: 16px;
+      border-radius: 16px;
+      padding: 18px;
       margin-bottom: 16px;
     }
-
     .title {
-      font-size: 20px;
+      font-size: 22px;
       font-weight: bold;
       margin-bottom: 8px;
     }
-
     .sub {
-      font-size: 14px;
-      opacity: 0.9;
-      line-height: 1.6;
+      font-size: 15px;
+      line-height: 1.7;
+      opacity: 0.95;
     }
-
     .tabs {
       display: flex;
       gap: 8px;
       margin: 16px 0;
     }
-
     .tab-btn {
       flex: 1;
       border: none;
-      border-radius: 10px;
-      padding: 12px;
-      font-size: 15px;
+      border-radius: 12px;
+      padding: 14px;
+      font-size: 16px;
       font-weight: bold;
       cursor: pointer;
       background: #d9dde3;
       color: #333;
     }
-
     .tab-btn.active {
       background: #EBA13A;
       color: #fff;
     }
-
     .panel {
-      background: #fff;
-      border-radius: 12px;
-      padding: 14px;
-      margin-bottom: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    }
-
-    .status-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 12px;
-      font-size: 14px;
-      color: #555;
-    }
-
-    .card {
       background: #fff;
       border-radius: 14px;
       padding: 14px;
       margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      font-size: 15px;
+      color: #555;
+    }
+    .refresh-btn {
+      border: none;
+      border-radius: 12px;
+      padding: 12px 18px;
+      font-size: 15px;
+      font-weight: bold;
+      background: #d9dde3;
+      color: #333;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 16px;
+      margin-bottom: 14px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     }
-
     .card-top {
       display: flex;
       justify-content: space-between;
-      gap: 8px;
       align-items: center;
+      gap: 10px;
       margin-bottom: 10px;
     }
-
-    .order-badge {
-      background: #2c3e50;
+    .left-badges {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    .badge-sort {
+      background: #0f172a;
       color: #fff;
       border-radius: 999px;
-      padding: 4px 10px;
+      padding: 5px 12px;
       font-size: 13px;
       font-weight: bold;
-      white-space: nowrap;
     }
-
-    .route-badge {
+    .badge-route {
       background: #eef1f5;
       color: #333;
       border-radius: 999px;
-      padding: 4px 10px;
+      padding: 5px 12px;
+      font-size: 13px;
+    }
+    .badge-taskid {
+      background: #7c3aed;
+      color: #fff;
+      border-radius: 999px;
+      padding: 5px 12px;
       font-size: 12px;
-      white-space: nowrap;
-    }
-
-    .display-name {
-      font-size: 18px;
       font-weight: bold;
-      margin-bottom: 6px;
-      line-height: 1.4;
     }
-
+    .display-name {
+      font-size: 30px;
+      font-weight: bold;
+      line-height: 1.45;
+      margin-bottom: 10px;
+    }
     .meta {
-      font-size: 14px;
-      color: #555;
+      font-size: 17px;
+      color: #444;
+      line-height: 1.8;
+    }
+    .address-box {
+      margin-top: 10px;
+      background: #fff7ed;
+      border: 1px solid #fdba74;
+      color: #9a3412;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 15px;
       line-height: 1.7;
     }
-
     .btn-row {
       display: flex;
-      gap: 8px;
-      margin-top: 12px;
+      gap: 10px;
+      margin-top: 14px;
     }
-
     .btn {
       flex: 1;
       border: none;
-      border-radius: 10px;
-      padding: 12px;
-      font-size: 15px;
+      border-radius: 12px;
+      padding: 14px 10px;
+      font-size: 17px;
       font-weight: bold;
       cursor: pointer;
     }
-
     .btn-nav {
       background: #dbeafe;
       color: #1d4ed8;
     }
-
     .btn-done {
       background: #16a34a;
       color: #fff;
     }
-
     .btn-special {
-      background: #f59e0b;
+      background: #d97706;
       color: #fff;
     }
-
     .empty {
       text-align: center;
       color: #666;
       padding: 36px 16px;
       background: #fff;
       border-radius: 12px;
+      font-size: 16px;
     }
-
     .loading {
       text-align: center;
       padding: 30px 16px;
       color: #666;
+      font-size: 16px;
     }
-
     .error {
       background: #fee2e2;
       color: #991b1b;
@@ -181,7 +193,6 @@
       font-size: 14px;
       line-height: 1.6;
     }
-
     .footer-note {
       margin-top: 16px;
       font-size: 12px;
@@ -208,7 +219,7 @@
     <div class="panel">
       <div class="status-bar">
         <div id="summaryText">讀取中...</div>
-        <button class="tab-btn" style="max-width:140px;" onclick="loadTasks()">重新整理</button>
+        <button class="refresh-btn" onclick="loadTasks()">重新整理</button>
       </div>
     </div>
 
@@ -223,22 +234,13 @@
   </div>
 
   <script>
-    /*************************************************
-     * 你要自行修改的 2 個地方
-     *************************************************/
-    const LIFF_ID = '2009380550-ow9SlJK4';
-    const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
+    const LIFF_ID = '請填入你的LIFF_ID';
+    const GAS_WEBAPP_URL = '請填入你的GAS部署網址';
 
-    /*************************************************
-     * 全域狀態
-     *************************************************/
     let currentDriverName = '';
     let currentPeriod = getDefaultPeriod();
     let currentTasks = [];
 
-    /*************************************************
-     * 頁面初始化
-     *************************************************/
     async function initPage() {
       try {
         setTabs();
@@ -251,9 +253,6 @@
         }
 
         const profile = await liff.getProfile();
-
-        // 先用 LINE 顯示名稱當司機名稱
-        // 若你之後要改成 UID -> DRIVER_DB 對應，也可以再升級
         currentDriverName = profile.displayName || '';
 
         document.getElementById('driverInfo').innerHTML =
@@ -265,9 +264,6 @@
       }
     }
 
-    /*************************************************
-     * 任務讀取
-     *************************************************/
     async function loadTasks() {
       try {
         clearError();
@@ -308,9 +304,6 @@
       document.getElementById('tabPM').classList.toggle('active', currentPeriod === '下午');
     }
 
-    /*************************************************
-     * 任務卡片渲染
-     *************************************************/
     function renderLoading() {
       document.getElementById('summaryText').textContent = '載入中...';
       document.getElementById('taskContainer').innerHTML =
@@ -333,27 +326,36 @@
       }
 
       const html = tasks.map(task => {
-        const navButton = task.address
-          ? `<button class="btn btn-nav" onclick="openMap('${escapeJs(task.address)}')">導航</button>`
+        const navTarget = getNavigationTarget(task);
+        const shortTaskId = getShortTaskId(task.taskId);
+        const isStore = isStoreTask(task);
+
+        const addressBlock = !isStore
+          ? `
+            <div class="address-box">
+              <b>非送店 / 工地配送</b><br>
+              地址：${escapeHtml(task.address || '未填')}<br>
+              電話：${escapeHtml(task.phone || '未填')}
+            </div>
+          `
           : '';
 
         return `
           <div class="card">
             <div class="card-top">
-              <div class="order-badge">順序 ${escapeHtml(task.sortOrder || '未排')}</div>
-              <div class="route-badge">${escapeHtml(task.routeGroup || '未分組')}</div>
+              <div class="left-badges">
+                <div class="badge-sort">順序 ${escapeHtml(task.sortOrder || '未排')}</div>
+                <div class="badge-route">${escapeHtml(task.routeGroup || '未分組')}</div>
+              </div>
+              <div class="badge-taskid">${escapeHtml(shortTaskId)}</div>
             </div>
 
             <div class="display-name">${escapeHtml(task.displayName || '')}</div>
 
-            <div class="meta">
-              配送時段：${escapeHtml(task.deliveryPeriod || '')}<br>
-              單號：${escapeHtml(task.orderNo || '')}<br>
-              店名：${escapeHtml(task.shopName || '')}
-            </div>
+            ${addressBlock}
 
             <div class="btn-row">
-              ${navButton}
+              <button class="btn btn-nav" onclick="openMap('${escapeJs(navTarget)}')">導航</button>
               <button class="btn btn-done" onclick="submitStatus('${escapeJs(task.taskId)}','DONE')">完成配送</button>
               <button class="btn btn-special" onclick="submitSpecial('${escapeJs(task.taskId)}')">特殊回報</button>
             </div>
@@ -364,25 +366,38 @@
       document.getElementById('taskContainer').innerHTML = html;
     }
 
-    /*************************************************
-     * 導航
-     *************************************************/
-    function openMap(address) {
-      if (!address) return;
-      const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`;
+    function isStoreTask(task) {
+      const addr = String(task.address || '').trim();
+      return !addr || addr === '送店';
+    }
+
+    function getNavigationTarget(task) {
+      if (isStoreTask(task)) {
+        return task.shopName || task.displayName || '';
+      }
+      return task.address || task.shopName || '';
+    }
+
+    function getShortTaskId(taskId) {
+      const s = String(taskId || '').trim();
+      if (!s) return '#未編號';
+      const parts = s.split('_');
+      const tail = parts[parts.length - 1] || s;
+      return '#' + tail;
+    }
+
+    function openMap(target) {
+      if (!target) return;
+      const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(target)}`;
       window.open(url, '_blank');
     }
 
-    /*************************************************
-     * 狀態回報
-     *************************************************/
     async function submitStatus(taskId, actionType, note = '') {
       try {
         let gpsInfo = '';
         try {
           gpsInfo = await getCurrentGpsText();
         } catch (gpsErr) {
-          // 不阻斷回報流程
           gpsInfo = '';
         }
 
@@ -397,7 +412,7 @@
 
         const resp = await fetch(GAS_WEBAPP_URL, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify(payload)
         });
 
@@ -448,9 +463,6 @@
       await submitStatus(taskId, actionType, note);
     }
 
-    /*************************************************
-     * GPS
-     *************************************************/
     function getCurrentGpsText() {
       return new Promise((resolve, reject) => {
         if (!navigator.geolocation) {
@@ -464,9 +476,7 @@
             const lng = pos.coords.longitude;
             resolve(`${lat},${lng}`);
           },
-          err => {
-            reject(err);
-          },
+          err => reject(err),
           {
             enableHighAccuracy: true,
             timeout: 5000,
@@ -476,9 +486,6 @@
       });
     }
 
-    /*************************************************
-     * 小工具
-     *************************************************/
     function getDefaultPeriod() {
       const now = new Date();
       return now.getHours() < 12 ? '上午' : '下午';
