@@ -14,42 +14,42 @@
     }
 
     .wrap {
-      max-width: 560px;
+      max-width: 520px;
       margin: 0 auto;
-      padding: 12px;
+      padding: 10px;
     }
 
     .topbar {
       background: #2c3e50;
       color: #fff;
       border-radius: 14px;
-      padding: 16px;
-      margin-bottom: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
     }
 
     .title {
-      font-size: 20px;
+      font-size: 19px;
       font-weight: bold;
       margin-bottom: 6px;
     }
 
     .sub {
       font-size: 14px;
-      line-height: 1.6;
+      line-height: 1.55;
       opacity: 0.95;
     }
 
     .tabs {
       display: flex;
       gap: 8px;
-      margin: 14px 0;
+      margin: 12px 0;
     }
 
     .tab-btn {
       flex: 1;
       border: none;
       border-radius: 10px;
-      padding: 12px;
+      padding: 11px;
       font-size: 15px;
       font-weight: bold;
       cursor: pointer;
@@ -66,7 +66,7 @@
       background: #fff;
       border-radius: 12px;
       padding: 12px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
 
@@ -74,7 +74,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      gap: 10px;
+      gap: 8px;
       font-size: 14px;
       color: #555;
     }
@@ -82,7 +82,7 @@
     .refresh-btn {
       border: none;
       border-radius: 10px;
-      padding: 10px 14px;
+      padding: 9px 12px;
       font-size: 14px;
       font-weight: bold;
       background: #d9dde3;
@@ -94,17 +94,16 @@
     .card {
       background: #fff;
       border-radius: 14px;
-      padding: 14px;
-      margin-bottom: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-      transition: opacity 0.2s ease, transform 0.2s ease, background 0.2s ease;
+      transition: all 0.2s ease;
     }
 
     .card.done {
-      background: #f1f5f9;
-      opacity: 0.55;
-      transform: scale(0.98);
-      margin-left: 10px;
+      background: #e5e7eb;
+      opacity: 0.62;
+      margin-left: 12px;
     }
 
     .card-top {
@@ -112,24 +111,24 @@
       justify-content: space-between;
       align-items: flex-start;
       gap: 8px;
-      margin-bottom: 10px;
+      margin-bottom: 8px;
     }
 
     .left-badges {
       display: flex;
       gap: 6px;
-      flex-wrap: wrap;
       align-items: center;
+      flex-wrap: wrap;
     }
 
     .badge-sort {
       background: #0f172a;
       color: #fff;
       border-radius: 999px;
-      padding: 4px 10px;
+      padding: 4px 9px;
       font-size: 12px;
       font-weight: bold;
-      min-width: 22px;
+      min-width: 20px;
       text-align: center;
     }
 
@@ -137,7 +136,7 @@
       background: #eef1f5;
       color: #333;
       border-radius: 999px;
-      padding: 4px 10px;
+      padding: 4px 9px;
       font-size: 12px;
     }
 
@@ -145,59 +144,78 @@
       background: #e5e7eb;
       color: #374151;
       border-radius: 10px;
-      padding: 6px 10px;
+      padding: 6px 9px;
       font-size: 11px;
       font-weight: bold;
-      line-height: 1.5;
+      line-height: 1.45;
       text-align: right;
-      max-width: 180px;
+      max-width: 165px;
       word-break: break-word;
     }
 
     .display-name {
-      font-size: 20px;
+      font-size: 17px;
       font-weight: bold;
       line-height: 1.35;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
       word-break: break-word;
     }
 
     .address-box {
-      margin-top: 10px;
+      margin-top: 8px;
       background: #fff7ed;
       border: 1px solid #fdba74;
       color: #9a3412;
       border-radius: 10px;
-      padding: 10px;
-      font-size: 14px;
-      line-height: 1.6;
+      padding: 9px 10px;
+      font-size: 13px;
+      line-height: 1.55;
     }
 
     .depart-box {
-      margin-top: 10px;
+      margin-top: 8px;
       background: #ecfeff;
       border: 1px solid #67e8f9;
       color: #0f766e;
       border-radius: 10px;
-      padding: 10px;
-      font-size: 14px;
-      line-height: 1.6;
+      padding: 9px 10px;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .travel-connector {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: #64748b;
+      font-size: 13px;
+      margin: 2px 0 10px;
+    }
+
+    .travel-icon {
+      font-size: 18px;
     }
 
     .btn-row {
       display: flex;
       gap: 8px;
-      margin-top: 12px;
+      margin-top: 10px;
     }
 
     .btn {
       flex: 1;
       border: none;
       border-radius: 10px;
-      padding: 12px 8px;
+      padding: 11px 8px;
       font-size: 15px;
       font-weight: bold;
       cursor: pointer;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
     }
 
     .btn-nav {
@@ -223,7 +241,7 @@
     .empty {
       text-align: center;
       color: #666;
-      padding: 32px 16px;
+      padding: 28px 14px;
       background: #fff;
       border-radius: 12px;
       font-size: 15px;
@@ -231,7 +249,7 @@
 
     .loading {
       text-align: center;
-      padding: 28px 16px;
+      padding: 24px 14px;
       color: #666;
       font-size: 15px;
     }
@@ -239,32 +257,19 @@
     .error {
       background: #fee2e2;
       color: #991b1b;
-      padding: 12px;
+      padding: 11px;
       border-radius: 10px;
-      margin-bottom: 12px;
+      margin-bottom: 10px;
       font-size: 14px;
-      line-height: 1.6;
+      line-height: 1.55;
     }
 
     .footer-note {
-      margin-top: 14px;
+      margin-top: 12px;
       font-size: 12px;
       color: #777;
       text-align: center;
       line-height: 1.6;
-    }
-
-    .travel-box {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-top: 8px;
-      font-size: 13px;
-      color: #64748b;
-    }
-
-    .travel-icon {
-      font-size: 18px;
     }
   </style>
 </head>
@@ -307,6 +312,7 @@
     let currentPeriod = getDefaultPeriod();
     let currentTasks = [];
     let departureStarted = false;
+    let groupedStopsCache = [];
 
     async function initPage() {
       try {
@@ -394,8 +400,10 @@
 
         if (!map[key]) {
           map[key] = {
+            key,
             shopName: shopName,
             address: rawAddress,
+            phone: String(task.phone || '').trim(),
             routeGroup: task.routeGroup || '',
             sortOrder: task.sortOrder || '',
             taskIds: [],
@@ -427,6 +435,7 @@
 
     function renderTasks(tasks) {
       const grouped = groupTasksByStop(tasks);
+      groupedStopsCache = grouped;
 
       document.getElementById('summaryText').textContent =
         `共 ${grouped.length} 站 / ${tasks.length} 張待配送單`;
@@ -439,7 +448,7 @@
       const htmlParts = [];
 
       htmlParts.push(`
-        <div class="card">
+        <div class="card" id="departure-card">
           <div class="card-top">
             <div class="left-badges">
               <div class="badge-sort">起點</div>
@@ -451,14 +460,14 @@
           <div class="display-name">公司出發</div>
 
           <div class="depart-box">
-            司機出發前請先確認：<br>
-            1. 今日任務與紙本單據是否齊全<br>
-            2. 路線是否已確認<br>
-            3. 手機、導航、聯絡方式是否正常
+            出發前請確認：<br>
+            1. 紙本單據齊全<br>
+            2. 路線已確認<br>
+            3. 手機 / 導航 / 聯絡正常
           </div>
 
           <div class="btn-row">
-            <button class="btn btn-start" onclick="startDeparture()">出發</button>
+            <button class="btn btn-start" id="btn-start-departure">出發</button>
           </div>
         </div>
       `);
@@ -470,26 +479,27 @@
         const rightBadgeText = group.orderNos.join('<br>');
         const stepNo = index + 1;
 
+        if (index >= 0) {
+          htmlParts.push(`
+            <div class="travel-connector">
+              <span class="travel-icon">🚚</span>
+              <span>移動中</span>
+            </div>
+          `);
+        }
+
         const addressBlock = !isStore
           ? `
             <div class="address-box">
               <b>非送店 / 工地配送</b><br>
               地址：${escapeHtml(firstTask.address || '未填')}
-            </div>
-          `
-          : '';
-
-        const travelBox = index > 0
-          ? `
-            <div class="travel-box">
-              <span class="travel-icon">🚚</span>
-              <span>上一站移動中</span>
+              ${group.phone ? `<br>電話：${escapeHtml(group.phone)}` : ''}
             </div>
           `
           : '';
 
         htmlParts.push(`
-          <div class="card ${group.isDone ? 'done' : ''}" id="card-${escapeHtml(firstTask.taskId)}">
+          <div class="card" id="card-${escapeHtml(group.key)}">
             <div class="card-top">
               <div class="left-badges">
                 <div class="badge-sort">${escapeHtml(String(stepNo))}</div>
@@ -500,23 +510,63 @@
 
             <div class="display-name">${escapeHtml(group.shopName || '')}</div>
 
-            ${travelBox}
             ${addressBlock}
 
             <div class="btn-row">
-              <button class="btn btn-nav" onclick="openMap('${escapeJs(navTarget)}')">導航</button>
-              <button class="btn btn-done" onclick="submitGroupedStatus('${escapeJs(JSON.stringify(group.taskIds))}','DONE', '${escapeJs(firstTask.taskId)}')">完成配送</button>
-              <button class="btn btn-special" onclick="submitGroupedSpecial('${escapeJs(JSON.stringify(group.taskIds))}','${escapeJs(firstTask.taskId)}')">特殊回報</button>
+              <button class="btn btn-nav"
+                data-nav="${escapeHtml(navTarget)}">導航</button>
+
+              <button class="btn btn-done"
+                data-group-key="${escapeHtml(group.key)}"
+                data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}"
+                data-action="DONE">完成配送</button>
+
+              <button class="btn btn-special"
+                data-group-key="${escapeHtml(group.key)}"
+                data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">特殊回報</button>
             </div>
           </div>
         `);
       });
 
       document.getElementById('taskContainer').innerHTML = htmlParts.join('');
+      bindActionButtons();
+    }
+
+    function bindActionButtons() {
+      const startBtn = document.getElementById('btn-start-departure');
+      if (startBtn) {
+        startBtn.addEventListener('click', startDeparture);
+      }
+
+      document.querySelectorAll('.btn-nav').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const navTarget = btn.getAttribute('data-nav') || '';
+          openMap(navTarget);
+        });
+      });
+
+      document.querySelectorAll('.btn-done').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const taskIdsJson = decodeURIComponent(btn.getAttribute('data-taskids') || '');
+          const groupKey = btn.getAttribute('data-group-key') || '';
+          await submitGroupedStatus(taskIdsJson, 'DONE', groupKey);
+        });
+      });
+
+      document.querySelectorAll('.btn-special').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const taskIdsJson = decodeURIComponent(btn.getAttribute('data-taskids') || '');
+          const groupKey = btn.getAttribute('data-group-key') || '';
+          await submitGroupedSpecial(taskIdsJson, groupKey);
+        });
+      });
     }
 
     function startDeparture() {
       departureStarted = true;
+      const card = document.getElementById('departure-card');
+      if (card) card.classList.add('done');
       alert('已標記出發');
     }
 
@@ -539,51 +589,45 @@
     }
 
     async function submitStatus(taskId, actionType, note = '', silent = false) {
+      let gpsInfo = '';
       try {
-        let gpsInfo = '';
-        try {
-          gpsInfo = await getCurrentGpsText();
-        } catch (gpsErr) {
-          gpsInfo = '';
-        }
-
-        const payload = {
-          action: 'update_driver_status',
-          taskId: taskId,
-          driverName: currentDriverName,
-          actionType: actionType,
-          note: note,
-          gpsInfo: gpsInfo
-        };
-
-        const resp = await fetch(GAS_WEBAPP_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload)
-        });
-
-        const text = await resp.text();
-        let json = {};
-        try {
-          json = JSON.parse(text);
-        } catch (e) {
-          throw new Error(text || '回報失敗');
-        }
-
-        if (!json.ok) {
-          throw new Error(json.message || json.error || '回報失敗');
-        }
-
-        if (!silent) {
-          alert('回報成功');
-          await loadTasks();
-        }
-      } catch (err) {
-        throw err;
+        gpsInfo = await getCurrentGpsText();
+      } catch (gpsErr) {
+        gpsInfo = '';
       }
+
+      const payload = {
+        action: 'update_driver_status',
+        taskId: taskId,
+        driverName: currentDriverName,
+        actionType: actionType,
+        note: note,
+        gpsInfo: gpsInfo
+      };
+
+      const resp = await fetch(GAS_WEBAPP_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      });
+
+      const text = await resp.text();
+
+      let json = {};
+      try {
+        json = JSON.parse(text);
+      } catch (e) {
+        throw new Error(text || '回報失敗');
+      }
+
+      if (!json.ok) {
+        throw new Error(json.message || json.error || '回報失敗');
+      }
+
+      return json;
     }
 
-    async function submitGroupedStatus(taskIdsJson, actionType, anchorTaskId, note = '') {
+    async function submitGroupedStatus(taskIdsJson, actionType, groupKey, note = '') {
       let taskIds = [];
       try {
         taskIds = JSON.parse(taskIdsJson);
@@ -597,15 +641,15 @@
           await submitStatus(taskId, actionType, note, true);
         }
 
-        markCardDone(anchorTaskId);
+        markGroupDone(groupKey);
+        updateSummaryAfterDone(taskIds.length);
         alert('整站回報成功');
-        await loadTasks();
       } catch (err) {
         alert('整站回報失敗：' + (err.message || err));
       }
     }
 
-    async function submitGroupedSpecial(taskIdsJson, anchorTaskId) {
+    async function submitGroupedSpecial(taskIdsJson, groupKey) {
       let taskIds = [];
       try {
         taskIds = JSON.parse(taskIdsJson);
@@ -644,14 +688,25 @@
         return;
       }
 
-      await submitGroupedStatus(taskIdsJson, actionType, anchorTaskId, note);
+      await submitGroupedStatus(taskIdsJson, actionType, groupKey, note);
     }
 
-    function markCardDone(anchorTaskId) {
-      const card = document.getElementById(`card-${anchorTaskId}`);
-      if (card) {
-        card.classList.add('done');
-      }
+    function markGroupDone(groupKey) {
+      const card = document.getElementById(`card-${groupKey}`);
+      if (!card) return;
+
+      card.classList.add('done');
+
+      card.querySelectorAll('button').forEach(btn => {
+        btn.disabled = true;
+      });
+    }
+
+    function updateSummaryAfterDone(doneOrderCount) {
+      const remainingTasks = Math.max(0, currentTasks.length - doneOrderCount);
+      const remainingStops = Math.max(0, document.querySelectorAll('.card:not(.done)').length - 1);
+      document.getElementById('summaryText').textContent =
+        `剩 ${remainingStops} 站 / ${remainingTasks} 張待配送單`;
     }
 
     function getCurrentGpsText() {
@@ -698,15 +753,6 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
-    }
-
-    function escapeJs(str) {
-      return String(str || '')
-        .replace(/\\/g, '\\\\')
-        .replace(/'/g, "\\'")
-        .replace(/"/g, '\\"')
-        .replace(/\n/g, '\\n')
-        .replace(/\r/g, '');
     }
 
     initPage();
