@@ -12,11 +12,13 @@
       background: #f5f6f8;
       color: #222;
     }
+
     .wrap {
       max-width: 720px;
       margin: 0 auto;
       padding: 16px;
     }
+
     .topbar {
       background: #2c3e50;
       color: #fff;
@@ -24,21 +26,25 @@
       padding: 18px;
       margin-bottom: 16px;
     }
+
     .title {
       font-size: 22px;
       font-weight: bold;
       margin-bottom: 8px;
     }
+
     .sub {
       font-size: 15px;
       line-height: 1.7;
       opacity: 0.95;
     }
+
     .tabs {
       display: flex;
       gap: 8px;
       margin: 16px 0;
     }
+
     .tab-btn {
       flex: 1;
       border: none;
@@ -50,10 +56,12 @@
       background: #d9dde3;
       color: #333;
     }
+
     .tab-btn.active {
       background: #EBA13A;
       color: #fff;
     }
+
     .panel {
       background: #fff;
       border-radius: 14px;
@@ -61,6 +69,7 @@
       margin-bottom: 12px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
+
     .status-bar {
       display: flex;
       justify-content: space-between;
@@ -69,6 +78,7 @@
       font-size: 15px;
       color: #555;
     }
+
     .refresh-btn {
       border: none;
       border-radius: 12px;
@@ -80,6 +90,7 @@
       cursor: pointer;
       white-space: nowrap;
     }
+
     .card {
       background: #fff;
       border-radius: 16px;
@@ -87,6 +98,7 @@
       margin-bottom: 14px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
     }
+
     .card-top {
       display: flex;
       justify-content: space-between;
@@ -94,12 +106,14 @@
       gap: 10px;
       margin-bottom: 10px;
     }
+
     .left-badges {
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
       align-items: center;
     }
+
     .badge-sort {
       background: #0f172a;
       color: #fff;
@@ -107,7 +121,10 @@
       padding: 5px 12px;
       font-size: 13px;
       font-weight: bold;
+      min-width: 24px;
+      text-align: center;
     }
+
     .badge-route {
       background: #eef1f5;
       color: #333;
@@ -115,6 +132,7 @@
       padding: 5px 12px;
       font-size: 13px;
     }
+
     .badge-taskid {
       background: #7c3aed;
       color: #fff;
@@ -123,17 +141,28 @@
       font-size: 12px;
       font-weight: bold;
     }
+
     .display-name {
       font-size: 30px;
       font-weight: bold;
       line-height: 1.45;
       margin-bottom: 10px;
+      word-break: break-word;
     }
-    .meta {
-      font-size: 17px;
-      color: #444;
-      line-height: 1.8;
+
+    .order-list {
+      margin-top: 8px;
+      padding: 10px 12px;
+      background: #f8fafc;
+      border-radius: 12px;
     }
+
+    .order-item {
+      font-size: 15px;
+      color: #475569;
+      line-height: 1.7;
+    }
+
     .address-box {
       margin-top: 10px;
       background: #fff7ed;
@@ -144,11 +173,13 @@
       font-size: 15px;
       line-height: 1.7;
     }
+
     .btn-row {
       display: flex;
       gap: 10px;
       margin-top: 14px;
     }
+
     .btn {
       flex: 1;
       border: none;
@@ -158,18 +189,22 @@
       font-weight: bold;
       cursor: pointer;
     }
+
     .btn-nav {
       background: #dbeafe;
       color: #1d4ed8;
     }
+
     .btn-done {
       background: #16a34a;
       color: #fff;
     }
+
     .btn-special {
       background: #d97706;
       color: #fff;
     }
+
     .empty {
       text-align: center;
       color: #666;
@@ -178,12 +213,14 @@
       border-radius: 12px;
       font-size: 16px;
     }
+
     .loading {
       text-align: center;
       padding: 30px 16px;
       color: #666;
       font-size: 16px;
     }
+
     .error {
       background: #fee2e2;
       color: #991b1b;
@@ -193,6 +230,7 @@
       font-size: 14px;
       line-height: 1.6;
     }
+
     .footer-note {
       margin-top: 16px;
       font-size: 12px;
@@ -316,48 +354,102 @@
         `<div class="empty">${escapeHtml(text)}</div>`;
     }
 
-    function renderTasks(tasks) {
-      document.getElementById('summaryText').textContent =
-        `共 ${tasks.length} 筆待配送任務`;
+    function groupTasksByStop(tasks) {
+      const map = {};
 
-      if (!tasks.length) {
+      tasks.forEach(task => {
+        const shopName = String(task.shopName || '').trim();
+        const rawAddress = String(task.address || '').trim();
+        const normalizedAddress = (!rawAddress || rawAddress === '送店') ? '__STORE__' : rawAddress;
+        const key = `${shopName}__${normalizedAddress}`;
+
+        if (!map[key]) {
+          map[key] = {
+            shopName: shopName,
+            address: rawAddress,
+            routeGroup: task.routeGroup || '',
+            sortOrder: task.sortOrder || '',
+            taskIds: [],
+            orderNos: [],
+            tasks: [],
+            isStore: (!rawAddress || rawAddress === '送店')
+          };
+        }
+
+        map[key].taskIds.push(task.taskId || '');
+        map[key].orderNos.push(task.orderNo || '');
+        map[key].tasks.push(task);
+
+        const currentSort = Number(map[key].sortOrder || 999999);
+        const nextSort = Number(task.sortOrder || 999999);
+        if (nextSort < currentSort) {
+          map[key].sortOrder = task.sortOrder || '';
+        }
+      });
+
+      return Object.values(map).sort((a, b) => {
+        const sortA = Number(a.sortOrder || 999999);
+        const sortB = Number(b.sortOrder || 999999);
+        if (sortA !== sortB) return sortA - sortB;
+        return String(a.shopName || '').localeCompare(String(b.shopName || ''), 'zh-Hant');
+      });
+    }
+
+    function renderTasks(tasks) {
+      const grouped = groupTasksByStop(tasks);
+
+      document.getElementById('summaryText').textContent =
+        `共 ${grouped.length} 站 / ${tasks.length} 張待配送單`;
+
+      if (!grouped.length) {
         renderEmpty(`目前 ${currentPeriod} 沒有待配送任務`);
         return;
       }
 
-      const html = tasks.map(task => {
-        const navTarget = getNavigationTarget(task);
-        const shortTaskId = getShortTaskId(task.taskId);
-        const isStore = isStoreTask(task);
+      const html = grouped.map(group => {
+        const firstTask = group.tasks[0];
+        const navTarget = getNavigationTarget(firstTask);
+        const shortTaskId = getShortTaskId(firstTask.taskId);
+        const isStore = group.isStore;
+        const orderCount = group.tasks.length;
 
         const addressBlock = !isStore
           ? `
             <div class="address-box">
               <b>非送店 / 工地配送</b><br>
-              地址：${escapeHtml(task.address || '未填')}<br>
-              電話：${escapeHtml(task.phone || '未填')}
+              地址：${escapeHtml(firstTask.address || '未填')}
             </div>
           `
           : '';
+
+        const orderListHtml = group.orderNos.map(no => {
+          return `<div class="order-item">• ${escapeHtml(no)}</div>`;
+        }).join('');
 
         return `
           <div class="card">
             <div class="card-top">
               <div class="left-badges">
-                <div class="badge-sort">順序 ${escapeHtml(task.sortOrder || '未排')}</div>
-                <div class="badge-route">${escapeHtml(task.routeGroup || '未分組')}</div>
+                <div class="badge-sort">${escapeHtml(group.sortOrder || '-')}</div>
+                <div class="badge-route">${escapeHtml(group.routeGroup || '未分組')}</div>
               </div>
-              <div class="badge-taskid">${escapeHtml(shortTaskId)}</div>
+              <div class="badge-taskid">${escapeHtml(shortTaskId)} / ${orderCount}張單</div>
             </div>
 
-            <div class="display-name">${escapeHtml(task.displayName || '')}</div>
+            <div class="display-name">
+              ${escapeHtml(group.shopName || '')}（${orderCount}張單）
+            </div>
 
             ${addressBlock}
 
+            <div class="order-list">
+              ${orderListHtml}
+            </div>
+
             <div class="btn-row">
               <button class="btn btn-nav" onclick="openMap('${escapeJs(navTarget)}')">導航</button>
-              <button class="btn btn-done" onclick="submitStatus('${escapeJs(task.taskId)}','DONE')">完成配送</button>
-              <button class="btn btn-special" onclick="submitSpecial('${escapeJs(task.taskId)}')">特殊回報</button>
+              <button class="btn btn-done" onclick="submitGroupedStatus('${escapeJs(JSON.stringify(group.taskIds))}','DONE')">完成配送</button>
+              <button class="btn btn-special" onclick="submitGroupedSpecial('${escapeJs(JSON.stringify(group.taskIds))}')">特殊回報</button>
             </div>
           </div>
         `;
@@ -392,7 +484,7 @@
       window.open(url, '_blank');
     }
 
-    async function submitStatus(taskId, actionType, note = '') {
+    async function submitStatus(taskId, actionType, note = '', silent = false) {
       try {
         let gpsInfo = '';
         try {
@@ -422,14 +514,44 @@
           throw new Error(json.message || json.error || '回報失敗');
         }
 
-        alert('回報成功');
-        await loadTasks();
+        if (!silent) {
+          alert('回報成功');
+          await loadTasks();
+        }
       } catch (err) {
-        alert('回報失敗：' + (err.message || err));
+        throw err;
       }
     }
 
-    async function submitSpecial(taskId) {
+    async function submitGroupedStatus(taskIdsJson, actionType, note = '') {
+      let taskIds = [];
+      try {
+        taskIds = JSON.parse(taskIdsJson);
+      } catch (e) {
+        alert('任務資料格式錯誤');
+        return;
+      }
+
+      try {
+        for (const taskId of taskIds) {
+          await submitStatus(taskId, actionType, note, true);
+        }
+        alert('整站回報成功');
+        await loadTasks();
+      } catch (err) {
+        alert('整站回報失敗：' + (err.message || err));
+      }
+    }
+
+    async function submitGroupedSpecial(taskIdsJson) {
+      let taskIds = [];
+      try {
+        taskIds = JSON.parse(taskIdsJson);
+      } catch (e) {
+        alert('任務資料格式錯誤');
+        return;
+      }
+
       const choice = prompt(
         '請輸入特殊回報代碼：\n' +
         '1 = 客戶同意放門口\n' +
@@ -460,7 +582,7 @@
         return;
       }
 
-      await submitStatus(taskId, actionType, note);
+      await submitGroupedStatus(taskIdsJson, actionType, note);
     }
 
     function getCurrentGpsText() {
