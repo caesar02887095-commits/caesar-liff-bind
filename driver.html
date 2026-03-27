@@ -79,16 +79,40 @@
       color: #555;
     }
 
-    .refresh-btn {
+    .panel-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .refresh-btn, .sort-mode-btn, .save-sort-btn, .cancel-sort-btn {
       border: none;
       border-radius: 10px;
       padding: 9px 12px;
       font-size: 14px;
       font-weight: bold;
-      background: #d9dde3;
-      color: #333;
       cursor: pointer;
       white-space: nowrap;
+    }
+
+    .refresh-btn {
+      background: #d9dde3;
+      color: #333;
+    }
+
+    .sort-mode-btn {
+      background: #c7d2fe;
+      color: #3730a3;
+    }
+
+    .save-sort-btn {
+      background: #16a34a;
+      color: #fff;
+    }
+
+    .cancel-sort-btn {
+      background: #e5e7eb;
+      color: #374151;
     }
 
     .card {
@@ -104,6 +128,24 @@
       background: #e5e7eb;
       opacity: 0.62;
       margin-left: 12px;
+      padding: 8px 12px;
+    }
+
+    .card.done .card-top,
+    .card.done .address-box,
+    .card.done .btn-row,
+    .card.done .travel-connector {
+      display: none;
+    }
+
+    .card.done .display-name {
+      font-size: 15px;
+      margin-bottom: 0;
+    }
+
+    .card.sorting {
+      cursor: grab;
+      border: 2px dashed #94a3b8;
     }
 
     .card-top {
@@ -154,7 +196,7 @@
     }
 
     .display-name {
-      font-size: 17px;
+      font-size: 18px;
       font-weight: bold;
       line-height: 1.35;
       margin-bottom: 6px;
@@ -290,7 +332,17 @@
     <div class="panel">
       <div class="status-bar">
         <div id="summaryText">讀取中...</div>
-        <button class="refresh-btn" onclick="loadTasks()">重新整理</button>
+        <div class="panel-actions">
+          <button class="sort-mode-btn" id="sortModeBtn" onclick="toggleSortMode()">調整排序</button>
+          <button class="refresh-btn" onclick="loadTasks()">重新整理</button>
+        </div>
+      </div>
+      <div class="status-bar" id="sortActions" style="display:none; margin-top:10px;">
+        <div>拖動站點後請按儲存</div>
+        <div class="panel-actions">
+          <button class="save-sort-btn" onclick="saveCurrentOrder()">儲存排序</button>
+          <button class="cancel-sort-btn" onclick="cancelSortMode()">取消</button>
+        </div>
       </div>
     </div>
 
@@ -313,6 +365,8 @@
     let currentTasks = [];
     let departureStarted = false;
     let groupedStopsCache = [];
+    let sortMode = false;
+    let dragSourceKey = '';
 
     async function initPage() {
       try {
@@ -479,14 +533,11 @@
         const rightBadgeText = group.orderNos.join('<br>');
         const stepNo = index + 1;
 
-        if (index >= 0) {
-          htmlParts.push(`
-            <div class="travel-connector">
-              <span class="travel-icon">🚚</span>
-              <span>移動中</span>
-            </div>
-          `);
-        }
+        htmlParts.push(`
+          <div class="travel-connector">
+            <span>🚚 司機配送中</span>
+          </div>
+        `);
 
         const addressBlock = !isStore
           ? `
@@ -499,7 +550,9 @@
           : '';
 
         htmlParts.push(`
-          <div class="card" id="card-${escapeHtml(group.key)}">
+          <div class="card" id="card-${escapeHtml(group.key)}"
+               data-group-key="${escapeHtml(group.key)}"
+               ${sortMode ? 'draggable="true"' : ''}>
             <div class="card-top">
               <div class="left-badges">
                 <div class="badge-sort">${escapeHtml(String(stepNo))}</div>
@@ -561,6 +614,100 @@
           await submitGroupedSpecial(taskIdsJson, groupKey);
         });
       });
+
+      if (sortMode) {
+        document.querySelectorAll('.card[data-group-key]').forEach(card => {
+          card.classList.add('sorting');
+
+          card.addEventListener('dragstart', e => {
+            dragSourceKey = card.getAttribute('data-group-key') || '';
+          });
+
+          card.addEventListener('dragover', e => {
+            e.preventDefault();
+          });
+
+          card.addEventListener('drop', e => {
+            e.preventDefault();
+            const targetKey = card.getAttribute('data-group-key') || '';
+            reorderGroupedStops(dragSourceKey, targetKey);
+          });
+        });
+      }
+    }
+
+    function reorderGroupedStops(sourceKey, targetKey) {
+      if (!sourceKey || !targetKey || sourceKey === targetKey) return;
+
+      const sourceIndex = groupedStopsCache.findIndex(x => x.key === sourceKey);
+      const targetIndex = groupedStopsCache.findIndex(x => x.key === targetKey);
+      if (sourceIndex < 0 || targetIndex < 0) return;
+
+      const moved = groupedStopsCache.splice(sourceIndex, 1)[0];
+      groupedStopsCache.splice(targetIndex, 0, moved);
+
+      renderGroupedStopsOnly();
+    }
+
+    function renderGroupedStopsOnly() {
+      const fakeTasks = [];
+      groupedStopsCache.forEach(group => {
+        group.tasks.forEach(task => fakeTasks.push(task));
+      });
+      renderTasks(fakeTasks);
+    }
+
+    function toggleSortMode() {
+      sortMode = !sortMode;
+      document.getElementById('sortActions').style.display = sortMode ? 'flex' : 'none';
+      renderGroupedStopsOnly();
+    }
+
+    function cancelSortMode() {
+      sortMode = false;
+      document.getElementById('sortActions').style.display = 'none';
+      loadTasks();
+    }
+
+    async function saveCurrentOrder() {
+      try {
+        const orderedTaskIds = [];
+        groupedStopsCache.forEach(group => {
+          group.taskIds.forEach(taskId => orderedTaskIds.push(taskId));
+        });
+
+        const payload = {
+          action: 'save_driver_order',
+          driverName: currentDriverName,
+          period: currentPeriod,
+          orderedTaskIds: orderedTaskIds
+        };
+
+        const resp = await fetch(GAS_WEBAPP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+
+        const text = await resp.text();
+        let json = {};
+        try {
+          json = JSON.parse(text);
+        } catch (e) {
+          throw new Error(text || '儲存排序失敗');
+        }
+
+        if (!json.ok) {
+          throw new Error(json.message || json.error || '儲存排序失敗');
+        }
+
+        alert('排序已儲存');
+        sortMode = false;
+        document.getElementById('sortActions').style.display = 'none';
+        await loadTasks();
+      } catch (err) {
+        alert('儲存排序失敗：' + (err.message || err));
+      }
     }
 
     function startDeparture() {
@@ -588,7 +735,7 @@
       window.open(url, '_blank');
     }
 
-    async function submitStatus(taskId, actionType, note = '', silent = false) {
+    async function submitStatus(taskId, actionType, note = '') {
       let gpsInfo = '';
       try {
         gpsInfo = await getCurrentGpsText();
@@ -638,7 +785,7 @@
 
       try {
         for (const taskId of taskIds) {
-          await submitStatus(taskId, actionType, note, true);
+          await submitStatus(taskId, actionType, note);
         }
 
         markGroupDone(groupKey);
@@ -663,7 +810,8 @@
         '1 = 客戶同意放門口\n' +
         '2 = 改送隔壁\n' +
         '3 = 聯繫後改期\n' +
-        '4 = 其他'
+        '4 = 客戶取消\n' +
+        '5 = 其他'
       );
 
       if (!choice) return;
@@ -681,6 +829,9 @@
         actionType = 'RESCHEDULED';
         note = '聯繫後改期';
       } else if (choice === '4') {
+        actionType = 'CANCELLED';
+        note = '客戶取消';
+      } else if (choice === '5') {
         actionType = 'OTHER';
         note = prompt('請輸入補充說明') || '';
       } else {
@@ -696,7 +847,6 @@
       if (!card) return;
 
       card.classList.add('done');
-
       card.querySelectorAll('button').forEach(btn => {
         btn.disabled = true;
       });
@@ -704,7 +854,7 @@
 
     function updateSummaryAfterDone(doneOrderCount) {
       const remainingTasks = Math.max(0, currentTasks.length - doneOrderCount);
-      const remainingStops = Math.max(0, document.querySelectorAll('.card:not(.done)').length - 1);
+      const remainingStops = Math.max(0, document.querySelectorAll('.card:not(.done)[data-group-key]').length);
       document.getElementById('summaryText').textContent =
         `剩 ${remainingStops} 站 / ${remainingTasks} 張待配送單`;
     }
