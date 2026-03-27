@@ -126,7 +126,7 @@
 
     .card.done {
       background: #e5e7eb;
-      opacity: 0.62;
+      opacity: 0.68;
       margin-left: 12px;
       padding: 8px 12px;
     }
@@ -134,18 +134,14 @@
     .card.done .card-top,
     .card.done .address-box,
     .card.done .btn-row,
-    .card.done .travel-connector {
+    .card.done .sort-row {
       display: none;
     }
 
     .card.done .display-name {
       font-size: 15px;
       margin-bottom: 0;
-    }
-
-    .card.sorting {
-      cursor: grab;
-      border: 2px dashed #94a3b8;
+      color: #4b5563;
     }
 
     .card-top {
@@ -196,7 +192,7 @@
     }
 
     .display-name {
-      font-size: 18px;
+      font-size: 19px;
       font-weight: bold;
       line-height: 1.35;
       margin-bottom: 6px;
@@ -235,14 +231,16 @@
       margin: 2px 0 10px;
     }
 
-    .travel-icon {
-      font-size: 18px;
-    }
-
     .btn-row {
       display: flex;
       gap: 8px;
       margin-top: 10px;
+    }
+
+    .sort-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 8px;
     }
 
     .btn {
@@ -280,6 +278,11 @@
       color: #fff;
     }
 
+    .btn-move {
+      background: #ede9fe;
+      color: #5b21b6;
+    }
+
     .empty {
       text-align: center;
       color: #666;
@@ -313,6 +316,50 @@
       text-align: center;
       line-height: 1.6;
     }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(17, 24, 39, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+
+    .overlay.show {
+      display: flex;
+    }
+
+    .overlay-box {
+      background: #fff;
+      border-radius: 14px;
+      padding: 20px 24px;
+      min-width: 180px;
+      text-align: center;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+    }
+
+    .spinner {
+      width: 34px;
+      height: 34px;
+      border: 4px solid #e5e7eb;
+      border-top: 4px solid #2563eb;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+
+    .overlay-text {
+      font-size: 14px;
+      color: #374151;
+      font-weight: bold;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
@@ -338,7 +385,7 @@
         </div>
       </div>
       <div class="status-bar" id="sortActions" style="display:none; margin-top:10px;">
-        <div>拖動站點後請按儲存</div>
+        <div>用上移 / 下移調整後按儲存</div>
         <div class="panel-actions">
           <button class="save-sort-btn" onclick="saveCurrentOrder()">儲存排序</button>
           <button class="cancel-sort-btn" onclick="cancelSortMode()">取消</button>
@@ -356,6 +403,13 @@
     </div>
   </div>
 
+  <div class="overlay" id="loadingOverlay">
+    <div class="overlay-box">
+      <div class="spinner"></div>
+      <div class="overlay-text" id="overlayText">處理中...</div>
+    </div>
+  </div>
+
   <script>
     const LIFF_ID = '2009380550-ow9SlJK4';
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
@@ -366,7 +420,6 @@
     let departureStarted = false;
     let groupedStopsCache = [];
     let sortMode = false;
-    let dragSourceKey = '';
 
     async function initPage() {
       try {
@@ -443,6 +496,29 @@
         `<div class="empty">${escapeHtml(text)}</div>`;
     }
 
+    function getStorageKey() {
+      const dateKey = new Date().toISOString().slice(0, 10);
+      return `caesar_driver_state__${currentDriverName}__${currentPeriod}__${dateKey}`;
+    }
+
+    function loadLocalState() {
+      try {
+        const raw = localStorage.getItem(getStorageKey());
+        if (!raw) return { completed: {}, lastCompletedKey: '' };
+        const parsed = JSON.parse(raw);
+        return {
+          completed: parsed.completed || {},
+          lastCompletedKey: parsed.lastCompletedKey || ''
+        };
+      } catch (e) {
+        return { completed: {}, lastCompletedKey: '' };
+      }
+    }
+
+    function saveLocalState(state) {
+      localStorage.setItem(getStorageKey(), JSON.stringify(state));
+    }
+
     function groupTasksByStop(tasks) {
       const map = {};
 
@@ -463,8 +539,7 @@
             taskIds: [],
             orderNos: [],
             tasks: [],
-            isStore: (!rawAddress || rawAddress === '送店'),
-            isDone: false
+            isStore: (!rawAddress || rawAddress === '送店')
           };
         }
 
@@ -488,21 +563,27 @@
     }
 
     function renderTasks(tasks) {
-      const grouped = groupTasksByStop(tasks);
-      groupedStopsCache = grouped;
+      let grouped = groupTasksByStop(tasks);
+      const localState = loadLocalState();
+
+      grouped.forEach(group => {
+        if (localState.completed[group.key]) {
+          group._done = true;
+        }
+      });
+
+      const completedGroups = grouped.filter(g => g._done);
+      const pendingGroups = grouped.filter(g => !g._done);
+
+      groupedStopsCache = pendingGroups.slice();
 
       document.getElementById('summaryText').textContent =
-        `共 ${grouped.length} 站 / ${tasks.length} 張待配送單`;
-
-      if (!grouped.length) {
-        renderEmpty(`目前 ${currentPeriod} 沒有待配送任務`);
-        return;
-      }
+        `剩 ${pendingGroups.length} 站 / ${pendingGroups.reduce((sum, g) => sum + g.taskIds.length, 0)} 張待配送單`;
 
       const htmlParts = [];
 
       htmlParts.push(`
-        <div class="card" id="departure-card">
+        <div class="card ${departureStarted ? 'done' : ''}" id="departure-card">
           <div class="card-top">
             <div class="left-badges">
               <div class="badge-sort">起點</div>
@@ -526,64 +607,88 @@
         </div>
       `);
 
-      grouped.forEach((group, index) => {
-        const firstTask = group.tasks[0];
-        const navTarget = getNavigationTarget(firstTask);
-        const isStore = group.isStore;
-        const rightBadgeText = group.orderNos.join('<br>');
-        const stepNo = index + 1;
+      completedGroups.forEach(group => {
+        htmlParts.push(renderDoneCard(group));
+      });
 
+      if (localState.lastCompletedKey && pendingGroups.length > 0) {
         htmlParts.push(`
           <div class="travel-connector">
             <span>🚚 司機配送中</span>
           </div>
         `);
+      }
 
-        const addressBlock = !isStore
-          ? `
-            <div class="address-box">
-              <b>非送店 / 工地配送</b><br>
-              地址：${escapeHtml(firstTask.address || '未填')}
-              ${group.phone ? `<br>電話：${escapeHtml(group.phone)}` : ''}
-            </div>
-          `
-          : '';
-
-        htmlParts.push(`
-          <div class="card" id="card-${escapeHtml(group.key)}"
-               data-group-key="${escapeHtml(group.key)}"
-               ${sortMode ? 'draggable="true"' : ''}>
-            <div class="card-top">
-              <div class="left-badges">
-                <div class="badge-sort">${escapeHtml(String(stepNo))}</div>
-                <div class="badge-route">${escapeHtml(group.routeGroup || '未分組')}</div>
-              </div>
-              <div class="badge-right">${rightBadgeText}</div>
-            </div>
-
-            <div class="display-name">${escapeHtml(group.shopName || '')}</div>
-
-            ${addressBlock}
-
-            <div class="btn-row">
-              <button class="btn btn-nav"
-                data-nav="${escapeHtml(navTarget)}">導航</button>
-
-              <button class="btn btn-done"
-                data-group-key="${escapeHtml(group.key)}"
-                data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}"
-                data-action="DONE">完成配送</button>
-
-              <button class="btn btn-special"
-                data-group-key="${escapeHtml(group.key)}"
-                data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">特殊回報</button>
-            </div>
-          </div>
-        `);
-      });
+      if (!pendingGroups.length && !completedGroups.length) {
+        htmlParts.push(`<div class="empty">目前 ${escapeHtml(currentPeriod)} 沒有待配送任務</div>`);
+      } else {
+        pendingGroups.forEach((group, index) => {
+          htmlParts.push(renderPendingCard(group, index + 1));
+        });
+      }
 
       document.getElementById('taskContainer').innerHTML = htmlParts.join('');
       bindActionButtons();
+    }
+
+    function renderDoneCard(group) {
+      return `
+        <div class="card done" id="card-${escapeHtml(group.key)}">
+          <div class="display-name">${escapeHtml(group.shopName || '')}</div>
+        </div>
+      `;
+    }
+
+    function renderPendingCard(group, stepNo) {
+      const firstTask = group.tasks[0];
+      const navTarget = getNavigationTarget(firstTask);
+      const isStore = group.isStore;
+      const rightBadgeText = group.orderNos.join('<br>');
+
+      const addressBlock = !isStore
+        ? `
+          <div class="address-box">
+            <b>非送店 / 工地配送</b><br>
+            地址：${escapeHtml(firstTask.address || '未填')}
+            ${group.phone ? `<br>電話：${escapeHtml(group.phone)}` : ''}
+          </div>
+        `
+        : '';
+
+      const sortRow = sortMode ? `
+        <div class="sort-row">
+          <button class="btn btn-move" data-move="up" data-group-key="${escapeHtml(group.key)}">上移</button>
+          <button class="btn btn-move" data-move="down" data-group-key="${escapeHtml(group.key)}">下移</button>
+        </div>
+      ` : '';
+
+      return `
+        <div class="card" id="card-${escapeHtml(group.key)}" data-group-key="${escapeHtml(group.key)}">
+          <div class="card-top">
+            <div class="left-badges">
+              <div class="badge-sort">${escapeHtml(String(stepNo))}</div>
+              <div class="badge-route">${escapeHtml(group.routeGroup || '未分組')}</div>
+            </div>
+            <div class="badge-right">${rightBadgeText}</div>
+          </div>
+
+          <div class="display-name">${escapeHtml(group.shopName || '')}</div>
+
+          ${addressBlock}
+
+          ${sortRow}
+
+          <div class="btn-row">
+            <button class="btn btn-nav" data-nav="${escapeHtml(navTarget)}">導航</button>
+            <button class="btn btn-done"
+              data-group-key="${escapeHtml(group.key)}"
+              data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">完成配送</button>
+            <button class="btn btn-special"
+              data-group-key="${escapeHtml(group.key)}"
+              data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">特殊回報</button>
+          </div>
+        </div>
+      `;
     }
 
     function bindActionButtons() {
@@ -615,52 +720,93 @@
         });
       });
 
-      if (sortMode) {
-        document.querySelectorAll('.card[data-group-key]').forEach(card => {
-          card.classList.add('sorting');
-
-          card.addEventListener('dragstart', e => {
-            dragSourceKey = card.getAttribute('data-group-key') || '';
-          });
-
-          card.addEventListener('dragover', e => {
-            e.preventDefault();
-          });
-
-          card.addEventListener('drop', e => {
-            e.preventDefault();
-            const targetKey = card.getAttribute('data-group-key') || '';
-            reorderGroupedStops(dragSourceKey, targetKey);
-          });
+      document.querySelectorAll('.btn-move').forEach(btn => {
+        btn.addEventListener('click', () => {
+          const direction = btn.getAttribute('data-move');
+          const groupKey = btn.getAttribute('data-group-key');
+          moveGroup(groupKey, direction);
         });
-      }
-    }
-
-    function reorderGroupedStops(sourceKey, targetKey) {
-      if (!sourceKey || !targetKey || sourceKey === targetKey) return;
-
-      const sourceIndex = groupedStopsCache.findIndex(x => x.key === sourceKey);
-      const targetIndex = groupedStopsCache.findIndex(x => x.key === targetKey);
-      if (sourceIndex < 0 || targetIndex < 0) return;
-
-      const moved = groupedStopsCache.splice(sourceIndex, 1)[0];
-      groupedStopsCache.splice(targetIndex, 0, moved);
-
-      renderGroupedStopsOnly();
-    }
-
-    function renderGroupedStopsOnly() {
-      const fakeTasks = [];
-      groupedStopsCache.forEach(group => {
-        group.tasks.forEach(task => fakeTasks.push(task));
       });
-      renderTasks(fakeTasks);
+    }
+
+    function moveGroup(groupKey, direction) {
+      const index = groupedStopsCache.findIndex(x => x.key === groupKey);
+      if (index < 0) return;
+
+      if (direction === 'up' && index > 0) {
+        const temp = groupedStopsCache[index - 1];
+        groupedStopsCache[index - 1] = groupedStopsCache[index];
+        groupedStopsCache[index] = temp;
+      }
+
+      if (direction === 'down' && index < groupedStopsCache.length - 1) {
+        const temp = groupedStopsCache[index + 1];
+        groupedStopsCache[index + 1] = groupedStopsCache[index];
+        groupedStopsCache[index] = temp;
+      }
+
+      renderTasksFromCache();
+    }
+
+    function renderTasksFromCache() {
+      const localState = loadLocalState();
+      const completedGroups = [];
+
+      Object.keys(localState.completed || {}).forEach(key => {
+        const saved = localState.completed[key];
+        completedGroups.push(saved);
+      });
+
+      const htmlParts = [];
+
+      htmlParts.push(`
+        <div class="card ${departureStarted ? 'done' : ''}" id="departure-card">
+          <div class="card-top">
+            <div class="left-badges">
+              <div class="badge-sort">起點</div>
+              <div class="badge-route">公司</div>
+            </div>
+            <div class="badge-right">出發</div>
+          </div>
+          <div class="display-name">公司出發</div>
+          <div class="depart-box">
+            出發前請確認：<br>
+            1. 紙本單據齊全<br>
+            2. 路線已確認<br>
+            3. 手機 / 導航 / 聯絡正常
+          </div>
+          <div class="btn-row">
+            <button class="btn btn-start" id="btn-start-departure">出發</button>
+          </div>
+        </div>
+      `);
+
+      completedGroups.forEach(group => {
+        htmlParts.push(renderDoneCard(group));
+      });
+
+      if (localState.lastCompletedKey && groupedStopsCache.length > 0) {
+        htmlParts.push(`
+          <div class="travel-connector">
+            <span>🚚 司機配送中</span>
+          </div>
+        `);
+      }
+
+      groupedStopsCache.forEach((group, index) => {
+        htmlParts.push(renderPendingCard(group, index + 1));
+      });
+
+      document.getElementById('taskContainer').innerHTML = htmlParts.join('');
+      document.getElementById('summaryText').textContent =
+        `剩 ${groupedStopsCache.length} 站 / ${groupedStopsCache.reduce((sum, g) => sum + g.taskIds.length, 0)} 張待配送單`;
+      bindActionButtons();
     }
 
     function toggleSortMode() {
       sortMode = !sortMode;
       document.getElementById('sortActions').style.display = sortMode ? 'flex' : 'none';
-      renderGroupedStopsOnly();
+      renderTasksFromCacheOrFresh();
     }
 
     function cancelSortMode() {
@@ -669,8 +815,18 @@
       loadTasks();
     }
 
+    function renderTasksFromCacheOrFresh() {
+      if (groupedStopsCache.length > 0) {
+        renderTasksFromCache();
+      } else {
+        renderTasks(currentTasks);
+      }
+    }
+
     async function saveCurrentOrder() {
       try {
+        showOverlay('儲存排序中...');
+
         const orderedTaskIds = [];
         groupedStopsCache.forEach(group => {
           group.taskIds.forEach(taskId => orderedTaskIds.push(taskId));
@@ -707,6 +863,8 @@
         await loadTasks();
       } catch (err) {
         alert('儲存排序失敗：' + (err.message || err));
+      } finally {
+        hideOverlay();
       }
     }
 
@@ -784,6 +942,8 @@
       }
 
       try {
+        showOverlay(actionType === 'DONE' ? '回報配送完成中...' : '送出特殊回報中...');
+
         for (const taskId of taskIds) {
           await submitStatus(taskId, actionType, note);
         }
@@ -793,6 +953,8 @@
         alert('整站回報成功');
       } catch (err) {
         alert('整站回報失敗：' + (err.message || err));
+      } finally {
+        hideOverlay();
       }
     }
 
@@ -843,20 +1005,26 @@
     }
 
     function markGroupDone(groupKey) {
-      const card = document.getElementById(`card-${groupKey}`);
-      if (!card) return;
+      const group = groupedStopsCache.find(x => x.key === groupKey);
+      if (!group) return;
 
-      card.classList.add('done');
-      card.querySelectorAll('button').forEach(btn => {
-        btn.disabled = true;
-      });
+      const localState = loadLocalState();
+      localState.completed[groupKey] = {
+        key: group.key,
+        shopName: group.shopName
+      };
+      localState.lastCompletedKey = groupKey;
+      saveLocalState(localState);
+
+      groupedStopsCache = groupedStopsCache.filter(x => x.key !== groupKey);
+      renderTasksFromCache();
     }
 
     function updateSummaryAfterDone(doneOrderCount) {
-      const remainingTasks = Math.max(0, currentTasks.length - doneOrderCount);
-      const remainingStops = Math.max(0, document.querySelectorAll('.card:not(.done)[data-group-key]').length);
+      const localState = loadLocalState();
+      const remainingTasks = groupedStopsCache.reduce((sum, g) => sum + g.taskIds.length, 0);
       document.getElementById('summaryText').textContent =
-        `剩 ${remainingStops} 站 / ${remainingTasks} 張待配送單`;
+        `剩 ${groupedStopsCache.length} 站 / ${remainingTasks} 張待配送單`;
     }
 
     function getCurrentGpsText() {
@@ -875,11 +1043,20 @@
           err => reject(err),
           {
             enableHighAccuracy: true,
-            timeout: 5000,
+            timeout: 2500,
             maximumAge: 0
           }
         );
       });
+    }
+
+    function showOverlay(text) {
+      document.getElementById('overlayText').textContent = text || '處理中...';
+      document.getElementById('loadingOverlay').classList.add('show');
+    }
+
+    function hideOverlay() {
+      document.getElementById('loadingOverlay').classList.remove('show');
     }
 
     function getDefaultPeriod() {
