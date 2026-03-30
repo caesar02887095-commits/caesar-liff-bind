@@ -63,6 +63,38 @@
       color: #fff;
     }
 
+    .route-panel {
+      background: #fff;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .route-title {
+      font-size: 15px;
+      font-weight: bold;
+      color: #334155;
+      margin-bottom: 10px;
+    }
+
+    .route-btns {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .route-btn {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
     .toolbar {
       display: flex;
       gap: 8px;
@@ -73,6 +105,7 @@
       border-radius: 12px;
       margin-bottom: 12px;
       flex-wrap: wrap;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
 
     .toolbar-right {
@@ -100,41 +133,44 @@
       color: #333;
     }
 
-    .route-panel {
-      background: #fff;
-      border-radius: 12px;
-      padding: 12px;
-      margin-bottom: 12px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    }
-
-    .route-title {
-      font-size: 15px;
-      font-weight: bold;
-      color: #334155;
-      margin-bottom: 10px;
-    }
-
-    .route-btns {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .route-btn {
-      background: #dbeafe;
-      color: #1d4ed8;
-    }
-
     .group-block {
       margin-bottom: 14px;
+    }
+
+    .group-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
     }
 
     .group-title {
       font-size: 16px;
       font-weight: bold;
-      margin-bottom: 8px;
       color: #334155;
+    }
+
+    .group-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .group-count {
+      font-size: 12px;
+      color: #64748b;
+    }
+
+    .group-driver {
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 13px;
+      min-width: 110px;
+      background: #fff;
     }
 
     .group-list {
@@ -169,19 +205,10 @@
     }
 
     .row-right {
-      display: flex;
-      gap: 8px;
-      align-items: center;
       flex-shrink: 0;
-    }
-
-    .driver-select {
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      padding: 8px;
-      font-size: 13px;
-      min-width: 96px;
-      background: #fff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
 
     .drag-handle {
@@ -222,11 +249,11 @@
     <div class="route-panel">
       <div class="route-title">查看司機路線</div>
       <div class="route-btns">
-        <button class="btn route-btn" onclick="openDriverRoute('莊主任')">莊主任</button>
-        <button class="btn route-btn" onclick="openDriverRoute('王經理')">王經理</button>
-        <button class="btn route-btn" onclick="openDriverRoute('阿勇')">阿勇</button>
-        <button class="btn route-btn" onclick="openDriverRoute('阿凱')">阿凱</button>
-        <button class="btn route-btn" onclick="openDriverRoute('小老闆')">小老闆</button>
+        <button class="route-btn" onclick="openDriverRoute('莊主任')">莊主任</button>
+        <button class="route-btn" onclick="openDriverRoute('王經理')">王經理</button>
+        <button class="route-btn" onclick="openDriverRoute('阿勇')">阿勇</button>
+        <button class="route-btn" onclick="openDriverRoute('阿凱')">阿凱</button>
+        <button class="route-btn" onclick="openDriverRoute('小老闆')">小老闆</button>
       </div>
     </div>
 
@@ -239,22 +266,46 @@
     </div>
 
     <div class="group-block">
-      <div class="group-title">調度</div>
+      <div class="group-head">
+        <div class="group-title">調度</div>
+        <div class="group-meta">
+          <div class="group-count" id="count-調度">0 站</div>
+          <select class="group-driver" id="driver-調度"></select>
+        </div>
+      </div>
       <div class="group-list" id="group-調度"></div>
     </div>
 
     <div class="group-block">
-      <div class="group-title">市區</div>
+      <div class="group-head">
+        <div class="group-title">市區</div>
+        <div class="group-meta">
+          <div class="group-count" id="count-市區">0 站</div>
+          <select class="group-driver" id="driver-市區"></select>
+        </div>
+      </div>
       <div class="group-list" id="group-市區"></div>
     </div>
 
     <div class="group-block">
-      <div class="group-title">竹東</div>
+      <div class="group-head">
+        <div class="group-title">竹東</div>
+        <div class="group-meta">
+          <div class="group-count" id="count-竹東">0 站</div>
+          <select class="group-driver" id="driver-竹東"></select>
+        </div>
+      </div>
       <div class="group-list" id="group-竹東"></div>
     </div>
 
     <div class="group-block">
-      <div class="group-title">湖口</div>
+      <div class="group-head">
+        <div class="group-title">湖口</div>
+        <div class="group-meta">
+          <div class="group-count" id="count-湖口">0 站</div>
+          <select class="group-driver" id="driver-湖口"></select>
+        </div>
+      </div>
       <div class="group-list" id="group-湖口"></div>
     </div>
   </div>
@@ -275,7 +326,20 @@
         return;
       }
       setTabs();
+      initDriverSelects();
       await loadDispatchBoard();
+    }
+
+    function initDriverSelects() {
+      ['調度','市區','竹東','湖口'].forEach(groupName => {
+        const select = document.getElementById(`driver-${groupName}`);
+        if (!select) return;
+
+        select.innerHTML = [
+          '<option value="">未指派</option>',
+          ...DRIVER_OPTIONS.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)
+        ].join('');
+      });
     }
 
     function setTabs() {
@@ -316,6 +380,17 @@
       ['調度','市區','竹東','湖口'].forEach(groupName => {
         const box = document.getElementById(`group-${groupName}`);
         const list = Array.isArray(groups[groupName]) ? groups[groupName] : [];
+        const countBox = document.getElementById(`count-${groupName}`);
+        const driverSelect = document.getElementById(`driver-${groupName}`);
+
+        if (countBox) {
+          countBox.textContent = `${list.length} 站`;
+        }
+
+        const groupDriverName = list.length > 0 ? (list[0].driverName || '') : '';
+        if (driverSelect) {
+          driverSelect.value = groupDriverName;
+        }
 
         if (!list.length) {
           box.innerHTML = '<div class="empty">目前無資料</div>';
@@ -323,11 +398,6 @@
         }
 
         box.innerHTML = list.map(item => {
-          const optionHtml = DRIVER_OPTIONS.map(name => {
-            const selected = item.driverName === name ? 'selected' : '';
-            return `<option value="${escapeHtml(name)}" ${selected}>${escapeHtml(name)}</option>`;
-          }).join('');
-
           return `
             <div class="row"
                  data-stop-key="${escapeHtml(item.stopKey)}"
@@ -336,10 +406,6 @@
                 <div class="row-title">${escapeHtml(item.displayLabel || '')}</div>
               </div>
               <div class="row-right">
-                <select class="driver-select">
-                  <option value="">未指派</option>
-                  ${optionHtml}
-                </select>
                 <div class="drag-handle">☰</div>
               </div>
             </div>
@@ -408,10 +474,11 @@
     function collectGroup(groupName) {
       const box = document.getElementById(`group-${groupName}`);
       const rows = Array.from(box.querySelectorAll('.row'));
+      const driverSelect = document.getElementById(`driver-${groupName}`);
+      const driverName = driverSelect ? driverSelect.value : '';
 
       return rows.map(row => {
         const taskIds = JSON.parse(decodeURIComponent(row.getAttribute('data-taskids') || '[]'));
-        const driverName = row.querySelector('.driver-select') ? row.querySelector('.driver-select').value : '';
 
         return {
           stopKey: row.getAttribute('data-stop-key') || '',
