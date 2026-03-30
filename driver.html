@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CAESAR 司機任務</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <style>
     body {
       margin: 0;
@@ -133,8 +134,7 @@
 
     .card.done .card-top,
     .card.done .address-box,
-    .card.done .btn-row,
-    .card.done .sort-row {
+    .card.done .btn-row {
       display: none;
     }
 
@@ -237,12 +237,6 @@
       margin-top: 10px;
     }
 
-    .sort-row {
-      display: flex;
-      gap: 8px;
-      margin-top: 8px;
-    }
-
     .btn {
       flex: 1;
       border: none;
@@ -276,11 +270,6 @@
     .btn-start {
       background: #0891b2;
       color: #fff;
-    }
-
-    .btn-move {
-      background: #ede9fe;
-      color: #5b21b6;
     }
 
     .empty {
@@ -356,6 +345,69 @@
       font-weight: bold;
     }
 
+    .sort-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .sort-item {
+      background: #fff;
+      border-radius: 12px;
+      padding: 12px 14px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      touch-action: pan-y;
+    }
+
+    .sort-index {
+      background: #0f172a;
+      color: #fff;
+      border-radius: 999px;
+      min-width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+
+    .sort-label {
+      font-size: 15px;
+      font-weight: bold;
+      color: #1f2937;
+      line-height: 1.4;
+      flex: 1;
+      word-break: break-word;
+    }
+
+    .sort-meta {
+      font-size: 12px;
+      color: #6b7280;
+      flex-shrink: 0;
+    }
+
+    .drag-handle {
+      font-size: 20px;
+      color: #94a3b8;
+      flex-shrink: 0;
+      padding-left: 4px;
+    }
+
+    .sortable-ghost {
+      opacity: 0.4;
+    }
+
+    .sortable-chosen {
+      background: #eff6ff;
+      border: 1px dashed #60a5fa;
+    }
+
     @keyframes spin {
       from { transform: rotate(0deg); }
       to { transform: rotate(360deg); }
@@ -385,7 +437,7 @@
         </div>
       </div>
       <div class="status-bar" id="sortActions" style="display:none; margin-top:10px;">
-        <div>用上移 / 下移調整後按儲存</div>
+        <div>拖拉排序後按儲存</div>
         <div class="panel-actions">
           <button class="save-sort-btn" onclick="saveCurrentOrder()">儲存排序</button>
           <button class="cancel-sort-btn" onclick="cancelSortMode()">取消</button>
@@ -420,6 +472,7 @@
     let departureStarted = false;
     let groupedStopsCache = [];
     let sortMode = false;
+    let sortableInstance = null;
 
     async function initPage() {
       try {
@@ -504,14 +557,14 @@
     function loadLocalState() {
       try {
         const raw = localStorage.getItem(getStorageKey());
-        if (!raw) return { completed: {}, lastCompletedKey: '' };
+        if (!raw) return { completedList: [], lastCompletedKey: '' };
         const parsed = JSON.parse(raw);
         return {
-          completed: parsed.completed || {},
+          completedList: Array.isArray(parsed.completedList) ? parsed.completedList : [],
           lastCompletedKey: parsed.lastCompletedKey || ''
         };
       } catch (e) {
-        return { completed: {}, lastCompletedKey: '' };
+        return { completedList: [], lastCompletedKey: '' };
       }
     }
 
@@ -563,22 +616,22 @@
     }
 
     function renderTasks(tasks) {
-      let grouped = groupTasksByStop(tasks);
+      const grouped = groupTasksByStop(tasks);
       const localState = loadLocalState();
 
-      grouped.forEach(group => {
-        if (localState.completed[group.key]) {
-          group._done = true;
-        }
-      });
+      const completedList = localState.completedList || [];
+      const completedKeys = new Set(completedList.map(x => x.key));
 
-      const completedGroups = grouped.filter(g => g._done);
-      const pendingGroups = grouped.filter(g => !g._done);
-
+      const pendingGroups = grouped.filter(g => !completedKeys.has(g.key));
       groupedStopsCache = pendingGroups.slice();
 
       document.getElementById('summaryText').textContent =
         `剩 ${pendingGroups.length} 站 / ${pendingGroups.reduce((sum, g) => sum + g.taskIds.length, 0)} 張待配送單`;
+
+      if (sortMode) {
+        renderSortMode(pendingGroups, completedList);
+        return;
+      }
 
       const htmlParts = [];
 
@@ -607,8 +660,8 @@
         </div>
       `);
 
-      completedGroups.forEach(group => {
-        htmlParts.push(renderDoneCard(group));
+      completedList.forEach(item => {
+        htmlParts.push(renderDoneCard(item));
       });
 
       if (localState.lastCompletedKey && pendingGroups.length > 0) {
@@ -619,7 +672,7 @@
         `);
       }
 
-      if (!pendingGroups.length && !completedGroups.length) {
+      if (!pendingGroups.length && !completedList.length) {
         htmlParts.push(`<div class="empty">目前 ${escapeHtml(currentPeriod)} 沒有待配送任務</div>`);
       } else {
         pendingGroups.forEach((group, index) => {
@@ -631,10 +684,67 @@
       bindActionButtons();
     }
 
-    function renderDoneCard(group) {
+    function renderSortMode(pendingGroups, completedList) {
+      const listHtml = pendingGroups.map((group, index) => {
+        const label = group.isStore
+          ? (group.shopName || '未命名店家')
+          : (group.address || group.shopName || '未填地址');
+
+        return `
+          <div class="sort-item" data-group-key="${escapeHtml(group.key)}">
+            <div class="sort-index">${index + 1}</div>
+            <div class="sort-label">${escapeHtml(label)}</div>
+            <div class="sort-meta">${escapeHtml(group.routeGroup || '')}</div>
+            <div class="drag-handle">☰</div>
+          </div>
+        `;
+      }).join('');
+
+      document.getElementById('taskContainer').innerHTML = `
+        <div class="sort-list" id="sortList">${listHtml}</div>
+      `;
+
+      initSortable();
+    }
+
+    function initSortable() {
+      const el = document.getElementById('sortList');
+      if (!el) return;
+
+      if (sortableInstance) {
+        sortableInstance.destroy();
+        sortableInstance = null;
+      }
+
+      sortableInstance = new Sortable(el, {
+        animation: 150,
+        ghostClass: 'sortable-ghost',
+        chosenClass: 'sortable-chosen',
+        onEnd: () => {
+          const newOrderKeys = Array.from(el.querySelectorAll('.sort-item')).map(item =>
+            item.getAttribute('data-group-key')
+          );
+
+          groupedStopsCache = newOrderKeys
+            .map(key => groupedStopsCache.find(g => g.key === key))
+            .filter(Boolean);
+
+          refreshSortIndex();
+        }
+      });
+    }
+
+    function refreshSortIndex() {
+      document.querySelectorAll('.sort-item').forEach((item, idx) => {
+        const box = item.querySelector('.sort-index');
+        if (box) box.textContent = String(idx + 1);
+      });
+    }
+
+    function renderDoneCard(item) {
       return `
-        <div class="card done" id="card-${escapeHtml(group.key)}">
-          <div class="display-name">${escapeHtml(group.shopName || '')}</div>
+        <div class="card done" id="card-${escapeHtml(item.key)}">
+          <div class="display-name">${escapeHtml(item.label || item.shopName || '')}</div>
         </div>
       `;
     }
@@ -655,13 +765,6 @@
         `
         : '';
 
-      const sortRow = sortMode ? `
-        <div class="sort-row">
-          <button class="btn btn-move" data-move="up" data-group-key="${escapeHtml(group.key)}">上移</button>
-          <button class="btn btn-move" data-move="down" data-group-key="${escapeHtml(group.key)}">下移</button>
-        </div>
-      ` : '';
-
       return `
         <div class="card" id="card-${escapeHtml(group.key)}" data-group-key="${escapeHtml(group.key)}">
           <div class="card-top">
@@ -675,8 +778,6 @@
           <div class="display-name">${escapeHtml(group.shopName || '')}</div>
 
           ${addressBlock}
-
-          ${sortRow}
 
           <div class="btn-row">
             <button class="btn btn-nav" data-nav="${escapeHtml(navTarget)}">導航</button>
@@ -719,108 +820,22 @@
           await submitGroupedSpecial(taskIdsJson, groupKey);
         });
       });
-
-      document.querySelectorAll('.btn-move').forEach(btn => {
-        btn.addEventListener('click', () => {
-          const direction = btn.getAttribute('data-move');
-          const groupKey = btn.getAttribute('data-group-key');
-          moveGroup(groupKey, direction);
-        });
-      });
-    }
-
-    function moveGroup(groupKey, direction) {
-      const index = groupedStopsCache.findIndex(x => x.key === groupKey);
-      if (index < 0) return;
-
-      if (direction === 'up' && index > 0) {
-        const temp = groupedStopsCache[index - 1];
-        groupedStopsCache[index - 1] = groupedStopsCache[index];
-        groupedStopsCache[index] = temp;
-      }
-
-      if (direction === 'down' && index < groupedStopsCache.length - 1) {
-        const temp = groupedStopsCache[index + 1];
-        groupedStopsCache[index + 1] = groupedStopsCache[index];
-        groupedStopsCache[index] = temp;
-      }
-
-      renderTasksFromCache();
-    }
-
-    function renderTasksFromCache() {
-      const localState = loadLocalState();
-      const completedGroups = [];
-
-      Object.keys(localState.completed || {}).forEach(key => {
-        const saved = localState.completed[key];
-        completedGroups.push(saved);
-      });
-
-      const htmlParts = [];
-
-      htmlParts.push(`
-        <div class="card ${departureStarted ? 'done' : ''}" id="departure-card">
-          <div class="card-top">
-            <div class="left-badges">
-              <div class="badge-sort">起點</div>
-              <div class="badge-route">公司</div>
-            </div>
-            <div class="badge-right">出發</div>
-          </div>
-          <div class="display-name">公司出發</div>
-          <div class="depart-box">
-            出發前請確認：<br>
-            1. 紙本單據齊全<br>
-            2. 路線已確認<br>
-            3. 手機 / 導航 / 聯絡正常
-          </div>
-          <div class="btn-row">
-            <button class="btn btn-start" id="btn-start-departure">出發</button>
-          </div>
-        </div>
-      `);
-
-      completedGroups.forEach(group => {
-        htmlParts.push(renderDoneCard(group));
-      });
-
-      if (localState.lastCompletedKey && groupedStopsCache.length > 0) {
-        htmlParts.push(`
-          <div class="travel-connector">
-            <span>🚚 司機配送中</span>
-          </div>
-        `);
-      }
-
-      groupedStopsCache.forEach((group, index) => {
-        htmlParts.push(renderPendingCard(group, index + 1));
-      });
-
-      document.getElementById('taskContainer').innerHTML = htmlParts.join('');
-      document.getElementById('summaryText').textContent =
-        `剩 ${groupedStopsCache.length} 站 / ${groupedStopsCache.reduce((sum, g) => sum + g.taskIds.length, 0)} 張待配送單`;
-      bindActionButtons();
     }
 
     function toggleSortMode() {
       sortMode = !sortMode;
       document.getElementById('sortActions').style.display = sortMode ? 'flex' : 'none';
-      renderTasksFromCacheOrFresh();
+      renderTasks(currentTasks);
     }
 
     function cancelSortMode() {
       sortMode = false;
       document.getElementById('sortActions').style.display = 'none';
-      loadTasks();
-    }
-
-    function renderTasksFromCacheOrFresh() {
-      if (groupedStopsCache.length > 0) {
-        renderTasksFromCache();
-      } else {
-        renderTasks(currentTasks);
+      if (sortableInstance) {
+        sortableInstance.destroy();
+        sortableInstance = null;
       }
+      loadTasks();
     }
 
     async function saveCurrentOrder() {
@@ -860,6 +875,10 @@
         alert('排序已儲存');
         sortMode = false;
         document.getElementById('sortActions').style.display = 'none';
+        if (sortableInstance) {
+          sortableInstance.destroy();
+          sortableInstance = null;
+        }
         await loadTasks();
       } catch (err) {
         alert('儲存排序失敗：' + (err.message || err));
@@ -949,7 +968,6 @@
         }
 
         markGroupDone(groupKey);
-        updateSummaryAfterDone(taskIds.length);
         alert('整站回報成功');
       } catch (err) {
         alert('整站回報失敗：' + (err.message || err));
@@ -1009,22 +1027,29 @@
       if (!group) return;
 
       const localState = loadLocalState();
-      localState.completed[groupKey] = {
-        key: group.key,
-        shopName: group.shopName
-      };
+      const completedList = localState.completedList || [];
+
+      if (!completedList.some(x => x.key === group.key)) {
+        completedList.push({
+          key: group.key,
+          label: group.shopName || ''
+        });
+      }
+
+      localState.completedList = completedList;
       localState.lastCompletedKey = groupKey;
       saveLocalState(localState);
 
       groupedStopsCache = groupedStopsCache.filter(x => x.key !== groupKey);
-      renderTasksFromCache();
+      renderTasksFromCurrentState();
     }
 
-    function updateSummaryAfterDone(doneOrderCount) {
-      const localState = loadLocalState();
-      const remainingTasks = groupedStopsCache.reduce((sum, g) => sum + g.taskIds.length, 0);
-      document.getElementById('summaryText').textContent =
-        `剩 ${groupedStopsCache.length} 站 / ${remainingTasks} 張待配送單`;
+    function renderTasksFromCurrentState() {
+      if (sortMode) {
+        renderTasks(currentTasks);
+      } else {
+        renderTasks(currentTasks);
+      }
     }
 
     function getCurrentGpsText() {
