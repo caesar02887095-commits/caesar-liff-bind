@@ -6,47 +6,324 @@
   <title>CAESAR 司機任務</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
-    body { margin:0; font-family: Arial, "Microsoft JhengHei", sans-serif; background:#f5f6f8; color:#222; }
-    .wrap { max-width: 520px; margin:0 auto; padding:10px; }
-    .topbar { background:#2c3e50; color:#fff; border-radius:14px; padding:14px; margin-bottom:12px; }
-    .title { font-size:19px; font-weight:bold; margin-bottom:6px; }
-    .sub { font-size:14px; line-height:1.55; opacity:0.95; }
-    .tabs { display:flex; gap:8px; margin:12px 0; }
-    .tab-btn { flex:1; border:none; border-radius:10px; padding:11px; font-size:15px; font-weight:bold; cursor:pointer; background:#d9dde3; color:#333; }
-    .tab-btn.active { background:#EBA13A; color:#fff; }
-    .panel { background:#fff; border-radius:12px; padding:12px; margin-bottom:10px; box-shadow:0 2px 8px rgba(0,0,0,0.05); }
-    .status-bar { display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:14px; color:#555; }
-    .refresh-btn { border:none; border-radius:10px; padding:9px 12px; font-size:14px; font-weight:bold; background:#d9dde3; color:#333; cursor:pointer; white-space:nowrap; }
-    .card { background:#fff; border-radius:14px; padding:12px; margin-bottom:10px; box-shadow:0 2px 8px rgba(0,0,0,0.06); transition:all 0.2s ease; }
-    .card.done { background:#e5e7eb; opacity:0.68; margin-left:12px; padding:8px 12px; }
-    .card.done .card-top, .card.done .address-box, .card.done .btn-row { display:none; }
-    .card.done .display-name { font-size:15px; margin-bottom:0; color:#4b5563; }
-    .card-top { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:8px; }
-    .left-badges { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
-    .badge-sort { background:#0f172a; color:#fff; border-radius:999px; padding:4px 9px; font-size:12px; font-weight:bold; min-width:20px; text-align:center; }
-    .badge-route { background:#eef1f5; color:#333; border-radius:999px; padding:4px 9px; font-size:12px; }
-    .badge-right { background:#e5e7eb; color:#374151; border-radius:10px; padding:6px 9px; font-size:11px; font-weight:bold; line-height:1.45; text-align:right; max-width:165px; word-break:break-word; }
-    .display-name { font-size:19px; font-weight:bold; line-height:1.35; margin-bottom:6px; word-break:break-word; }
-    .address-box { margin-top:8px; background:#fff7ed; border:1px solid #fdba74; color:#9a3412; border-radius:10px; padding:9px 10px; font-size:13px; line-height:1.55; }
-    .depart-box { margin-top:8px; background:#ecfeff; border:1px solid #67e8f9; color:#0f766e; border-radius:10px; padding:9px 10px; font-size:13px; line-height:1.55; }
-    .travel-connector { display:flex; align-items:center; justify-content:center; gap:8px; color:#64748b; font-size:13px; margin:2px 0 10px; }
-    .btn-row { display:flex; gap:8px; margin-top:10px; }
-    .btn { flex:1; border:none; border-radius:10px; padding:11px 8px; font-size:15px; font-weight:bold; cursor:pointer; }
-    .btn:disabled { opacity:0.5; cursor:not-allowed; }
-    .btn-nav { background:#dbeafe; color:#1d4ed8; }
-    .btn-done { background:#16a34a; color:#fff; }
-    .btn-special { background:#d97706; color:#fff; }
-    .btn-start { background:#0891b2; color:#fff; }
-    .empty { text-align:center; color:#666; padding:28px 14px; background:#fff; border-radius:12px; font-size:15px; }
-    .loading { text-align:center; padding:24px 14px; color:#666; font-size:15px; }
-    .error { background:#fee2e2; color:#991b1b; padding:11px; border-radius:10px; margin-bottom:10px; font-size:14px; line-height:1.55; }
-    .footer-note { margin-top:12px; font-size:12px; color:#777; text-align:center; line-height:1.6; }
-    .overlay { position:fixed; inset:0; background:rgba(17, 24, 39, 0.45); display:none; align-items:center; justify-content:center; z-index:9999; }
-    .overlay.show { display:flex; }
-    .overlay-box { background:#fff; border-radius:14px; padding:20px 24px; min-width:180px; text-align:center; box-shadow:0 8px 30px rgba(0,0,0,0.18); }
-    .spinner { width:34px; height:34px; border:4px solid #e5e7eb; border-top:4px solid #2563eb; border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 12px; }
-    .overlay-text { font-size:14px; color:#374151; font-weight:bold; }
-    @keyframes spin { from { transform: rotate(0deg);} to {transform: rotate(360deg);} }
+    body {
+      margin: 0;
+      font-family: Arial, "Microsoft JhengHei", sans-serif;
+      background: #f5f6f8;
+      color: #222;
+    }
+
+    .wrap {
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 10px;
+    }
+
+    .topbar {
+      background: #2c3e50;
+      color: #fff;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .title {
+      font-size: 19px;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+
+    .sub {
+      font-size: 14px;
+      line-height: 1.55;
+      opacity: 0.95;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin: 12px 0;
+    }
+
+    .tab-btn {
+      flex: 1;
+      border: none;
+      border-radius: 10px;
+      padding: 11px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      background: #d9dde3;
+      color: #333;
+    }
+
+    .tab-btn.active {
+      background: #EBA13A;
+      color: #fff;
+    }
+
+    .panel {
+      background: #fff;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+
+    .status-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      font-size: 14px;
+      color: #555;
+    }
+
+    .refresh-btn {
+      border: none;
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: 14px;
+      font-weight: bold;
+      background: #d9dde3;
+      color: #333;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      transition: all 0.2s ease;
+    }
+
+    .card.done {
+      background: #e5e7eb;
+      opacity: 0.72;
+      margin-left: 12px;
+      padding: 8px 12px;
+    }
+
+    .card.done .card-top,
+    .card.done .address-box,
+    .card.done .btn-row {
+      display: none;
+    }
+
+    .card.done .display-name {
+      font-size: 15px;
+      margin-bottom: 0;
+      color: #4b5563;
+    }
+
+    .card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      margin-bottom: 8px;
+    }
+
+    .left-badges {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .badge-sort {
+      background: #0f172a;
+      color: #fff;
+      border-radius: 999px;
+      padding: 4px 9px;
+      font-size: 12px;
+      font-weight: bold;
+      min-width: 20px;
+      text-align: center;
+    }
+
+    .badge-route {
+      background: #eef1f5;
+      color: #333;
+      border-radius: 999px;
+      padding: 4px 9px;
+      font-size: 12px;
+    }
+
+    .badge-right {
+      background: #e5e7eb;
+      color: #374151;
+      border-radius: 10px;
+      padding: 6px 9px;
+      font-size: 11px;
+      font-weight: bold;
+      line-height: 1.45;
+      text-align: right;
+      max-width: 165px;
+      word-break: break-word;
+    }
+
+    .display-name {
+      font-size: 19px;
+      font-weight: bold;
+      line-height: 1.35;
+      margin-bottom: 6px;
+      word-break: break-word;
+    }
+
+    .address-box {
+      margin-top: 8px;
+      background: #fff7ed;
+      border: 1px solid #fdba74;
+      color: #9a3412;
+      border-radius: 10px;
+      padding: 9px 10px;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .depart-box {
+      margin-top: 8px;
+      background: #ecfeff;
+      border: 1px solid #67e8f9;
+      color: #0f766e;
+      border-radius: 10px;
+      padding: 9px 10px;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .travel-connector {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      color: #64748b;
+      font-size: 13px;
+      margin: 2px 0 10px;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+
+    .btn {
+      flex: 1;
+      border: none;
+      border-radius: 10px;
+      padding: 11px 8px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-nav {
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+
+    .btn-done {
+      background: #16a34a;
+      color: #fff;
+    }
+
+    .btn-special {
+      background: #d97706;
+      color: #fff;
+    }
+
+    .btn-start {
+      background: #0891b2;
+      color: #fff;
+    }
+
+    .empty {
+      text-align: center;
+      color: #666;
+      padding: 28px 14px;
+      background: #fff;
+      border-radius: 12px;
+      font-size: 15px;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 24px 14px;
+      color: #666;
+      font-size: 15px;
+    }
+
+    .error {
+      background: #fee2e2;
+      color: #991b1b;
+      padding: 11px;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      font-size: 14px;
+      line-height: 1.55;
+    }
+
+    .footer-note {
+      margin-top: 12px;
+      font-size: 12px;
+      color: #777;
+      text-align: center;
+      line-height: 1.6;
+    }
+
+    .overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(17, 24, 39, 0.45);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+
+    .overlay.show {
+      display: flex;
+    }
+
+    .overlay-box {
+      background: #fff;
+      border-radius: 14px;
+      padding: 20px 24px;
+      min-width: 180px;
+      text-align: center;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+    }
+
+    .spinner {
+      width: 34px;
+      height: 34px;
+      border: 4px solid #e5e7eb;
+      border-top: 4px solid #2563eb;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 12px;
+    }
+
+    .overlay-text {
+      font-size: 14px;
+      color: #374151;
+      font-weight: bold;
+    }
+
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>
@@ -201,6 +478,7 @@
 
     function groupTasksByStop(tasks) {
       const map = {};
+
       tasks.forEach(task => {
         const shopName = String(task.shopName || '').trim();
         const rawAddress = String(task.address || '').trim();
@@ -226,7 +504,12 @@
         map[key].tasks.push(task);
       });
 
-      return Object.values(map);
+      return Object.values(map).sort((a, b) => {
+        const orderA = Number(a.tasks[0]?.sortOrder || 999999);
+        const orderB = Number(b.tasks[0]?.sortOrder || 999999);
+        if (orderA !== orderB) return orderA - orderB;
+        return String(a.shopName || '').localeCompare(String(b.shopName || ''), 'zh-Hant');
+      });
     }
 
     function renderTasks(tasks) {
@@ -281,39 +564,44 @@
         `);
       }
 
-      pendingGroups.forEach((group, index) => {
-        const firstTask = group.tasks[0];
-        const navTarget = getNavigationTarget(firstTask);
-        const addressBlock = !group.isStore
-          ? `
-            <div class="address-box">
-              <b>指定送達</b><br>
-              地址：${escapeHtml(firstTask.address || '未填')}
-            </div>
-          `
-          : '';
+      if (!pendingGroups.length && !completedList.length) {
+        htmlParts.push(`<div class="empty">目前 ${escapeHtml(currentPeriod)} 沒有待配送任務</div>`);
+      } else {
+        pendingGroups.forEach((group, index) => {
+          const firstTask = group.tasks[0];
+          const navTarget = getNavigationTarget(firstTask);
 
-        htmlParts.push(`
-          <div class="card" id="card-${escapeHtml(group.key)}">
-            <div class="card-top">
-              <div class="left-badges">
-                <div class="badge-sort">${escapeHtml(String(index + 1))}</div>
-                <div class="badge-route">${escapeHtml(group.routeGroup || '未分組')}</div>
+          const addressBlock = !group.isStore
+            ? `
+              <div class="address-box">
+                <b>指定送達</b><br>
+                地址：${escapeHtml(firstTask.address || '未填')}
               </div>
-              <div class="badge-right">${escapeHtml(group.orderNos.join(', '))}</div>
-            </div>
+            `
+            : '';
 
-            <div class="display-name">${escapeHtml(group.shopName || '')}</div>
-            ${addressBlock}
+          htmlParts.push(`
+            <div class="card" id="card-${escapeHtml(group.key)}">
+              <div class="card-top">
+                <div class="left-badges">
+                  <div class="badge-sort">${escapeHtml(String(index + 1))}</div>
+                  <div class="badge-route">${escapeHtml(group.routeGroup || '未分組')}</div>
+                </div>
+                <div class="badge-right">${escapeHtml(group.orderNos.join(', '))}</div>
+              </div>
 
-            <div class="btn-row">
-              <button class="btn btn-nav" data-nav="${escapeHtml(navTarget)}">導航</button>
-              <button class="btn btn-done" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">完成配送</button>
-              <button class="btn btn-special" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">特殊回報</button>
+              <div class="display-name">${escapeHtml(group.shopName || '')}</div>
+              ${addressBlock}
+
+              <div class="btn-row">
+                <button class="btn btn-nav" data-nav="${escapeHtml(navTarget)}">導航</button>
+                <button class="btn btn-done" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">完成配送</button>
+                <button class="btn btn-special" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">特殊回報</button>
+              </div>
             </div>
-          </div>
-        `);
-      });
+          `);
+        });
+      }
 
       document.getElementById('taskContainer').innerHTML = htmlParts.join('');
       bindActionButtons();
@@ -321,7 +609,9 @@
 
     function bindActionButtons() {
       const startBtn = document.getElementById('btn-start-departure');
-      if (startBtn) startBtn.addEventListener('click', startDeparture);
+      if (startBtn) {
+        startBtn.addEventListener('click', startDeparture);
+      }
 
       document.querySelectorAll('.btn-nav').forEach(btn => {
         btn.addEventListener('click', () => {
