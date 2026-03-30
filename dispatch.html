@@ -133,6 +133,16 @@
       color: #333;
     }
 
+    .btn-sort {
+      background: #c7d2fe;
+      color: #3730a3;
+    }
+
+    .btn-cancel {
+      background: #e5e7eb;
+      color: #374151;
+    }
+
     .group-block {
       margin-bottom: 14px;
     }
@@ -216,6 +226,14 @@
       color: #94a3b8;
       padding: 0 4px;
       flex-shrink: 0;
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+    }
+
+    .drag-handle.disabled {
+      opacity: 0.35;
+      cursor: default;
     }
 
     .empty {
@@ -260,7 +278,9 @@
     <div class="toolbar">
       <div id="summaryText">讀取中...</div>
       <div class="toolbar-right">
+        <button class="btn btn-sort" id="sortToggleBtn" onclick="toggleSortMode()">修改排序</button>
         <button class="btn btn-save" onclick="saveDispatchBoard()">儲存排車</button>
+        <button class="btn btn-cancel" id="cancelSortBtn" onclick="cancelSortMode()" style="display:none;">取消排序</button>
         <button class="btn btn-refresh" onclick="loadDispatchBoard()">重新整理</button>
       </div>
     </div>
@@ -318,6 +338,7 @@
     let currentPeriod = '上午';
     let dispatchBoard = null;
     let sortableRefs = [];
+    let sortMode = false;
 
     async function initPage() {
       await liff.init({ liffId: LIFF_ID });
@@ -406,7 +427,7 @@
                 <div class="row-title">${escapeHtml(item.displayLabel || '')}</div>
               </div>
               <div class="row-right">
-                <div class="drag-handle">☰</div>
+                <div class="drag-handle ${sortMode ? '' : 'disabled'}">☰</div>
               </div>
             </div>
           `;
@@ -427,10 +448,28 @@
           animation: 150,
           ghostClass: 'sortable-ghost',
           chosenClass: 'sortable-chosen',
-          draggable: '.row'
+          draggable: '.row',
+          handle: '.drag-handle',
+          disabled: !sortMode
         });
         sortableRefs.push(sortable);
       });
+    }
+
+    function toggleSortMode() {
+      sortMode = true;
+      document.getElementById('sortToggleBtn').style.display = 'none';
+      document.getElementById('cancelSortBtn').style.display = 'inline-block';
+      initSortables();
+      document.querySelectorAll('.drag-handle').forEach(el => el.classList.remove('disabled'));
+    }
+
+    function cancelSortMode() {
+      sortMode = false;
+      document.getElementById('sortToggleBtn').style.display = 'inline-block';
+      document.getElementById('cancelSortBtn').style.display = 'none';
+      initSortables();
+      document.querySelectorAll('.drag-handle').forEach(el => el.classList.add('disabled'));
     }
 
     async function saveDispatchBoard() {
@@ -468,6 +507,9 @@
       }
 
       alert('排車看板已儲存');
+      sortMode = false;
+      document.getElementById('sortToggleBtn').style.display = 'inline-block';
+      document.getElementById('cancelSortBtn').style.display = 'none';
       loadDispatchBoard();
     }
 
