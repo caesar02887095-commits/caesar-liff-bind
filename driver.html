@@ -5,413 +5,48 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CAESAR 司機任務</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <style>
-    body {
-      margin: 0;
-      font-family: Arial, "Microsoft JhengHei", sans-serif;
-      background: #f5f6f8;
-      color: #222;
-    }
-
-    .wrap {
-      max-width: 520px;
-      margin: 0 auto;
-      padding: 10px;
-    }
-
-    .topbar {
-      background: #2c3e50;
-      color: #fff;
-      border-radius: 14px;
-      padding: 14px;
-      margin-bottom: 12px;
-    }
-
-    .title {
-      font-size: 19px;
-      font-weight: bold;
-      margin-bottom: 6px;
-    }
-
-    .sub {
-      font-size: 14px;
-      line-height: 1.55;
-      opacity: 0.95;
-    }
-
-    .tabs {
-      display: flex;
-      gap: 8px;
-      margin: 12px 0;
-    }
-
-    .tab-btn {
-      flex: 1;
-      border: none;
-      border-radius: 10px;
-      padding: 11px;
-      font-size: 15px;
-      font-weight: bold;
-      cursor: pointer;
-      background: #d9dde3;
-      color: #333;
-    }
-
-    .tab-btn.active {
-      background: #EBA13A;
-      color: #fff;
-    }
-
-    .panel {
-      background: #fff;
-      border-radius: 12px;
-      padding: 12px;
-      margin-bottom: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    }
-
-    .status-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-      font-size: 14px;
-      color: #555;
-    }
-
-    .panel-actions {
-      display: flex;
-      gap: 8px;
-      align-items: center;
-    }
-
-    .refresh-btn, .sort-mode-btn, .save-sort-btn, .cancel-sort-btn {
-      border: none;
-      border-radius: 10px;
-      padding: 9px 12px;
-      font-size: 14px;
-      font-weight: bold;
-      cursor: pointer;
-      white-space: nowrap;
-    }
-
-    .refresh-btn {
-      background: #d9dde3;
-      color: #333;
-    }
-
-    .sort-mode-btn {
-      background: #c7d2fe;
-      color: #3730a3;
-    }
-
-    .save-sort-btn {
-      background: #16a34a;
-      color: #fff;
-    }
-
-    .cancel-sort-btn {
-      background: #e5e7eb;
-      color: #374151;
-    }
-
-    .card {
-      background: #fff;
-      border-radius: 14px;
-      padding: 12px;
-      margin-bottom: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-      transition: all 0.2s ease;
-    }
-
-    .card.done {
-      background: #e5e7eb;
-      opacity: 0.68;
-      margin-left: 12px;
-      padding: 8px 12px;
-    }
-
-    .card.done .card-top,
-    .card.done .address-box,
-    .card.done .btn-row {
-      display: none;
-    }
-
-    .card.done .display-name {
-      font-size: 15px;
-      margin-bottom: 0;
-      color: #4b5563;
-    }
-
-    .card-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-
-    .left-badges {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    .badge-sort {
-      background: #0f172a;
-      color: #fff;
-      border-radius: 999px;
-      padding: 4px 9px;
-      font-size: 12px;
-      font-weight: bold;
-      min-width: 20px;
-      text-align: center;
-    }
-
-    .badge-route {
-      background: #eef1f5;
-      color: #333;
-      border-radius: 999px;
-      padding: 4px 9px;
-      font-size: 12px;
-    }
-
-    .badge-right {
-      background: #e5e7eb;
-      color: #374151;
-      border-radius: 10px;
-      padding: 6px 9px;
-      font-size: 11px;
-      font-weight: bold;
-      line-height: 1.45;
-      text-align: right;
-      max-width: 165px;
-      word-break: break-word;
-    }
-
-    .display-name {
-      font-size: 19px;
-      font-weight: bold;
-      line-height: 1.35;
-      margin-bottom: 6px;
-      word-break: break-word;
-    }
-
-    .address-box {
-      margin-top: 8px;
-      background: #fff7ed;
-      border: 1px solid #fdba74;
-      color: #9a3412;
-      border-radius: 10px;
-      padding: 9px 10px;
-      font-size: 13px;
-      line-height: 1.55;
-    }
-
-    .depart-box {
-      margin-top: 8px;
-      background: #ecfeff;
-      border: 1px solid #67e8f9;
-      color: #0f766e;
-      border-radius: 10px;
-      padding: 9px 10px;
-      font-size: 13px;
-      line-height: 1.55;
-    }
-
-    .travel-connector {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      color: #64748b;
-      font-size: 13px;
-      margin: 2px 0 10px;
-    }
-
-    .btn-row {
-      display: flex;
-      gap: 8px;
-      margin-top: 10px;
-    }
-
-    .btn {
-      flex: 1;
-      border: none;
-      border-radius: 10px;
-      padding: 11px 8px;
-      font-size: 15px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    .btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    .btn-nav {
-      background: #dbeafe;
-      color: #1d4ed8;
-    }
-
-    .btn-done {
-      background: #16a34a;
-      color: #fff;
-    }
-
-    .btn-special {
-      background: #d97706;
-      color: #fff;
-    }
-
-    .btn-start {
-      background: #0891b2;
-      color: #fff;
-    }
-
-    .empty {
-      text-align: center;
-      color: #666;
-      padding: 28px 14px;
-      background: #fff;
-      border-radius: 12px;
-      font-size: 15px;
-    }
-
-    .loading {
-      text-align: center;
-      padding: 24px 14px;
-      color: #666;
-      font-size: 15px;
-    }
-
-    .error {
-      background: #fee2e2;
-      color: #991b1b;
-      padding: 11px;
-      border-radius: 10px;
-      margin-bottom: 10px;
-      font-size: 14px;
-      line-height: 1.55;
-    }
-
-    .footer-note {
-      margin-top: 12px;
-      font-size: 12px;
-      color: #777;
-      text-align: center;
-      line-height: 1.6;
-    }
-
-    .overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(17, 24, 39, 0.45);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-    }
-
-    .overlay.show {
-      display: flex;
-    }
-
-    .overlay-box {
-      background: #fff;
-      border-radius: 14px;
-      padding: 20px 24px;
-      min-width: 180px;
-      text-align: center;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.18);
-    }
-
-    .spinner {
-      width: 34px;
-      height: 34px;
-      border: 4px solid #e5e7eb;
-      border-top: 4px solid #2563eb;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin: 0 auto 12px;
-    }
-
-    .overlay-text {
-      font-size: 14px;
-      color: #374151;
-      font-weight: bold;
-    }
-
-    .sort-list {
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-      margin-top: 12px;
-    }
-
-    .sort-item {
-      background: #fff;
-      border-radius: 12px;
-      padding: 12px 14px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      touch-action: pan-y;
-    }
-
-    .sort-index {
-      background: #0f172a;
-      color: #fff;
-      border-radius: 999px;
-      min-width: 28px;
-      height: 28px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 12px;
-      font-weight: bold;
-      flex-shrink: 0;
-    }
-
-    .sort-label {
-      font-size: 15px;
-      font-weight: bold;
-      color: #1f2937;
-      line-height: 1.4;
-      flex: 1;
-      word-break: break-word;
-    }
-
-    .sort-meta {
-      font-size: 12px;
-      color: #6b7280;
-      flex-shrink: 0;
-    }
-
-    .drag-handle {
-      font-size: 20px;
-      color: #94a3b8;
-      flex-shrink: 0;
-      padding-left: 4px;
-    }
-
-    .sortable-ghost {
-      opacity: 0.4;
-    }
-
-    .sortable-chosen {
-      background: #eff6ff;
-      border: 1px dashed #60a5fa;
-    }
-
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
+    body { margin:0; font-family: Arial, "Microsoft JhengHei", sans-serif; background:#f5f6f8; color:#222; }
+    .wrap { max-width: 520px; margin:0 auto; padding:10px; }
+    .topbar { background:#2c3e50; color:#fff; border-radius:14px; padding:14px; margin-bottom:12px; }
+    .title { font-size:19px; font-weight:bold; margin-bottom:6px; }
+    .sub { font-size:14px; line-height:1.55; opacity:0.95; }
+    .tabs { display:flex; gap:8px; margin:12px 0; }
+    .tab-btn { flex:1; border:none; border-radius:10px; padding:11px; font-size:15px; font-weight:bold; cursor:pointer; background:#d9dde3; color:#333; }
+    .tab-btn.active { background:#EBA13A; color:#fff; }
+    .panel { background:#fff; border-radius:12px; padding:12px; margin-bottom:10px; box-shadow:0 2px 8px rgba(0,0,0,0.05); }
+    .status-bar { display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:14px; color:#555; }
+    .refresh-btn { border:none; border-radius:10px; padding:9px 12px; font-size:14px; font-weight:bold; background:#d9dde3; color:#333; cursor:pointer; white-space:nowrap; }
+    .card { background:#fff; border-radius:14px; padding:12px; margin-bottom:10px; box-shadow:0 2px 8px rgba(0,0,0,0.06); transition:all 0.2s ease; }
+    .card.done { background:#e5e7eb; opacity:0.68; margin-left:12px; padding:8px 12px; }
+    .card.done .card-top, .card.done .address-box, .card.done .btn-row { display:none; }
+    .card.done .display-name { font-size:15px; margin-bottom:0; color:#4b5563; }
+    .card-top { display:flex; justify-content:space-between; align-items:flex-start; gap:8px; margin-bottom:8px; }
+    .left-badges { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+    .badge-sort { background:#0f172a; color:#fff; border-radius:999px; padding:4px 9px; font-size:12px; font-weight:bold; min-width:20px; text-align:center; }
+    .badge-route { background:#eef1f5; color:#333; border-radius:999px; padding:4px 9px; font-size:12px; }
+    .badge-right { background:#e5e7eb; color:#374151; border-radius:10px; padding:6px 9px; font-size:11px; font-weight:bold; line-height:1.45; text-align:right; max-width:165px; word-break:break-word; }
+    .display-name { font-size:19px; font-weight:bold; line-height:1.35; margin-bottom:6px; word-break:break-word; }
+    .address-box { margin-top:8px; background:#fff7ed; border:1px solid #fdba74; color:#9a3412; border-radius:10px; padding:9px 10px; font-size:13px; line-height:1.55; }
+    .depart-box { margin-top:8px; background:#ecfeff; border:1px solid #67e8f9; color:#0f766e; border-radius:10px; padding:9px 10px; font-size:13px; line-height:1.55; }
+    .travel-connector { display:flex; align-items:center; justify-content:center; gap:8px; color:#64748b; font-size:13px; margin:2px 0 10px; }
+    .btn-row { display:flex; gap:8px; margin-top:10px; }
+    .btn { flex:1; border:none; border-radius:10px; padding:11px 8px; font-size:15px; font-weight:bold; cursor:pointer; }
+    .btn:disabled { opacity:0.5; cursor:not-allowed; }
+    .btn-nav { background:#dbeafe; color:#1d4ed8; }
+    .btn-done { background:#16a34a; color:#fff; }
+    .btn-special { background:#d97706; color:#fff; }
+    .btn-start { background:#0891b2; color:#fff; }
+    .empty { text-align:center; color:#666; padding:28px 14px; background:#fff; border-radius:12px; font-size:15px; }
+    .loading { text-align:center; padding:24px 14px; color:#666; font-size:15px; }
+    .error { background:#fee2e2; color:#991b1b; padding:11px; border-radius:10px; margin-bottom:10px; font-size:14px; line-height:1.55; }
+    .footer-note { margin-top:12px; font-size:12px; color:#777; text-align:center; line-height:1.6; }
+    .overlay { position:fixed; inset:0; background:rgba(17, 24, 39, 0.45); display:none; align-items:center; justify-content:center; z-index:9999; }
+    .overlay.show { display:flex; }
+    .overlay-box { background:#fff; border-radius:14px; padding:20px 24px; min-width:180px; text-align:center; box-shadow:0 8px 30px rgba(0,0,0,0.18); }
+    .spinner { width:34px; height:34px; border:4px solid #e5e7eb; border-top:4px solid #2563eb; border-radius:50%; animation:spin 0.8s linear infinite; margin:0 auto 12px; }
+    .overlay-text { font-size:14px; color:#374151; font-weight:bold; }
+    @keyframes spin { from { transform: rotate(0deg);} to {transform: rotate(360deg);} }
   </style>
 </head>
 <body>
@@ -431,17 +66,7 @@
     <div class="panel">
       <div class="status-bar">
         <div id="summaryText">讀取中...</div>
-        <div class="panel-actions">
-          <button class="sort-mode-btn" id="sortModeBtn" onclick="toggleSortMode()">調整排序</button>
-          <button class="refresh-btn" onclick="loadTasks()">重新整理</button>
-        </div>
-      </div>
-      <div class="status-bar" id="sortActions" style="display:none; margin-top:10px;">
-        <div>拖拉排序後按儲存</div>
-        <div class="panel-actions">
-          <button class="save-sort-btn" onclick="saveCurrentOrder()">儲存排序</button>
-          <button class="cancel-sort-btn" onclick="cancelSortMode()">取消</button>
-        </div>
+        <button class="refresh-btn" onclick="loadTasks()">重新整理</button>
       </div>
     </div>
 
@@ -467,41 +92,54 @@
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
 
     let currentDriverName = '';
-    let currentPeriod = getDefaultPeriod();
+    let currentPeriod = '上午';
     let currentTasks = [];
+    let currentBatchId = '';
     let departureStarted = false;
     let groupedStopsCache = [];
-    let sortMode = false;
-    let sortableInstance = null;
+
+    function getQueryParam(name) {
+      const url = new URL(window.location.href);
+      return url.searchParams.get(name) || '';
+    }
 
     async function initPage() {
       try {
-        setTabs();
-
         await liff.init({ liffId: LIFF_ID });
-
         if (!liff.isLoggedIn()) {
           liff.login();
           return;
         }
 
         const profile = await liff.getProfile();
-        currentDriverName = profile.displayName || '';
+        const queryDriver = getQueryParam('driver');
+        const queryPeriod = getQueryParam('period');
 
-        document.getElementById('driverInfo').innerHTML =
-          `司機：<b>${escapeHtml(currentDriverName)}</b><br>目前查看：<b>${currentPeriod}</b>`;
+        currentDriverName = queryDriver || profile.displayName || '';
+        currentPeriod = queryPeriod || getDefaultPeriod();
 
+        setTabs();
         await loadTasks();
       } catch (err) {
         showError('初始化失敗：' + (err.message || err));
       }
     }
 
+    function setTabs() {
+      document.getElementById('tabAM').classList.toggle('active', currentPeriod === '上午');
+      document.getElementById('tabPM').classList.toggle('active', currentPeriod === '下午');
+    }
+
+    function switchPeriod(period) {
+      currentPeriod = period;
+      setTabs();
+      loadTasks();
+    }
+
     async function loadTasks() {
       try {
         clearError();
         renderLoading();
-        setTabs();
 
         document.getElementById('driverInfo').innerHTML =
           `司機：<b>${escapeHtml(currentDriverName || '未辨識')}</b><br>目前查看：<b>${currentPeriod}</b>`;
@@ -511,7 +149,7 @@
           `&driver=${encodeURIComponent(currentDriverName)}` +
           `&period=${encodeURIComponent(currentPeriod)}`;
 
-        const resp = await fetch(url, { method: 'GET' });
+        const resp = await fetch(url);
         const json = await resp.json();
 
         if (!json.ok) {
@@ -519,22 +157,12 @@
         }
 
         currentTasks = (json.data && json.data.tasks) ? json.data.tasks : [];
+        currentBatchId = (json.data && json.data.batchId) ? json.data.batchId : '';
         renderTasks(currentTasks);
       } catch (err) {
         showError('讀取任務失敗：' + (err.message || err));
         renderEmpty('目前無法讀取任務。');
       }
-    }
-
-    function switchPeriod(period) {
-      currentPeriod = period;
-      setTabs();
-      loadTasks();
-    }
-
-    function setTabs() {
-      document.getElementById('tabAM').classList.toggle('active', currentPeriod === '上午');
-      document.getElementById('tabPM').classList.toggle('active', currentPeriod === '下午');
     }
 
     function renderLoading() {
@@ -550,8 +178,7 @@
     }
 
     function getStorageKey() {
-      const dateKey = new Date().toISOString().slice(0, 10);
-      return `caesar_driver_state__${currentDriverName}__${currentPeriod}__${dateKey}`;
+      return `caesar_driver_state__${currentDriverName}__${currentPeriod}__${currentBatchId}`;
     }
 
     function loadLocalState() {
@@ -574,7 +201,6 @@
 
     function groupTasksByStop(tasks) {
       const map = {};
-
       tasks.forEach(task => {
         const shopName = String(task.shopName || '').trim();
         const rawAddress = String(task.address || '').trim();
@@ -584,11 +210,10 @@
         if (!map[key]) {
           map[key] = {
             key,
-            shopName: shopName,
+            shopName,
             address: rawAddress,
             phone: String(task.phone || '').trim(),
             routeGroup: task.routeGroup || '',
-            sortOrder: task.sortOrder || '',
             taskIds: [],
             orderNos: [],
             tasks: [],
@@ -599,39 +224,22 @@
         map[key].taskIds.push(task.taskId || '');
         map[key].orderNos.push(task.orderNo || '');
         map[key].tasks.push(task);
-
-        const currentSort = Number(map[key].sortOrder || 999999);
-        const nextSort = Number(task.sortOrder || 999999);
-        if (nextSort < currentSort) {
-          map[key].sortOrder = task.sortOrder || '';
-        }
       });
 
-      return Object.values(map).sort((a, b) => {
-        const sortA = Number(a.sortOrder || 999999);
-        const sortB = Number(b.sortOrder || 999999);
-        if (sortA !== sortB) return sortA - sortB;
-        return String(a.shopName || '').localeCompare(String(b.shopName || ''), 'zh-Hant');
-      });
+      return Object.values(map);
     }
 
     function renderTasks(tasks) {
       const grouped = groupTasksByStop(tasks);
       const localState = loadLocalState();
-
       const completedList = localState.completedList || [];
       const completedKeys = new Set(completedList.map(x => x.key));
-
       const pendingGroups = grouped.filter(g => !completedKeys.has(g.key));
+
       groupedStopsCache = pendingGroups.slice();
 
       document.getElementById('summaryText').textContent =
         `剩 ${pendingGroups.length} 站 / ${pendingGroups.reduce((sum, g) => sum + g.taskIds.length, 0)} 張待配送單`;
-
-      if (sortMode) {
-        renderSortMode(pendingGroups, completedList);
-        return;
-      }
 
       const htmlParts = [];
 
@@ -644,16 +252,13 @@
             </div>
             <div class="badge-right">出發</div>
           </div>
-
           <div class="display-name">公司出發</div>
-
           <div class="depart-box">
             出發前請確認：<br>
             1. 紙本單據齊全<br>
             2. 路線已確認<br>
             3. 手機 / 導航 / 聯絡正常
           </div>
-
           <div class="btn-row">
             <button class="btn btn-start" id="btn-start-departure">出發</button>
           </div>
@@ -661,7 +266,11 @@
       `);
 
       completedList.forEach(item => {
-        htmlParts.push(renderDoneCard(item));
+        htmlParts.push(`
+          <div class="card done">
+            <div class="display-name">${escapeHtml(item.label || '')}</div>
+          </div>
+        `);
       });
 
       if (localState.lastCompletedKey && pendingGroups.length > 0) {
@@ -672,219 +281,69 @@
         `);
       }
 
-      if (!pendingGroups.length && !completedList.length) {
-        htmlParts.push(`<div class="empty">目前 ${escapeHtml(currentPeriod)} 沒有待配送任務</div>`);
-      } else {
-        pendingGroups.forEach((group, index) => {
-          htmlParts.push(renderPendingCard(group, index + 1));
-        });
-      }
+      pendingGroups.forEach((group, index) => {
+        const firstTask = group.tasks[0];
+        const navTarget = getNavigationTarget(firstTask);
+        const addressBlock = !group.isStore
+          ? `
+            <div class="address-box">
+              <b>指定送達</b><br>
+              地址：${escapeHtml(firstTask.address || '未填')}
+            </div>
+          `
+          : '';
+
+        htmlParts.push(`
+          <div class="card" id="card-${escapeHtml(group.key)}">
+            <div class="card-top">
+              <div class="left-badges">
+                <div class="badge-sort">${escapeHtml(String(index + 1))}</div>
+                <div class="badge-route">${escapeHtml(group.routeGroup || '未分組')}</div>
+              </div>
+              <div class="badge-right">${escapeHtml(group.orderNos.join(', '))}</div>
+            </div>
+
+            <div class="display-name">${escapeHtml(group.shopName || '')}</div>
+            ${addressBlock}
+
+            <div class="btn-row">
+              <button class="btn btn-nav" data-nav="${escapeHtml(navTarget)}">導航</button>
+              <button class="btn btn-done" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">完成配送</button>
+              <button class="btn btn-special" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">特殊回報</button>
+            </div>
+          </div>
+        `);
+      });
 
       document.getElementById('taskContainer').innerHTML = htmlParts.join('');
       bindActionButtons();
     }
 
-    function renderSortMode(pendingGroups, completedList) {
-      const listHtml = pendingGroups.map((group, index) => {
-        const label = group.isStore
-          ? (group.shopName || '未命名店家')
-          : (group.address || group.shopName || '未填地址');
-
-        return `
-          <div class="sort-item" data-group-key="${escapeHtml(group.key)}">
-            <div class="sort-index">${index + 1}</div>
-            <div class="sort-label">${escapeHtml(label)}</div>
-            <div class="sort-meta">${escapeHtml(group.routeGroup || '')}</div>
-            <div class="drag-handle">☰</div>
-          </div>
-        `;
-      }).join('');
-
-      document.getElementById('taskContainer').innerHTML = `
-        <div class="sort-list" id="sortList">${listHtml}</div>
-      `;
-
-      initSortable();
-    }
-
-    function initSortable() {
-      const el = document.getElementById('sortList');
-      if (!el) return;
-
-      if (sortableInstance) {
-        sortableInstance.destroy();
-        sortableInstance = null;
-      }
-
-      sortableInstance = new Sortable(el, {
-        animation: 150,
-        ghostClass: 'sortable-ghost',
-        chosenClass: 'sortable-chosen',
-        onEnd: () => {
-          const newOrderKeys = Array.from(el.querySelectorAll('.sort-item')).map(item =>
-            item.getAttribute('data-group-key')
-          );
-
-          groupedStopsCache = newOrderKeys
-            .map(key => groupedStopsCache.find(g => g.key === key))
-            .filter(Boolean);
-
-          refreshSortIndex();
-        }
-      });
-    }
-
-    function refreshSortIndex() {
-      document.querySelectorAll('.sort-item').forEach((item, idx) => {
-        const box = item.querySelector('.sort-index');
-        if (box) box.textContent = String(idx + 1);
-      });
-    }
-
-    function renderDoneCard(item) {
-      return `
-        <div class="card done" id="card-${escapeHtml(item.key)}">
-          <div class="display-name">${escapeHtml(item.label || item.shopName || '')}</div>
-        </div>
-      `;
-    }
-
-    function renderPendingCard(group, stepNo) {
-      const firstTask = group.tasks[0];
-      const navTarget = getNavigationTarget(firstTask);
-      const isStore = group.isStore;
-      const rightBadgeText = group.orderNos.join('<br>');
-
-      const addressBlock = !isStore
-        ? `
-          <div class="address-box">
-            <b>非送店 / 工地配送</b><br>
-            地址：${escapeHtml(firstTask.address || '未填')}
-            ${group.phone ? `<br>電話：${escapeHtml(group.phone)}` : ''}
-          </div>
-        `
-        : '';
-
-      return `
-        <div class="card" id="card-${escapeHtml(group.key)}" data-group-key="${escapeHtml(group.key)}">
-          <div class="card-top">
-            <div class="left-badges">
-              <div class="badge-sort">${escapeHtml(String(stepNo))}</div>
-              <div class="badge-route">${escapeHtml(group.routeGroup || '未分組')}</div>
-            </div>
-            <div class="badge-right">${rightBadgeText}</div>
-          </div>
-
-          <div class="display-name">${escapeHtml(group.shopName || '')}</div>
-
-          ${addressBlock}
-
-          <div class="btn-row">
-            <button class="btn btn-nav" data-nav="${escapeHtml(navTarget)}">導航</button>
-            <button class="btn btn-done"
-              data-group-key="${escapeHtml(group.key)}"
-              data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">完成配送</button>
-            <button class="btn btn-special"
-              data-group-key="${escapeHtml(group.key)}"
-              data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">特殊回報</button>
-          </div>
-        </div>
-      `;
-    }
-
     function bindActionButtons() {
       const startBtn = document.getElementById('btn-start-departure');
-      if (startBtn) {
-        startBtn.addEventListener('click', startDeparture);
-      }
+      if (startBtn) startBtn.addEventListener('click', startDeparture);
 
       document.querySelectorAll('.btn-nav').forEach(btn => {
         btn.addEventListener('click', () => {
-          const navTarget = btn.getAttribute('data-nav') || '';
-          openMap(navTarget);
+          openMap(btn.getAttribute('data-nav') || '');
         });
       });
 
       document.querySelectorAll('.btn-done').forEach(btn => {
         btn.addEventListener('click', async () => {
-          const taskIdsJson = decodeURIComponent(btn.getAttribute('data-taskids') || '');
           const groupKey = btn.getAttribute('data-group-key') || '';
+          const taskIdsJson = decodeURIComponent(btn.getAttribute('data-taskids') || '');
           await submitGroupedStatus(taskIdsJson, 'DONE', groupKey);
         });
       });
 
       document.querySelectorAll('.btn-special').forEach(btn => {
         btn.addEventListener('click', async () => {
-          const taskIdsJson = decodeURIComponent(btn.getAttribute('data-taskids') || '');
           const groupKey = btn.getAttribute('data-group-key') || '';
+          const taskIdsJson = decodeURIComponent(btn.getAttribute('data-taskids') || '');
           await submitGroupedSpecial(taskIdsJson, groupKey);
         });
       });
-    }
-
-    function toggleSortMode() {
-      sortMode = !sortMode;
-      document.getElementById('sortActions').style.display = sortMode ? 'flex' : 'none';
-      renderTasks(currentTasks);
-    }
-
-    function cancelSortMode() {
-      sortMode = false;
-      document.getElementById('sortActions').style.display = 'none';
-      if (sortableInstance) {
-        sortableInstance.destroy();
-        sortableInstance = null;
-      }
-      loadTasks();
-    }
-
-    async function saveCurrentOrder() {
-      try {
-        showOverlay('儲存排序中...');
-
-        const orderedTaskIds = [];
-        groupedStopsCache.forEach(group => {
-          group.taskIds.forEach(taskId => orderedTaskIds.push(taskId));
-        });
-
-        const payload = {
-          action: 'save_driver_order',
-          driverName: currentDriverName,
-          period: currentPeriod,
-          orderedTaskIds: orderedTaskIds
-        };
-
-        const resp = await fetch(GAS_WEBAPP_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload)
-        });
-
-        const text = await resp.text();
-        let json = {};
-        try {
-          json = JSON.parse(text);
-        } catch (e) {
-          throw new Error(text || '儲存排序失敗');
-        }
-
-        if (!json.ok) {
-          throw new Error(json.message || json.error || '儲存排序失敗');
-        }
-
-        alert('排序已儲存');
-        sortMode = false;
-        document.getElementById('sortActions').style.display = 'none';
-        if (sortableInstance) {
-          sortableInstance.destroy();
-          sortableInstance = null;
-        }
-        await loadTasks();
-      } catch (err) {
-        alert('儲存排序失敗：' + (err.message || err));
-      } finally {
-        hideOverlay();
-      }
     }
 
     function startDeparture() {
@@ -900,9 +359,7 @@
     }
 
     function getNavigationTarget(task) {
-      if (isStoreTask(task)) {
-        return task.shopName || task.displayName || '';
-      }
+      if (isStoreTask(task)) return task.shopName || task.displayName || '';
       return task.address || task.shopName || '';
     }
 
@@ -922,11 +379,11 @@
 
       const payload = {
         action: 'update_driver_status',
-        taskId: taskId,
+        taskId,
         driverName: currentDriverName,
-        actionType: actionType,
-        note: note,
-        gpsInfo: gpsInfo
+        actionType,
+        note,
+        gpsInfo
       };
 
       const resp = await fetch(GAS_WEBAPP_URL, {
@@ -936,7 +393,6 @@
       });
 
       const text = await resp.text();
-
       let json = {};
       try {
         json = JSON.parse(text);
@@ -962,11 +418,9 @@
 
       try {
         showOverlay(actionType === 'DONE' ? '回報配送完成中...' : '送出特殊回報中...');
-
         for (const taskId of taskIds) {
           await submitStatus(taskId, actionType, note);
         }
-
         markGroupDone(groupKey);
         alert('整站回報成功');
       } catch (err) {
@@ -993,7 +447,6 @@
         '4 = 客戶取消\n' +
         '5 = 其他'
       );
-
       if (!choice) return;
 
       let actionType = 'OTHER';
@@ -1041,15 +494,7 @@
       saveLocalState(localState);
 
       groupedStopsCache = groupedStopsCache.filter(x => x.key !== groupKey);
-      renderTasksFromCurrentState();
-    }
-
-    function renderTasksFromCurrentState() {
-      if (sortMode) {
-        renderTasks(currentTasks);
-      } else {
-        renderTasks(currentTasks);
-      }
+      renderTasks(currentTasks);
     }
 
     function getCurrentGpsText() {
@@ -1061,9 +506,7 @@
 
         navigator.geolocation.getCurrentPosition(
           pos => {
-            const lat = pos.coords.latitude;
-            const lng = pos.coords.longitude;
-            resolve(`${lat},${lng}`);
+            resolve(`${pos.coords.latitude},${pos.coords.longitude}`);
           },
           err => reject(err),
           {
