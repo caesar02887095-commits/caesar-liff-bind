@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>送貨進度</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, "Microsoft JhengHei", sans-serif;
+      background: #f5f6f8;
+      color: #222;
+    }
+    .wrap {
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 12px;
+    }
+    .topbar {
+      background: #2c3e50;
+      color: #fff;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .title {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+    .sub {
+      font-size: 14px;
+      line-height: 1.6;
+      opacity: 0.95;
+    }
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .status {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .row {
+      font-size: 14px;
+      line-height: 1.8;
+      margin-bottom: 4px;
+    }
+    .items {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed #d1d5db;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+    .btn {
+      width: 100%;
+      border: none;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      background: #d9dde3;
+      color: #333;
+    }
+    .loading {
+      text-align: center;
+      color: #666;
+      padding: 28px 12px;
+      font-size: 15px;
+    }
+    .ok { color: #166534; }
+    .warn { color: #9a3412; }
+    .bad { color: #991b1b; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="title">送貨進度</div>
+      <div class="sub" id="topInfo">載入中...</div>
+    </div>
+
+    <div id="app">
+      <div class="card">
+        <div class="loading">系統載入中...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const LIFF_ID = '2009380550-ow9SlJK4';
+    const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
+
+    function getQueryParam(name) {
+      const url = new URL(window.location.href);
+      return url.searchParams.get(name) || '';
+    }
+
+    async function initPage() {
+      try {
+        await liff.init({ liffId: LIFF_ID });
+
+        if (!liff.isLoggedIn()) {
+          liff.login();
+          return;
+        }
+
+        const profile = await liff.getProfile();
+        const uid = profile.userId || '';
+        const orderNo = getQueryParam('orderNo');
+
+        document.getElementById('topInfo').innerHTML =
+          `查詢單號：<b>${escapeHtml(orderNo || '')}</b>`;
+
+        const url =
+          `${GAS_WEBAPP_URL}?action=get_customer_tracking_detail` +
+          `&uid=${encodeURIComponent(uid)}` +
+          `&orderNo=${encodeURIComponent(orderNo)}`;
+
+        const resp = await fetch(url);
+        const json = await resp.json();
+
+        if (!json.ok) {
+          renderMessage(json.error || '讀取失敗', 'bad');
+          return;
+        }
+
+        renderDetail(json.data || {});
+      } catch (err) {
+        renderMessage('讀取失敗：' + (err.message || err), 'bad');
+      }
+    }
+
+    function renderDetail(data) {
+      if (!data.found) {
+        document.getElementById('app').innerHTML = `
+          <div class="card">
+            <div class="status warn">目前無法查看送貨進度</div>
+            <div class="row">此單尚未排車，或你沒有查看權限。</div>
+          </div>
+          <div class="card">
+            <button class="btn" onclick="goBack()">返回查詢頁</button>
+          </div>
+        `;
+        return;
+      }
+
+      const items = Array.isArray(data.items) ? data.items : [];
+      const statusText = mapStatusText(data.taskStatus || '');
+
+      document.getElementById('app').innerHTML = `
+        <div class="card">
+          <div class="status ok">${escapeHtml(statusText)}</div>
+          <div class="row">單號：${escapeHtml(data.orderNo || '')}</div>
+          <div class="row">店家名稱：${escapeHtml(data.storeName || '')}</div>
+          <div class="row">送貨地址：${escapeHtml(data.address || '')}</div>
+          ${data.phone ? `<div class="row">電話：${escapeHtml(data.phone)}</div>` : ''}
+          <div class="row">送貨時間：${escapeHtml(data.deliveryDateText || '')} ${escapeHtml(data.deliveryTime || '')}</div>
+          <div class="row">配送司機：${escapeHtml(data.driverName || '')}</div>
+          <div class="row">配送狀態：${escapeHtml(data.taskStatus || '')}</div>
+          <div class="items">
+            ${items.map(item => `• ${escapeHtml(item.model || '')} x${escapeHtml(item.qty || '')}`).join('<br>')}
+          </div>
+        </div>
+        <div class="card">
+          <button class="btn" onclick="goBack()">返回查詢頁</button>
+        </div>
+      `;
+    }
+
+    function mapStatusText(status) {
+      if (status === '待配送') return '司機配送中';
+      if (status === '已完成') return '已送達';
+      if (status === '放門口') return '已放門口';
+      if (status === '改送隔壁') return '已改送隔壁';
+      if (status === '聯繫後改期') return '已改期';
+      if (status === '取消配送') return '已取消配送';
+      return status || '配送處理中';
+    }
+
+    function renderMessage(msg, cls) {
+      document.getElementById('app').innerHTML = `
+        <div class="card">
+          <div class="status ${cls || ''}">${escapeHtml(msg || '')}</div>
+        </div>
+      `;
+    }
+
+    function goBack() {
+      location.href = 'query.html';
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    initPage();
+  </script>
+</body>
+</html>
