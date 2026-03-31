@@ -461,14 +461,15 @@
     function loadLocalState() {
       try {
         const raw = localStorage.getItem(getStorageKey());
-        if (!raw) return { completedList: [], lastCompletedKey: '' };
+        if (!raw) return { completedList: [], lastCompletedKey: '', departed: false };
         const parsed = JSON.parse(raw);
         return {
           completedList: Array.isArray(parsed.completedList) ? parsed.completedList : [],
-          lastCompletedKey: parsed.lastCompletedKey || ''
+          lastCompletedKey: parsed.lastCompletedKey || '',
+          departed: !!parsed.departed
         };
       } catch (e) {
-        return { completedList: [], lastCompletedKey: '' };
+        return { completedList: [], lastCompletedKey: '', departed: false };
       }
     }
 
@@ -495,7 +496,8 @@
             taskIds: [],
             orderNos: [],
             tasks: [],
-            isStore: (!rawAddress || rawAddress === '送店')
+            isStore: (!rawAddress || rawAddress === '送店'),
+            sortOrder: task.sortOrder || ''
           };
         }
 
@@ -505,8 +507,8 @@
       });
 
       return Object.values(map).sort((a, b) => {
-        const orderA = Number(a.tasks[0]?.sortOrder || 999999);
-        const orderB = Number(b.tasks[0]?.sortOrder || 999999);
+        const orderA = Number(a.sortOrder || 999999);
+        const orderB = Number(b.sortOrder || 999999);
         if (orderA !== orderB) return orderA - orderB;
         return String(a.shopName || '').localeCompare(String(b.shopName || ''), 'zh-Hant');
       });
@@ -515,6 +517,8 @@
     function renderTasks(tasks) {
       const grouped = groupTasksByStop(tasks);
       const localState = loadLocalState();
+      departureStarted = !!localState.departed;
+
       const completedList = localState.completedList || [];
       const completedKeys = new Set(completedList.map(x => x.key));
       const pendingGroups = grouped.filter(g => !completedKeys.has(g.key));
@@ -548,21 +552,29 @@
         </div>
       `);
 
-      completedList.forEach(item => {
-        htmlParts.push(`
-          <div class="card done">
-            <div class="display-name">${escapeHtml(item.label || '')}</div>
-          </div>
-        `);
-      });
-
-      if (localState.lastCompletedKey && pendingGroups.length > 0) {
+      if (departureStarted && pendingGroups.length > 0 && completedList.length === 0) {
         htmlParts.push(`
           <div class="travel-connector">
             <span>🚚 司機配送中</span>
           </div>
         `);
       }
+
+      completedList.forEach((item, idx) => {
+        htmlParts.push(`
+          <div class="card done">
+            <div class="display-name">${escapeHtml(item.label || '')}</div>
+          </div>
+        `);
+
+        if (idx === completedList.length - 1 && pendingGroups.length > 0) {
+          htmlParts.push(`
+            <div class="travel-connector">
+              <span>🚚 司機配送中</span>
+            </div>
+          `);
+        }
+      });
 
       if (!pendingGroups.length && !completedList.length) {
         htmlParts.push(`<div class="empty">目前 ${escapeHtml(currentPeriod)} 沒有待配送任務</div>`);
@@ -637,10 +649,11 @@
     }
 
     function startDeparture() {
+      const localState = loadLocalState();
+      localState.departed = true;
+      saveLocalState(localState);
       departureStarted = true;
-      const card = document.getElementById('departure-card');
-      if (card) card.classList.add('done');
-      alert('已標記出發');
+      renderTasks(currentTasks);
     }
 
     function isStoreTask(task) {
@@ -659,7 +672,7 @@
       window.open(url, '_blank');
     }
 
-    async function submitStatus(taskId, actionType, note = '') {
+    async function submitGroupStatus(taskIds, actionType, note = '') {
       let gpsInfo = '';
       try {
         gpsInfo = await getCurrentGpsText();
@@ -668,8 +681,8 @@
       }
 
       const payload = {
-        action: 'update_driver_status',
-        taskId,
+        action: 'update_driver_group_status',
+        taskIds,
         driverName: currentDriverName,
         actionType,
         note,
@@ -708,9 +721,7 @@
 
       try {
         showOverlay(actionType === 'DONE' ? '回報配送完成中...' : '送出特殊回報中...');
-        for (const taskId of taskIds) {
-          await submitStatus(taskId, actionType, note);
-        }
+        await submitGroupStatus(taskIds, actionType, note);
         markGroupDone(groupKey);
         alert('整站回報成功');
       } catch (err) {
@@ -801,7 +812,7 @@
           err => reject(err),
           {
             enableHighAccuracy: true,
-            timeout: 2500,
+            timeout: 1200,
             maximumAge: 0
           }
         );
