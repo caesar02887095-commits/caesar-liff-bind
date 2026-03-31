@@ -78,6 +78,60 @@
     .ok { color: #166534; }
     .warn { color: #9a3412; }
     .bad { color: #991b1b; }
+
+    .eta-box {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1d4ed8;
+      border-radius: 12px;
+      padding: 12px;
+      margin-top: 8px;
+    }
+    .eta-title {
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    .eta-time {
+      font-size: 20px;
+      font-weight: bold;
+      line-height: 1.2;
+    }
+
+    .flow {
+      margin-top: 10px;
+    }
+    .flow-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .flow-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      margin-top: 3px;
+      flex-shrink: 0;
+      background: #cbd5e1;
+    }
+    .flow-dot.active {
+      background: #2563eb;
+    }
+    .flow-dot.done {
+      background: #16a34a;
+    }
+    .flow-text {
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .flow-main {
+      font-weight: bold;
+    }
+    .flow-sub {
+      color: #6b7280;
+      font-size: 13px;
+    }
   </style>
 </head>
 <body>
@@ -153,18 +207,35 @@
       }
 
       const items = Array.isArray(data.items) ? data.items : [];
-      const statusText = mapStatusText(data.taskStatus || '');
+      const progressText = data.progressText || '';
+      const progressStep = data.progressStep || '';
+      const showEta = !!data.etaText;
+
+      const placeText = isSpecifiedDelivery(data.address)
+        ? '指定送達'
+        : escapeHtml(data.storeName || '');
 
       document.getElementById('app').innerHTML = `
         <div class="card">
-          <div class="status ok">${escapeHtml(statusText)}</div>
+          <div class="status ok">${escapeHtml(progressText)}</div>
           <div class="row">單號：${escapeHtml(data.orderNo || '')}</div>
           <div class="row">店家名稱：${escapeHtml(data.storeName || '')}</div>
-          <div class="row">送貨地址：${escapeHtml(data.address || '')}</div>
+          <div class="row">送貨地點：${placeText}</div>
           ${data.phone ? `<div class="row">電話：${escapeHtml(data.phone)}</div>` : ''}
           <div class="row">送貨時間：${escapeHtml(data.deliveryDateText || '')} ${escapeHtml(data.deliveryTime || '')}</div>
           <div class="row">配送司機：${escapeHtml(data.driverName || '')}</div>
-          <div class="row">配送狀態：${escapeHtml(data.taskStatus || '')}</div>
+
+          ${showEta ? `
+            <div class="eta-box">
+              <div class="eta-title">預估送達時間</div>
+              <div class="eta-time">${escapeHtml(data.etaText || '')}</div>
+            </div>
+          ` : ''}
+
+          <div class="flow">
+            ${renderFlow(progressStep)}
+          </div>
+
           <div class="items">
             ${items.map(item => `• ${escapeHtml(item.model || '')} x${escapeHtml(item.qty || '')}`).join('<br>')}
           </div>
@@ -175,14 +246,91 @@
       `;
     }
 
-    function mapStatusText(status) {
-      if (status === '待配送') return '司機配送中';
-      if (status === '已完成') return '已送達';
-      if (status === '放門口') return '已放門口';
-      if (status === '改送隔壁') return '已改送隔壁';
-      if (status === '聯繫後改期') return '已改期';
-      if (status === '取消配送') return '已取消配送';
-      return status || '配送處理中';
+    function renderFlow(step) {
+      if (step === 'DONE') {
+        return `
+          <div class="flow-step">
+            <div class="flow-dot done"></div>
+            <div class="flow-text">
+              <div class="flow-main">已排車</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-dot done"></div>
+            <div class="flow-text">
+              <div class="flow-main">司機配送中</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-dot done"></div>
+            <div class="flow-text">
+              <div class="flow-main">你的訂單已完成配送</div>
+            </div>
+          </div>
+        `;
+      }
+
+      if (step === 'DELAY') {
+        return `
+          <div class="flow-step">
+            <div class="flow-dot done"></div>
+            <div class="flow-text">
+              <div class="flow-main">已排車</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-dot active"></div>
+            <div class="flow-text">
+              <div class="flow-main">配送安排已異動</div>
+              <div class="flow-sub">請等待後續通知</div>
+            </div>
+          </div>
+        `;
+      }
+
+      if (step === 'CANCEL') {
+        return `
+          <div class="flow-step">
+            <div class="flow-dot done"></div>
+            <div class="flow-text">
+              <div class="flow-main">已排車</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-dot active"></div>
+            <div class="flow-text">
+              <div class="flow-main">配送已取消</div>
+            </div>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="flow-step">
+          <div class="flow-dot done"></div>
+          <div class="flow-text">
+            <div class="flow-main">已排車</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot active"></div>
+          <div class="flow-text">
+            <div class="flow-main">司機配送中</div>
+            <div class="flow-sub">正依路線順序前往送達</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot"></div>
+          <div class="flow-text">
+            <div class="flow-main">即將送達你的訂單</div>
+          </div>
+        </div>
+      `;
+    }
+
+    function isSpecifiedDelivery(address) {
+      const text = String(address || '').trim();
+      return !!text && text !== '送店';
     }
 
     function renderMessage(msg, cls) {
