@@ -79,6 +79,11 @@
       color: #333;
       margin-top: 8px;
     }
+    .btn-progress {
+      background: #dbeafe;
+      color: #1d4ed8;
+      margin-top: 10px;
+    }
     .order-card {
       border: 1px solid #e5e7eb;
       border-radius: 12px;
@@ -156,19 +161,19 @@
         document.getElementById('userInfo').innerHTML =
           `LINE 使用者：<b>${escapeHtml(currentDisplayName || '未辨識')}</b>`;
 
-        await checkAccess();
+        await loadPortal();
       } catch (err) {
         renderMessage('載入失敗：' + (err.message || err), 'bad');
       }
     }
 
-    async function checkAccess() {
-      const url = `${GAS_WEBAPP_URL}?action=get_customer_access&uid=${encodeURIComponent(currentUid)}`;
+    async function loadPortal() {
+      const url = `${GAS_WEBAPP_URL}?action=get_customer_portal&uid=${encodeURIComponent(currentUid)}`;
       const resp = await fetch(url);
       const json = await resp.json();
 
       if (!json.ok) {
-        renderMessage(json.error || '讀取權限失敗', 'bad');
+        renderMessage(json.error || '讀取失敗', 'bad');
         return;
       }
 
@@ -176,7 +181,7 @@
       const status = data.accessStatus || '';
 
       if (status === 'APPROVED') {
-        await loadOrders();
+        renderApproved(data);
         return;
       }
 
@@ -193,17 +198,7 @@
       renderRequestForm();
     }
 
-    async function loadOrders() {
-      const url = `${GAS_WEBAPP_URL}?action=get_customer_orders&uid=${encodeURIComponent(currentUid)}`;
-      const resp = await fetch(url);
-      const json = await resp.json();
-
-      if (!json.ok) {
-        renderMessage(json.error || '讀取訂單失敗', 'bad');
-        return;
-      }
-
-      const data = json.data || {};
+    function renderApproved(data) {
       const orders = Array.isArray(data.orders) ? data.orders : [];
       const customerName = data.customerName || '';
 
@@ -211,8 +206,7 @@
         <div class="card">
           <div class="status ok">已開通查詢權限</div>
           <div class="muted">
-            客戶名稱：<b>${escapeHtml(customerName || '')}</b><br>
-            目前顯示的是你這批當前 / 後續配送資料。
+            店家名稱：<b>${escapeHtml(customerName || '')}</b>
           </div>
         </div>
       `;
@@ -235,7 +229,7 @@
 
       html += `
         <div class="card">
-          <button class="btn btn-secondary" onclick="checkAccess()">重新整理</button>
+          <button class="btn btn-secondary" onclick="loadPortal()">重新整理</button>
         </div>
       `;
 
@@ -247,14 +241,17 @@
       return `
         <div class="order-card">
           <div class="order-title">單號 ${escapeHtml(order.orderNo || '')}</div>
-          <div class="row">店家名稱：${escapeHtml(order.storeName || '')}</div>
           <div class="row">送貨地址：${escapeHtml(order.address || '')}</div>
+          ${order.phone ? `<div class="row">電話：${escapeHtml(order.phone)}</div>` : ''}
           <div class="row">送貨時間：${escapeHtml(order.deliveryDateText || '')} ${escapeHtml(order.deliveryTime || '')}</div>
-          <div class="row">配送司機：${escapeHtml(order.driverName || '尚未指派')}</div>
-          <div class="row">目前狀態：${escapeHtml(order.status || '待配送')}</div>
           <div class="items">
             ${items.map(item => `• ${escapeHtml(item.model || '')} x${escapeHtml(item.qty || '')}`).join('<br>')}
           </div>
+          ${order.hasTracking ? `
+            <button class="btn btn-progress" onclick="openTrackingDetail('${escapeJs(order.orderNo || '')}')">
+              查看送貨進度
+            </button>
+          ` : ''}
         </div>
       `;
     }
@@ -282,7 +279,7 @@
             你送出的申請客編為：<b>${escapeHtml(requestCode || '')}</b><br>
             請等待凱撒衛浴確認開通。
           </div>
-          <button class="btn btn-secondary" onclick="checkAccess()">重新整理</button>
+          <button class="btn btn-secondary" onclick="loadPortal()">重新整理</button>
         </div>
       `;
     }
@@ -346,12 +343,12 @@
         return;
       }
 
-      if (json.accessStatus === 'APPROVED') {
-        await loadOrders();
-        return;
-      }
-
       renderPending(code);
+    }
+
+    function openTrackingDetail(orderNo) {
+      const url = `tracking-detail.html?orderNo=${encodeURIComponent(orderNo)}`;
+      location.href = url;
     }
 
     function escapeHtml(str) {
@@ -361,6 +358,15 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+    }
+
+    function escapeJs(str) {
+      return String(str || '')
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '\\"')
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '');
     }
 
     initPage();
