@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>凱撒衛浴查詢入口</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, "Microsoft JhengHei", sans-serif;
+      background: #f5f6f8;
+      color: #222;
+    }
+    .wrap {
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 12px;
+    }
+    .topbar {
+      background: #2c3e50;
+      color: #fff;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .title {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+    .sub {
+      font-size: 14px;
+      line-height: 1.6;
+      opacity: 0.95;
+    }
+    .card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .status {
+      font-size: 15px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .muted {
+      color: #666;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .input {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 16px;
+      margin-top: 8px;
+      margin-bottom: 10px;
+    }
+    .btn {
+      width: 100%;
+      border: none;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .btn-primary {
+      background: #EBA13A;
+      color: #fff;
+    }
+    .btn-secondary {
+      background: #d9dde3;
+      color: #333;
+      margin-top: 8px;
+    }
+    .order-card {
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      padding: 12px;
+      margin-top: 10px;
+    }
+    .order-title {
+      font-size: 15px;
+      font-weight: bold;
+      margin-bottom: 8px;
+    }
+    .row {
+      font-size: 14px;
+      line-height: 1.7;
+      margin-bottom: 4px;
+    }
+    .items {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed #d1d5db;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+    .loading {
+      text-align: center;
+      color: #666;
+      padding: 28px 12px;
+      font-size: 15px;
+    }
+    .ok {
+      color: #166534;
+    }
+    .warn {
+      color: #9a3412;
+    }
+    .bad {
+      color: #991b1b;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="title">凱撒衛浴查詢入口</div>
+      <div class="sub" id="userInfo">載入中...</div>
+    </div>
+
+    <div id="app">
+      <div class="card">
+        <div class="loading">系統載入中...</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const LIFF_ID = '2009380550-ow9SlJK4';
+    const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
+
+    let currentUid = '';
+    let currentDisplayName = '';
+
+    async function initPage() {
+      try {
+        await liff.init({ liffId: LIFF_ID });
+
+        if (!liff.isLoggedIn()) {
+          liff.login();
+          return;
+        }
+
+        const profile = await liff.getProfile();
+        currentUid = profile.userId || '';
+        currentDisplayName = profile.displayName || '';
+
+        document.getElementById('userInfo').innerHTML =
+          `LINE 使用者：<b>${escapeHtml(currentDisplayName || '未辨識')}</b>`;
+
+        await checkAccess();
+      } catch (err) {
+        renderMessage('載入失敗：' + (err.message || err), 'bad');
+      }
+    }
+
+    async function checkAccess() {
+      const url = `${GAS_WEBAPP_URL}?action=get_customer_access&uid=${encodeURIComponent(currentUid)}`;
+      const resp = await fetch(url);
+      const json = await resp.json();
+
+      if (!json.ok) {
+        renderMessage(json.error || '讀取權限失敗', 'bad');
+        return;
+      }
+
+      const data = json.data || {};
+      const status = data.accessStatus || '';
+
+      if (status === 'APPROVED') {
+        await loadOrders();
+        return;
+      }
+
+      if (status === 'PENDING') {
+        renderPending(data.requestCode || '');
+        return;
+      }
+
+      if (status === 'REJECTED') {
+        renderRejected();
+        return;
+      }
+
+      renderRequestForm();
+    }
+
+    async function loadOrders() {
+      const url = `${GAS_WEBAPP_URL}?action=get_customer_orders&uid=${encodeURIComponent(currentUid)}`;
+      const resp = await fetch(url);
+      const json = await resp.json();
+
+      if (!json.ok) {
+        renderMessage(json.error || '讀取訂單失敗', 'bad');
+        return;
+      }
+
+      const data = json.data || {};
+      const orders = Array.isArray(data.orders) ? data.orders : [];
+      const customerName = data.customerName || '';
+
+      let html = `
+        <div class="card">
+          <div class="status ok">已開通查詢權限</div>
+          <div class="muted">
+            客戶名稱：<b>${escapeHtml(customerName || '')}</b><br>
+            目前顯示的是你這批當前 / 後續配送資料。
+          </div>
+        </div>
+      `;
+
+      if (!orders.length) {
+        html += `
+          <div class="card">
+            <div class="status">目前沒有可查詢資料</div>
+            <div class="muted">目前這批資料中沒有待配送或可查詢訂單。</div>
+          </div>
+        `;
+      } else {
+        html += `
+          <div class="card">
+            <div class="status">訂單 / 配送查詢</div>
+            ${orders.map(renderOrderCard).join('')}
+          </div>
+        `;
+      }
+
+      html += `
+        <div class="card">
+          <button class="btn btn-secondary" onclick="checkAccess()">重新整理</button>
+        </div>
+      `;
+
+      document.getElementById('app').innerHTML = html;
+    }
+
+    function renderOrderCard(order) {
+      const items = Array.isArray(order.items) ? order.items : [];
+      return `
+        <div class="order-card">
+          <div class="order-title">單號 ${escapeHtml(order.orderNo || '')}</div>
+          <div class="row">店家名稱：${escapeHtml(order.storeName || '')}</div>
+          <div class="row">送貨地址：${escapeHtml(order.address || '')}</div>
+          <div class="row">送貨時間：${escapeHtml(order.deliveryDateText || '')} ${escapeHtml(order.deliveryTime || '')}</div>
+          <div class="row">配送司機：${escapeHtml(order.driverName || '尚未指派')}</div>
+          <div class="row">目前狀態：${escapeHtml(order.status || '待配送')}</div>
+          <div class="items">
+            ${items.map(item => `• ${escapeHtml(item.model || '')} x${escapeHtml(item.qty || '')}`).join('<br>')}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderRequestForm() {
+      document.getElementById('app').innerHTML = `
+        <div class="card">
+          <div class="status warn">尚未開通查詢權限</div>
+          <div class="muted">
+            請輸入你的 4 位客戶代號。<br>
+            例如 389，系統會自動補成 0389。<br>
+            送出後將進入待審查狀態。
+          </div>
+          <input id="clientCodeInput" class="input" type="text" inputmode="numeric" placeholder="請輸入客戶代號">
+          <button class="btn btn-primary" onclick="submitRequest()">送出申請</button>
+        </div>
+      `;
+    }
+
+    function renderPending(requestCode) {
+      document.getElementById('app').innerHTML = `
+        <div class="card">
+          <div class="status warn">申請審查中</div>
+          <div class="muted">
+            你送出的申請客編為：<b>${escapeHtml(requestCode || '')}</b><br>
+            請等待凱撒衛浴確認開通。
+          </div>
+          <button class="btn btn-secondary" onclick="checkAccess()">重新整理</button>
+        </div>
+      `;
+    }
+
+    function renderRejected() {
+      document.getElementById('app').innerHTML = `
+        <div class="card">
+          <div class="status bad">目前未開通查詢權限</div>
+          <div class="muted">
+            你的申請目前未通過。<br>
+            如有需要，請洽凱撒衛浴協助確認。
+          </div>
+          <button class="btn btn-secondary" onclick="renderRequestForm()">重新申請</button>
+        </div>
+      `;
+    }
+
+    function renderMessage(msg, cls) {
+      document.getElementById('app').innerHTML = `
+        <div class="card">
+          <div class="status ${cls || ''}">${escapeHtml(msg || '')}</div>
+        </div>
+      `;
+    }
+
+    async function submitRequest() {
+      const input = document.getElementById('clientCodeInput');
+      if (!input) return;
+
+      let code = String(input.value || '').replace(/[^\d]/g, '');
+      if (!code) {
+        alert('請輸入客戶代號');
+        return;
+      }
+      code = code.padStart(4, '0').slice(-4);
+
+      const payload = {
+        action: 'submit_customer_access_request',
+        uid: currentUid,
+        displayName: currentDisplayName,
+        requestClientCode: code
+      };
+
+      const resp = await fetch(GAS_WEBAPP_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      });
+
+      const text = await resp.text();
+      let json = {};
+      try {
+        json = JSON.parse(text);
+      } catch (e) {
+        alert(text || '送出申請失敗');
+        return;
+      }
+
+      if (!json.ok) {
+        alert(json.message || json.error || '送出申請失敗');
+        return;
+      }
+
+      if (json.accessStatus === 'APPROVED') {
+        await loadOrders();
+        return;
+      }
+
+      renderPending(code);
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    initPage();
+  </script>
+</body>
+</html>
