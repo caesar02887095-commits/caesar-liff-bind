@@ -648,12 +648,44 @@
       });
     }
 
-    function startDeparture() {
-      const localState = loadLocalState();
-      localState.departed = true;
-      saveLocalState(localState);
-      departureStarted = true;
-      renderTasks(currentTasks);
+    async function startDeparture() {
+      try {
+        showOverlay('記錄出發並刷新 ETA...');
+        const payload = {
+          action: 'mark_driver_departure',
+          driverName: currentDriverName,
+          period: currentPeriod,
+          routeDate: new Date().toISOString()
+        };
+
+        const resp = await fetch(GAS_WEBAPP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+
+        const text = await resp.text();
+        let json = {};
+        try {
+          json = JSON.parse(text);
+        } catch (e) {
+          throw new Error(text || '記錄出發失敗');
+        }
+
+        if (!json.ok) {
+          throw new Error(json.message || json.error || '記錄出發失敗');
+        }
+
+        const localState = loadLocalState();
+        localState.departed = true;
+        saveLocalState(localState);
+        departureStarted = true;
+        renderTasks(currentTasks);
+      } catch (err) {
+        alert('出發處理失敗：' + (err.message || err));
+      } finally {
+        hideOverlay();
+      }
     }
 
     function isStoreTask(task) {
@@ -723,7 +755,6 @@
         showOverlay(actionType === 'DONE' ? '回報配送完成中...' : '送出特殊回報中...');
         await submitGroupStatus(taskIds, actionType, note);
         markGroupDone(groupKey);
-        alert('整站回報成功');
       } catch (err) {
         alert('整站回報失敗：' + (err.message || err));
       } finally {
