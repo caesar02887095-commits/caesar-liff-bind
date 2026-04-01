@@ -242,7 +242,7 @@
           <div class="order-title">單號 ${escapeHtml(order.orderNo || '')}</div>
           <div class="row">送貨地址：${escapeHtml(order.address || '')}</div>
           ${order.phone ? `<div class="row">電話：${escapeHtml(order.phone)}</div>` : ''}
-          <div class="row">送貨時間：${escapeHtml(order.deliveryDateText || '')} ${escapeHtml(order.deliveryTime || '')}</div>
+          <div class="row">送貨時間：${escapeHtml(formatDeliveryDisplay(order.deliveryDateText, order.deliveryTime))}</div>
           <div class="items">${escapeHtml(order.itemSummary || '')}</div>
           ${order.hasTracking ? `
             <button class="btn btn-progress" onclick="openTrackingDetail('${escapeJs(order.orderNo || '')}')">
@@ -346,6 +346,35 @@
     function openTrackingDetail(orderNo) {
       const url = `tracking-detail.html?orderNo=${encodeURIComponent(orderNo)}`;
       location.href = url;
+    }
+
+    function formatDeliveryDisplay(dateText, periodText) {
+      const datePart = formatDateOnly(dateText);
+      const periodPart = String(periodText || '').trim();
+      return [datePart, periodPart].filter(Boolean).join(' ');
+    }
+
+    function formatDateOnly(value) {
+      if (!value) return '';
+
+      const text = String(value).trim();
+      const m1 = text.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);
+      if (m1) {
+        const y = m1[1];
+        const m = m1[2].padStart(2, '0');
+        const d = m1[3].padStart(2, '0');
+        return `${y}/${m}/${d}`;
+      }
+
+      const d = new Date(value);
+      if (!isNaN(d.getTime())) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}/${m}/${day}`;
+      }
+
+      return text;
     }
 
     function escapeHtml(str) {
