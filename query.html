@@ -237,16 +237,13 @@
     }
 
     function renderOrderCard(order) {
-      const items = Array.isArray(order.items) ? order.items : [];
       return `
         <div class="order-card">
           <div class="order-title">單號 ${escapeHtml(order.orderNo || '')}</div>
           <div class="row">送貨地址：${escapeHtml(order.address || '')}</div>
           ${order.phone ? `<div class="row">電話：${escapeHtml(order.phone)}</div>` : ''}
           <div class="row">送貨時間：${escapeHtml(order.deliveryDateText || '')} ${escapeHtml(order.deliveryTime || '')}</div>
-          <div class="items">
-            ${items.map(item => `• ${escapeHtml(item.model || '')} x${escapeHtml(item.qty || '')}`).join('<br>')}
-          </div>
+          <div class="items">${escapeHtml(order.itemSummary || '')}</div>
           ${order.hasTracking ? `
             <button class="btn btn-progress" onclick="openTrackingDetail('${escapeJs(order.orderNo || '')}')">
               查看送貨進度
