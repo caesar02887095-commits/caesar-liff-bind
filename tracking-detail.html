@@ -222,7 +222,7 @@
           <div class="row">店家名稱：${escapeHtml(data.storeName || '')}</div>
           <div class="row">送貨地點：${placeText}</div>
           ${data.phone ? `<div class="row">電話：${escapeHtml(data.phone)}</div>` : ''}
-          <div class="row">送貨時間：${escapeHtml(data.deliveryDateText || '')} ${escapeHtml(data.deliveryTime || '')}</div>
+          <div class="row">送貨時間：${escapeHtml(formatDeliveryDisplay(data.deliveryDateText, data.deliveryTime))}</div>
           <div class="row">配送司機：${escapeHtml(data.driverName || '')}</div>
 
           ${showEta ? `
@@ -331,6 +331,35 @@
     function isSpecifiedDelivery(address) {
       const text = String(address || '').trim();
       return !!text && text !== '送店';
+    }
+
+    function formatDeliveryDisplay(dateText, periodText) {
+      const datePart = formatDateOnly(dateText);
+      const periodPart = String(periodText || '').trim();
+      return [datePart, periodPart].filter(Boolean).join(' ');
+    }
+
+    function formatDateOnly(value) {
+      if (!value) return '';
+
+      const text = String(value).trim();
+      const m1 = text.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);
+      if (m1) {
+        const y = m1[1];
+        const m = m1[2].padStart(2, '0');
+        const d = m1[3].padStart(2, '0');
+        return `${y}/${m}/${d}`;
+      }
+
+      const d = new Date(value);
+      if (!isNaN(d.getTime())) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}/${m}/${day}`;
+      }
+
+      return text;
     }
 
     function renderMessage(msg, cls) {
