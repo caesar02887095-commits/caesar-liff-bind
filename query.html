@@ -79,11 +79,6 @@
       color: #333;
       margin-top: 8px;
     }
-    .btn-progress {
-      background: #dbeafe;
-      color: #1d4ed8;
-      margin-top: 10px;
-    }
     .order-card {
       border: 1px solid #e5e7eb;
       border-radius: 12px;
@@ -107,21 +102,30 @@
       font-size: 14px;
       line-height: 1.7;
     }
+    .progress-box {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed #d1d5db;
+    }
+    .progress-title {
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+    .progress-row {
+      font-size: 14px;
+      line-height: 1.7;
+      margin-bottom: 4px;
+    }
     .loading {
       text-align: center;
       color: #666;
       padding: 28px 12px;
       font-size: 15px;
     }
-    .ok {
-      color: #166534;
-    }
-    .warn {
-      color: #9a3412;
-    }
-    .bad {
-      color: #991b1b;
-    }
+    .ok { color: #166534; }
+    .warn { color: #9a3412; }
+    .bad { color: #991b1b; }
   </style>
 </head>
 <body>
@@ -244,11 +248,20 @@
           ${order.phone ? `<div class="row">電話：${escapeHtml(order.phone)}</div>` : ''}
           <div class="row">送貨時間：${escapeHtml(formatDeliveryDisplay(order.deliveryDateText, order.deliveryTime))}</div>
           <div class="items">${escapeHtml(order.itemSummary || '')}</div>
+
           ${order.hasTracking ? `
-            <button class="btn btn-progress" onclick="openTrackingDetail('${escapeJs(order.orderNo || '')}')">
-              查看送貨進度
-            </button>
-          ` : ''}
+            <div class="progress-box">
+              <div class="progress-title">送貨進度</div>
+              <div class="progress-row">配送狀態：${escapeHtml(order.taskStatusText || '處理中')}</div>
+              <div class="progress-row">配送司機：${escapeHtml(order.driverName || '未排車')}</div>
+              ${order.etaText ? `<div class="progress-row">ETA：${escapeHtml(order.etaText)}</div>` : ''}
+            </div>
+          ` : `
+            <div class="progress-box">
+              <div class="progress-title">送貨進度</div>
+              <div class="progress-row">尚未排車</div>
+            </div>
+          `}
         </div>
       `;
     }
@@ -343,11 +356,6 @@
       renderPending(code);
     }
 
-    function openTrackingDetail(orderNo) {
-      const url = `tracking-detail.html?orderNo=${encodeURIComponent(orderNo)}`;
-      location.href = url;
-    }
-
     function formatDeliveryDisplay(dateText, periodText) {
       const datePart = formatDateOnly(dateText);
       const periodPart = String(periodText || '').trim();
@@ -384,15 +392,6 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
-    }
-
-    function escapeJs(str) {
-      return String(str || '')
-        .replace(/\\/g, '\\\\')
-        .replace(/'/g, "\\'")
-        .replace(/"/g, '\\"')
-        .replace(/\n/g, '\\n')
-        .replace(/\r/g, '');
     }
 
     initPage();
