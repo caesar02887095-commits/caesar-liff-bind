@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>排車頁</title>
+  <title>凱撒排車頁</title>
   <style>
     body {
       margin: 0;
@@ -12,7 +12,7 @@
       color: #222;
     }
     .wrap {
-      max-width: 760px;
+      max-width: 820px;
       margin: 0 auto;
       padding: 12px;
     }
@@ -37,6 +37,8 @@
       display: flex;
       gap: 8px;
       margin-bottom: 12px;
+      align-items: center;
+      flex-wrap: wrap;
     }
     .btn {
       border: none;
@@ -65,6 +67,33 @@
       margin: 8px 0 12px;
       min-height: 18px;
     }
+    .driver-strip {
+      background: #fff;
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .driver-strip-title {
+      font-size: 14px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .driver-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+    }
+    .driver-btn {
+      display: inline-block;
+      text-decoration: none;
+      background: #eef2f7;
+      color: #2c3e50;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 14px;
+      font-weight: bold;
+    }
     .dispatch-group {
       background: #fff;
       border-radius: 14px;
@@ -72,10 +101,44 @@
       margin-bottom: 12px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
+    .dispatch-group-head {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 10px;
+    }
     .dispatch-group-title {
       font-size: 16px;
       font-weight: bold;
-      margin-bottom: 10px;
+      min-width: 48px;
+    }
+    .dispatch-group-driver {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-left: auto;
+      flex-wrap: wrap;
+    }
+    .dispatch-group-driver label {
+      font-size: 13px;
+      color: #666;
+    }
+    .dispatch-group-driver select {
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 14px;
+      background: #fff;
+    }
+    .route-link-btn {
+      border: none;
+      border-radius: 8px;
+      padding: 8px 10px;
+      font-size: 13px;
+      background: #e5e7eb;
+      color: #333;
+      cursor: pointer;
     }
     .dispatch-group-list {
       display: flex;
@@ -91,6 +154,9 @@
       justify-content: space-between;
       align-items: center;
       gap: 10px;
+    }
+    .dispatch-stop-card.dragging {
+      opacity: 0.55;
     }
     .dispatch-stop-main {
       flex: 1;
@@ -108,12 +174,10 @@
       margin-top: 2px;
       word-break: break-word;
     }
-    .dispatch-stop-driver select {
-      border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      padding: 8px 10px;
-      font-size: 14px;
-      background: #fff;
+    .dispatch-stop-hint {
+      font-size: 12px;
+      color: #9ca3af;
+      white-space: nowrap;
     }
     .loading-overlay {
       display: none;
@@ -131,13 +195,18 @@
       min-width: 180px;
       text-align: center;
     }
+    .empty-text {
+      color: #888;
+      font-size: 13px;
+      padding: 4px 0;
+    }
   </style>
 </head>
 <body>
   <div class="wrap">
     <div class="topbar">
-      <div class="title">排車頁</div>
-      <div class="sub">拖曳調整站點順序，選擇司機後再儲存。</div>
+      <div class="title">凱撒排車頁</div>
+      <div class="sub">上方可直接進司機送貨頁，下方以路線群組排車與指定司機。</div>
     </div>
 
     <div class="toolbar">
@@ -147,6 +216,12 @@
     </div>
 
     <div id="dispatch-save-status" class="save-status"></div>
+
+    <div class="driver-strip">
+      <div class="driver-strip-title">司機送貨頁</div>
+      <div id="driver-buttons" class="driver-buttons"></div>
+    </div>
+
     <div id="dispatch-board-container"></div>
   </div>
 
@@ -158,6 +233,8 @@
 
   <script>
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
+    const DRIVER_PAGE_URL = 'driver.html';
+    const KNOWN_DRIVERS = ['阿凱', '小王', '阿明'];
 
     let dispatchBoardData = null;
     let lastSavedDispatchBoardData = null;
@@ -183,11 +260,200 @@
       document.getElementById('btn-pm').classList.toggle('active', currentPeriod === '下午');
     }
 
+    function showDispatchLoading(text) {
+      const overlay = document.getElementById('dispatch-loading-overlay');
+      const label = document.getElementById('dispatch-loading-text');
+      if (label) label.textContent = text || '處理中...';
+      if (overlay) overlay.style.display = 'flex';
+    }
+
+    function hideDispatchLoading() {
+      const overlay = document.getElementById('dispatch-loading-overlay');
+      if (overlay) overlay.style.display = 'none';
+    }
+
+    function setDispatchSaveStatus(text) {
+      const el = document.getElementById('dispatch-save-status');
+      if (el) el.textContent = text || '';
+    }
+
+    function ensureDispatchGroupsShape(board) {
+      if (!board.groups) board.groups = {};
+      ['調度', '市區', '竹東', '湖口'].forEach(name => {
+        if (!Array.isArray(board.groups[name])) board.groups[name] = [];
+      });
+    }
+
+    function getGroupDriverName(groupName) {
+      if (!dispatchBoardData || !dispatchBoardData.groups || !dispatchBoardData.groups[groupName]) return '';
+      const list = dispatchBoardData.groups[groupName];
+      for (const stop of list) {
+        if (stop && stop.driverName) return stop.driverName;
+      }
+      return '';
+    }
+
+    function setGroupDriverName(groupName, driverName) {
+      if (!dispatchBoardData || !dispatchBoardData.groups || !dispatchBoardData.groups[groupName]) return;
+      dispatchBoardData.groups[groupName].forEach(stop => {
+        stop.driverName = driverName || '';
+      });
+      renderDispatchBoard(dispatchBoardData);
+      setDispatchSaveStatus('尚未儲存');
+    }
+
+    function collectDriverNames(board) {
+      const names = new Set(KNOWN_DRIVERS);
+      ensureDispatchGroupsShape(board);
+      ['調度', '市區', '竹東', '湖口'].forEach(groupName => {
+        (board.groups[groupName] || []).forEach(stop => {
+          if (stop && stop.driverName) names.add(stop.driverName);
+        });
+      });
+      return Array.from(names).filter(Boolean);
+    }
+
+    function renderDriverButtons(board) {
+      const container = document.getElementById('driver-buttons');
+      if (!container) return;
+
+      const driverNames = collectDriverNames(board);
+      if (!driverNames.length) {
+        container.innerHTML = '<div class="empty-text">目前沒有司機資料</div>';
+        return;
+      }
+
+      container.innerHTML = driverNames.map(name => {
+        const href = `${DRIVER_PAGE_URL}?driverName=${encodeURIComponent(name)}&period=${encodeURIComponent(currentPeriod)}&date=${encodeURIComponent(currentDateText)}`;
+        return `<a class="driver-btn" href="${href}">${escapeHtml(name)}</a>`;
+      }).join('');
+    }
+
+    function renderDispatchBoard(board) {
+      ensureDispatchGroupsShape(board);
+      renderDriverButtons(board);
+
+      const container = document.getElementById('dispatch-board-container');
+      if (!container) return;
+
+      const groups = ['調度', '市區', '竹東', '湖口'];
+
+      container.innerHTML = groups.map(groupName => {
+        const list = board.groups[groupName] || [];
+        const selectedDriver = getGroupDriverName(groupName);
+
+        return `
+          <div class="dispatch-group">
+            <div class="dispatch-group-head">
+              <div class="dispatch-group-title">${groupName}</div>
+              <div class="dispatch-group-driver">
+                <label>指派司機</label>
+                <select onchange="setGroupDriverName('${escapeJs(groupName)}', this.value)">
+                  <option value="">未指派</option>
+                  ${KNOWN_DRIVERS.map(name =>
+                    `<option value="${escapeHtml(name)}" ${selectedDriver === name ? 'selected' : ''}>${escapeHtml(name)}</option>`
+                  ).join('')}
+                </select>
+                <button class="route-link-btn" onclick="openRoutePage('${escapeJs(selectedDriver)}')">查看路線</button>
+              </div>
+            </div>
+
+            <div class="dispatch-group-list" data-group="${escapeHtml(groupName)}">
+              ${list.length
+                ? list.map((stop, idx) => renderDispatchStop(stop, groupName, idx)).join('')
+                : `<div class="empty-text">目前沒有站點</div>`
+              }
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      bindDispatchControls();
+    }
+
+    function renderDispatchStop(stop, groupName, idx) {
+      const label = stop.displayLabel || stop.shopName || stop.address || '未命名';
+      const orderNos = Array.isArray(stop.orderNos) ? stop.orderNos : [];
+      const taskIds = Array.isArray(stop.taskIds) ? stop.taskIds : [];
+
+      return `
+        <div class="dispatch-stop-card"
+             draggable="true"
+             data-group="${escapeHtml(groupName)}"
+             data-index="${idx}"
+             data-taskids="${escapeHtml(JSON.stringify(taskIds))}">
+          <div class="dispatch-stop-main">
+            <div class="dispatch-stop-label">${escapeHtml(label)}</div>
+            <div class="dispatch-stop-orders">${escapeHtml(orderNos.join(', '))}</div>
+          </div>
+          <div class="dispatch-stop-hint">拖曳排序</div>
+        </div>
+      `;
+    }
+
+    function bindDispatchControls() {
+      const cards = document.querySelectorAll('.dispatch-stop-card');
+      cards.forEach(card => {
+        card.addEventListener('dragstart', onDispatchDragStart);
+        card.addEventListener('dragover', onDispatchDragOver);
+        card.addEventListener('drop', onDispatchDrop);
+        card.addEventListener('dragend', onDispatchDragEnd);
+      });
+    }
+
+    function onDispatchDragStart(e) {
+      const el = e.currentTarget;
+      dragSource = {
+        groupName: el.dataset.group,
+        index: Number(el.dataset.index)
+      };
+      el.classList.add('dragging');
+    }
+
+    function onDispatchDragOver(e) {
+      e.preventDefault();
+    }
+
+    function onDispatchDrop(e) {
+      e.preventDefault();
+      if (!dragSource || !dispatchBoardData) return;
+
+      const targetEl = e.currentTarget;
+      const targetGroup = targetEl.dataset.group;
+      const targetIndex = Number(targetEl.dataset.index);
+
+      if (!dispatchBoardData.groups[dragSource.groupName]) return;
+      if (!dispatchBoardData.groups[targetGroup]) return;
+
+      const sourceList = dispatchBoardData.groups[dragSource.groupName];
+      const targetList = dispatchBoardData.groups[targetGroup];
+
+      const [movedItem] = sourceList.splice(dragSource.index, 1);
+      if (!movedItem) return;
+
+      targetList.splice(targetIndex, 0, movedItem);
+
+      renderDispatchBoard(dispatchBoardData);
+      setDispatchSaveStatus('尚未儲存');
+    }
+
+    function onDispatchDragEnd(e) {
+      e.currentTarget.classList.remove('dragging');
+      dragSource = null;
+    }
+
+    function openRoutePage(driverName) {
+      if (!driverName) {
+        alert('請先在該路線選擇司機');
+        return;
+      }
+      const href = `${DRIVER_PAGE_URL}?driverName=${encodeURIComponent(driverName)}&period=${encodeURIComponent(currentPeriod)}&date=${encodeURIComponent(currentDateText)}`;
+      location.href = href;
+    }
+
     async function loadDispatchBoard(showLoading = true) {
       try {
-        if (showLoading) {
-          showDispatchLoading('載入排車資料中...');
-        }
+        if (showLoading) showDispatchLoading('載入排車資料中...');
 
         currentDateText = getDispatchDateText();
 
@@ -235,131 +501,6 @@
       }
     }
 
-    function setDispatchSaveStatus(text) {
-      const el = document.getElementById('dispatch-save-status');
-      if (el) el.textContent = text || '';
-    }
-
-    function showDispatchLoading(text) {
-      const overlay = document.getElementById('dispatch-loading-overlay');
-      const label = document.getElementById('dispatch-loading-text');
-      if (label) label.textContent = text || '處理中...';
-      if (overlay) overlay.style.display = 'flex';
-    }
-
-    function hideDispatchLoading() {
-      const overlay = document.getElementById('dispatch-loading-overlay');
-      if (overlay) overlay.style.display = 'none';
-    }
-
-    function ensureDispatchGroupsShape(board) {
-      if (!board.groups) board.groups = {};
-      ['調度', '市區', '竹東', '湖口'].forEach(name => {
-        if (!Array.isArray(board.groups[name])) board.groups[name] = [];
-      });
-    }
-
-    function renderDispatchBoard(board) {
-      ensureDispatchGroupsShape(board);
-
-      const container = document.getElementById('dispatch-board-container');
-      if (!container) return;
-
-      const html = ['調度', '市區', '竹東', '湖口'].map(groupName => {
-        const list = board.groups[groupName] || [];
-
-        return `
-          <div class="dispatch-group">
-            <div class="dispatch-group-title">${groupName}</div>
-            <div class="dispatch-group-list">
-              ${list.map((stop, idx) => renderDispatchStop(stop, groupName, idx)).join('')}
-            </div>
-          </div>
-        `;
-      }).join('');
-
-      container.innerHTML = html;
-      bindDispatchControls();
-    }
-
-    function renderDispatchStop(stop, groupName, idx) {
-      const label = stop.displayLabel || stop.shopName || stop.address || '未命名';
-      const driverName = stop.driverName || '';
-      const orderNos = Array.isArray(stop.orderNos) ? stop.orderNos : [];
-
-      return `
-        <div class="dispatch-stop-card"
-             draggable="true"
-             data-group="${escapeHtml(groupName)}"
-             data-index="${idx}">
-          <div class="dispatch-stop-main">
-            <div class="dispatch-stop-label">${escapeHtml(label)}</div>
-            <div class="dispatch-stop-orders">${escapeHtml(orderNos.join(', '))}</div>
-          </div>
-          <div class="dispatch-stop-driver">
-            <select onchange="updateStopDriver('${escapeJs(groupName)}', ${idx}, this.value)">
-              <option value="">未指派</option>
-              <option value="阿凱" ${driverName === '阿凱' ? 'selected' : ''}>阿凱</option>
-              <option value="小王" ${driverName === '小王' ? 'selected' : ''}>小王</option>
-              <option value="阿明" ${driverName === '阿明' ? 'selected' : ''}>阿明</option>
-            </select>
-          </div>
-        </div>
-      `;
-    }
-
-    function bindDispatchControls() {
-      const cards = document.querySelectorAll('.dispatch-stop-card');
-      cards.forEach(card => {
-        card.addEventListener('dragstart', onDispatchDragStart);
-        card.addEventListener('dragover', onDispatchDragOver);
-        card.addEventListener('drop', onDispatchDrop);
-      });
-    }
-
-    function onDispatchDragStart(e) {
-      const el = e.currentTarget;
-      dragSource = {
-        groupName: el.dataset.group,
-        index: Number(el.dataset.index)
-      };
-    }
-
-    function onDispatchDragOver(e) {
-      e.preventDefault();
-    }
-
-    function onDispatchDrop(e) {
-      e.preventDefault();
-      if (!dragSource || !dispatchBoardData) return;
-
-      const targetEl = e.currentTarget;
-      const targetGroup = targetEl.dataset.group;
-      const targetIndex = Number(targetEl.dataset.index);
-
-      if (!dispatchBoardData.groups[dragSource.groupName]) return;
-      if (!dispatchBoardData.groups[targetGroup]) return;
-
-      const sourceList = dispatchBoardData.groups[dragSource.groupName];
-      const targetList = dispatchBoardData.groups[targetGroup];
-
-      const [movedItem] = sourceList.splice(dragSource.index, 1);
-      if (!movedItem) return;
-
-      targetList.splice(targetIndex, 0, movedItem);
-
-      renderDispatchBoard(dispatchBoardData);
-      setDispatchSaveStatus('尚未儲存');
-    }
-
-    function updateStopDriver(groupName, index, driverName) {
-      if (!dispatchBoardData || !dispatchBoardData.groups || !dispatchBoardData.groups[groupName]) return;
-      if (!dispatchBoardData.groups[groupName][index]) return;
-
-      dispatchBoardData.groups[groupName][index].driverName = driverName || '';
-      setDispatchSaveStatus('尚未儲存');
-    }
-
     async function saveDispatchBoard() {
       if (!dispatchBoardData || isSavingDispatch) return;
 
@@ -391,9 +532,11 @@
           throw new Error(json.message || json.error || '儲存排車失敗');
         }
 
+        // 保留目前前端拖曳後的位置
         lastSavedDispatchBoardData = deepClone(dispatchBoardData);
         setDispatchSaveStatus('已儲存，背景同步中...');
 
+        // 延後再靜默同步，避免先跳回舊位置
         setTimeout(() => {
           syncDispatchBoardSilently();
         }, 1800);
