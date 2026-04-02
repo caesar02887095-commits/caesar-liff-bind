@@ -205,7 +205,6 @@
 
     let currentUid = '';
     let currentDisplayName = '';
-    let currentOrders = [];
 
     async function initPage() {
       try {
@@ -243,7 +242,6 @@
       const status = data.accessStatus || '';
 
       if (status === 'APPROVED') {
-        currentOrders = Array.isArray(data.orders) ? data.orders : [];
         renderApproved(data);
         return;
       }
@@ -303,7 +301,7 @@
       const canTrack = !!order.hasTracking;
       return `
         <div class="order-card">
-          <div class="order-title">單號 ${escapeHtml(order.orderNo || '')}</div>
+          <div class="order-title">配送批次單號：${escapeHtml(order.orderNo || '')}</div>
           <div class="row">送貨地址：${escapeHtml(order.address || '')}</div>
           ${order.phone ? `<div class="row">電話：${escapeHtml(order.phone)}</div>` : ''}
           <div class="row">送貨時間：${escapeHtml(formatDeliveryDisplay(order.deliveryDateText, order.deliveryTime))}</div>
@@ -319,7 +317,7 @@
           ` : `
             <div class="progress-shell show">
               <div class="status-big warn">尚未排車</div>
-              <div class="row">目前這張單尚未安排配送路線。</div>
+              <div class="row">目前這批配送尚未安排路線。</div>
             </div>
           `}
         </div>
