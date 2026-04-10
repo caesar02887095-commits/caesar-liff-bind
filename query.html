@@ -100,12 +100,30 @@
       line-height: 1.7;
       margin-bottom: 4px;
     }
+    .merge-box {
+      margin: 8px 0 10px 0;
+      padding: 8px 10px;
+      background: #f3f6fb;
+      border-radius: 8px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: #334155;
+    }
     .items {
       margin-top: 8px;
       padding-top: 8px;
       border-top: 1px dashed #d1d5db;
       font-size: 14px;
       line-height: 1.7;
+    }
+    .item-line {
+      margin-bottom: 2px;
+      word-break: break-word;
+    }
+    .item-more {
+      margin-top: 4px;
+      color: #6b7280;
+      font-size: 13px;
     }
     .progress-shell {
       margin-top: 12px;
@@ -299,13 +317,36 @@
 
     function renderOrderCard(order, idx) {
       const canTrack = !!order.hasTracking;
+      const mergedOrderNos = Array.isArray(order.orderNos) ? order.orderNos.filter(Boolean) : [];
+      const mergedCount = mergedOrderNos.length || (order.orderNo ? 1 : 0);
+      const mergedOrderText = mergedOrderNos.length ? mergedOrderNos.join(' / ') : (order.orderNo || '');
+
+      const itemSummary = order.itemSummary || '';
+      const itemLines = itemSummary
+        ? itemSummary.split(' / ').map(x => String(x || '').trim()).filter(Boolean)
+        : [];
+      const previewLines = itemLines.slice(0, 3);
+      const hiddenCount = Math.max(0, itemLines.length - 3);
+
       return `
         <div class="order-card">
           <div class="order-title">配送批次單號：${escapeHtml(order.orderNo || '')}</div>
+
+          ${mergedCount > 1 ? `
+            <div class="merge-box">
+              <div><b>合併單數：</b>${mergedCount} 張</div>
+              <div><b>合併單號：</b>${escapeHtml(mergedOrderText)}</div>
+            </div>
+          ` : ''}
+
           <div class="row">送貨地址：${escapeHtml(order.address || '')}</div>
           ${order.phone ? `<div class="row">電話：${escapeHtml(order.phone)}</div>` : ''}
           <div class="row">送貨時間：${escapeHtml(formatDeliveryDisplay(order.deliveryDateText, order.deliveryTime))}</div>
-          <div class="items">${escapeHtml(order.itemSummary || '')}</div>
+
+          <div class="items">
+            ${previewLines.map(line => `<div class="item-line">${escapeHtml(line)}</div>`).join('')}
+            ${hiddenCount > 0 ? `<div class="item-more">…另有 ${hiddenCount} 行</div>` : ''}
+          </div>
 
           ${canTrack ? `
             <button class="btn btn-toggle" onclick="toggleProgress(${idx})" id="toggle-btn-${idx}">
