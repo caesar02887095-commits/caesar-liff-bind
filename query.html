@@ -117,7 +117,7 @@
       line-height: 1.7;
     }
     .item-line {
-      margin-bottom: 2px;
+      margin-bottom: 6px;
       word-break: break-word;
     }
     .item-more {
@@ -201,6 +201,30 @@
     .ok { color: #166534; }
     .warn { color: #9a3412; }
     .bad { color: #991b1b; }
+
+    .detail-block {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed #d1d5db;
+    }
+    .detail-title {
+      font-size: 14px;
+      font-weight: bold;
+      color: #374151;
+      margin-bottom: 6px;
+    }
+    .detail-line {
+      font-size: 14px;
+      line-height: 1.8;
+      color: #374151;
+      margin-bottom: 4px;
+      word-break: break-word;
+    }
+    .detail-loading {
+      font-size: 13px;
+      color: #6b7280;
+      line-height: 1.7;
+    }
   </style>
 </head>
 <body>
@@ -277,7 +301,7 @@
       renderRequestForm();
     }
 
-    function renderApproved(data) {
+    async function renderApproved(data) {
       const orders = Array.isArray(data.orders) ? data.orders : [];
       const customerName = data.customerName || '';
 
@@ -313,6 +337,10 @@
       `;
 
       document.getElementById('app').innerHTML = html;
+
+      if (orders.length) {
+        await hydrateMergedDetailBlocks(orders);
+      }
     }
 
     function renderOrderCard(order, idx) {
@@ -320,13 +348,6 @@
       const mergedOrderNos = Array.isArray(order.orderNos) ? order.orderNos.filter(Boolean) : [];
       const mergedCount = mergedOrderNos.length || (order.orderNo ? 1 : 0);
       const mergedOrderText = mergedOrderNos.length ? mergedOrderNos.join(' / ') : (order.orderNo || '');
-
-      const itemSummary = order.itemSummary || '';
-      const itemLines = itemSummary
-        ? itemSummary.split(' / ').map(x => String(x || '').trim()).filter(Boolean)
-        : [];
-      const previewLines = itemLines.slice(0, 3);
-      const hiddenCount = Math.max(0, itemLines.length - 3);
 
       return `
         <div class="order-card">
@@ -343,9 +364,9 @@
           ${order.phone ? `<div class="row">電話：${escapeHtml(order.phone)}</div>` : ''}
           <div class="row">送貨時間：${escapeHtml(formatDeliveryDisplay(order.deliveryDateText, order.deliveryTime))}</div>
 
-          <div class="items">
-            ${previewLines.map(line => `<div class="item-line">${escapeHtml(line)}</div>`).join('')}
-            ${hiddenCount > 0 ? `<div class="item-more">…另有 ${hiddenCount} 行</div>` : ''}
+          <div class="detail-block">
+            <div class="detail-title">明細</div>
+            <div id="detail-block-${idx}" class="detail-loading">明細整理中...</div>
           </div>
 
           ${canTrack ? `
@@ -363,6 +384,67 @@
           `}
         </div>
       `;
+    }
+
+    async function hydrateMergedDetailBlocks(orders) {
+      for (let i = 0; i < orders.length; i++) {
+        const order = orders[i];
+        const box = document.getElementById(`detail-block-${i}`);
+        if (!box) continue;
+
+        const mergedOrderNos = Array.isArray(order.orderNos) && order.orderNos.length
+          ? order.orderNos.filter(Boolean)
+          : [order.orderNo].filter(Boolean);
+
+        if (!mergedOrderNos.length) {
+          box.innerHTML = `<div class="detail-line">無明細資料</div>`;
+          continue;
+        }
+
+        try {
+          const detailLines = await fetchMergedDetailLines(mergedOrderNos);
+          if (!detailLines.length) {
+            box.innerHTML = `<div class="detail-line">無明細資料</div>`;
+          } else {
+            box.innerHTML = detailLines.map(line => `
+              <div class="detail-line">${escapeHtml(line)}</div>
+            `).join('');
+          }
+        } catch (err) {
+          box.innerHTML = `<div class="detail-line">明細載入失敗</div>`;
+        }
+      }
+    }
+
+    async function fetchMergedDetailLines(orderNos) {
+      const tasks = orderNos.map(async (orderNo) => {
+        const url = `${GAS_WEBAPP_URL}?action=get_customer_tracking_detail&uid=${encodeURIComponent(currentUid)}&orderNo=${encodeURIComponent(orderNo)}`;
+        const resp = await fetch(url);
+        const json = await resp.json();
+
+        if (!json.ok) return '';
+        const data = json.data || {};
+        const items = Array.isArray(data.items) ? data.items : [];
+
+        const itemText = items
+          .map(item => {
+            const model = String(item.model || '').trim();
+            const qty = String(item.qty || '').trim();
+            if (!model) return '';
+            return `${model}*${qty || '0'}`;
+          })
+          .filter(Boolean)
+          .join('  ');
+
+        if (!itemText) {
+          return `${orderNo} - 無明細`;
+        }
+
+        return `${orderNo} - ${itemText}`;
+      });
+
+      const results = await Promise.all(tasks);
+      return results.filter(Boolean);
     }
 
     function renderProgressDetail(order) {
