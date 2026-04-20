@@ -15,7 +15,7 @@
     }
 
     .wrap {
-      max-width: 760px;
+      max-width: 860px;
       margin: 0 auto;
       padding: 12px;
     }
@@ -204,11 +204,53 @@
       gap: 10px;
       align-items: center;
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      border-left: 4px solid #cbd5e1;
+    }
+
+    .row.store {
+      border-left-color: #60a5fa;
+    }
+
+    .row.direct {
+      border-left-color: #f59e0b;
     }
 
     .row-left {
       flex: 1;
       min-width: 0;
+    }
+
+    .row-badges {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-bottom: 6px;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 4px 9px;
+      font-size: 12px;
+      font-weight: bold;
+      line-height: 1;
+    }
+
+    .badge-type {
+      background: #eef2ff;
+      color: #4338ca;
+    }
+
+    .badge-orders {
+      background: #ecfdf5;
+      color: #166534;
+    }
+
+    .badge-route {
+      background: #f8fafc;
+      color: #475569;
+      border: 1px solid #e2e8f0;
     }
 
     .row-title {
@@ -217,6 +259,14 @@
       line-height: 1.4;
       word-break: break-word;
       color: #1f2937;
+    }
+
+    .row-sub {
+      margin-top: 6px;
+      font-size: 13px;
+      color: #64748b;
+      line-height: 1.55;
+      word-break: break-word;
     }
 
     .row-right {
@@ -449,7 +499,6 @@
 
         const localItems = Array.isArray(localGroup.items) ? localGroup.items : [];
         const serverMap = new Map(serverList.map(item => [String(item.stopKey || ''), item]));
-
         const reordered = [];
 
         localItems.forEach(localItem => {
@@ -478,13 +527,16 @@
     }
 
     function renderDispatchBoard() {
-      document.getElementById('dispatchInfo').innerHTML =
-        `目前查看：<b>${currentPeriod}</b>`;
+      document.getElementById('dispatchInfo').innerHTML = `目前查看：<b>${currentPeriod}</b>`;
 
       const groups = dispatchBoard.groups || {};
       const totalStops = GROUP_NAMES.reduce((sum, name) => sum + ((groups[name] || []).length), 0);
+      const totalOrders = GROUP_NAMES.reduce((sum, name) => {
+        const list = Array.isArray(groups[name]) ? groups[name] : [];
+        return sum + list.reduce((sub, item) => sub + ((item.orderNos || []).length || 0), 0);
+      }, 0);
 
-      document.getElementById('summaryText').textContent = `共 ${totalStops} 站待排車`;
+      document.getElementById('summaryText').textContent = `共 ${totalStops} 站 / ${totalOrders} 張單待排車`;
 
       GROUP_NAMES.forEach(groupName => {
         const box = document.getElementById(`group-${groupName}`);
@@ -493,7 +545,8 @@
         const driverSelect = document.getElementById(`driver-${groupName}`);
 
         if (countBox) {
-          countBox.textContent = `${list.length} 站`;
+          const orderCount = list.reduce((sum, item) => sum + ((item.orderNos || []).length || 0), 0);
+          countBox.textContent = `${list.length} 站 / ${orderCount} 張單`;
         }
 
         const groupDriverName = list.length > 0 ? (list[0].driverName || '') : '';
@@ -507,12 +560,29 @@
         }
 
         box.innerHTML = list.map(item => {
+          const deliveryType = item.deliveryType || '';
+          const rowClass = deliveryType === '指定送達' ? 'direct' : 'store';
+          const mergedOrderNos = Array.isArray(item.mergedOrderNos) && item.mergedOrderNos.length
+            ? item.mergedOrderNos
+            : (Array.isArray(item.orderNos) ? item.orderNos : []);
+          const mergedCount = item.mergedCount || mergedOrderNos.length || 0;
+          const subText = deliveryType === '指定送達'
+            ? `指定地址：${item.address || ''}`
+            : `店家：${item.shopName || ''}`;
+
           return `
-            <div class="row"
+            <div class="row ${rowClass}"
                  data-stop-key="${escapeHtml(item.stopKey)}"
                  data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(item.taskIds || [])))}">
               <div class="row-left">
+                <div class="row-badges">
+                  <span class="badge badge-type">${escapeHtml(deliveryType || '未分類')}</span>
+                  <span class="badge badge-orders">${escapeHtml(String(mergedCount))} 張單</span>
+                  <span class="badge badge-route">${escapeHtml(item.routeGroup || '')}</span>
+                </div>
                 <div class="row-title">${escapeHtml(item.displayLabel || '')}</div>
+                <div class="row-sub">${escapeHtml(subText)}</div>
+                <div class="row-sub">單號：${escapeHtml(mergedOrderNos.join(' / '))}</div>
               </div>
               <div class="row-right">
                 <div class="drag-handle ${sortMode ? '' : 'disabled'}">☰</div>
@@ -683,7 +753,6 @@
 
       return rows.map((row, index) => {
         const taskIds = JSON.parse(decodeURIComponent(row.getAttribute('data-taskids') || '[]'));
-
         return {
           stopKey: row.getAttribute('data-stop-key') || '',
           taskIds: taskIds,
@@ -708,8 +777,8 @@
         .replace(/'/g, '&#39;');
     }
 
-    GROUP_NAMES.forEach(groupName => {
-      document.addEventListener('change', function(e) {
+    document.addEventListener('change', function(e) {
+      GROUP_NAMES.forEach(groupName => {
         if (e.target && e.target.id === `driver-${groupName}`) {
           syncLocalBoardFromDOM();
         }
