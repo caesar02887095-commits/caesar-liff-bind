@@ -232,17 +232,29 @@
     const LIFF_ID = '2009380550-ow9SlJK4';
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
 
+    const RETURN_URL_KEY = 'caesar_return_url';
+    const RETURN_RESTORED_KEY = 'caesar_return_restored';
+
     let currentUid = '';
     let currentDisplayName = '';
 
     async function initPage() {
       try {
+        saveCurrentPageState_();
+
         await liff.init({ liffId: LIFF_ID });
 
         if (!liff.isLoggedIn()) {
-          liff.login();
+          prepareLoginRedirect_();
+          liff.login({ redirectUri: window.location.href });
           return;
         }
+
+        if (restoreReturnPageIfNeeded_()) {
+          return;
+        }
+
+        cleanupAuthNoise_();
 
         const profile = await liff.getProfile();
         currentUid = profile.userId || '';
@@ -255,6 +267,100 @@
       } catch (err) {
         renderMessage('載入失敗：' + (err.message || err), 'bad');
       }
+    }
+
+    function saveCurrentPageState_() {
+      try {
+        if (window.location.search.includes('liff.state=') || window.location.search.includes('code=')) {
+          return;
+        }
+        sessionStorage.setItem(RETURN_URL_KEY, window.location.href);
+      } catch (e) {}
+    }
+
+    function prepareLoginRedirect_() {
+      try {
+        sessionStorage.setItem(RETURN_URL_KEY, window.location.href);
+        sessionStorage.removeItem(RETURN_RESTORED_KEY);
+      } catch (e) {}
+    }
+
+    function restoreReturnPageIfNeeded_() {
+      try {
+        const savedUrl = sessionStorage.getItem(RETURN_URL_KEY) || '';
+        const restored = sessionStorage.getItem(RETURN_RESTORED_KEY) || '';
+
+        if (!savedUrl) return false;
+
+        const currentUrl = window.location.href;
+        const savedClean = normalizeUrlForCompare_(savedUrl);
+        const currentClean = normalizeUrlForCompare_(currentUrl);
+
+        if (savedClean && currentClean && savedClean !== currentClean && restored !== '1') {
+          sessionStorage.setItem(RETURN_RESTORED_KEY, '1');
+          window.location.replace(savedUrl);
+          return true;
+        }
+
+        sessionStorage.removeItem(RETURN_RESTORED_KEY);
+        sessionStorage.removeItem(RETURN_URL_KEY);
+        return false;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function normalizeUrlForCompare_(url) {
+      try {
+        const u = new URL(url);
+        const params = new URLSearchParams(u.search);
+        params.delete('code');
+        params.delete('state');
+        params.delete('friendship_status_changed');
+        params.delete('liffClientId');
+        params.delete('liffRedirectUri');
+        params.delete('access_token');
+        params.delete('id_token');
+        params.delete('expires_in');
+        params.delete('token_type');
+
+        const search = params.toString();
+        return u.origin + u.pathname + (search ? '?' + search : '') + (u.hash || '');
+      } catch (e) {
+        return url;
+      }
+    }
+
+    function cleanupAuthNoise_() {
+      try {
+        const url = new URL(window.location.href);
+        const params = url.searchParams;
+
+        const noisyKeys = [
+          'code',
+          'state',
+          'friendship_status_changed',
+          'liffClientId',
+          'liffRedirectUri',
+          'access_token',
+          'id_token',
+          'expires_in',
+          'token_type'
+        ];
+
+        let changed = false;
+        noisyKeys.forEach(key => {
+          if (params.has(key)) {
+            params.delete(key);
+            changed = true;
+          }
+        });
+
+        if (changed) {
+          const newUrl = url.origin + url.pathname + (params.toString() ? '?' + params.toString() : '') + (url.hash || '');
+          window.history.replaceState({}, '', newUrl);
+        }
+      } catch (e) {}
     }
 
     async function loadPortal() {
