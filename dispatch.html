@@ -233,6 +233,18 @@
       display: flex;
       align-items: center;
       gap: 6px;
+    }
+    .inline-type {
+      font-weight: 800;
+    }
+    .inline-type.alert {
+      color: #dc2626;
+      font-size: 18px;
+    }
+    .inline-count {
+      color: #374151;
+      font-weight: 700;
+    }
       flex-wrap: nowrap;
       white-space: nowrap;
     }
@@ -531,23 +543,17 @@
         box.innerHTML = list.map(item => {
           const mainLabel = getMainLabel(item);
           const deliveryTypeText = isStoreStop(item) ? '店' : '指';
-          const deliveryTypeClass = isStoreStop(item) ? 'tag tag-delivery' : 'tag tag-delivery alert';
+          const deliveryTypeClass = isStoreStop(item) ? 'inline-type' : 'inline-type alert';
           const orderCount = getOrderCount(item);
-          const routeShort = getRouteShortName(groupName);
 
           return `
             <div class="row"
                  data-stop-key="${escapeHtml(item.stopKey)}"
                  data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(item.taskIds || [])))}">
               <div class="row-left">
-                <div class="row-title">${escapeHtml(mainLabel)}</div>
+                <div class="row-title"><span class="${deliveryTypeClass}">${escapeHtml(deliveryTypeText)}</span><span class="inline-count">-${escapeHtml(String(orderCount))}-</span>${escapeHtml(mainLabel)}</div>
               </div>
               <div class="row-right">
-                <div class="meta-inline">
-                  <span class="${deliveryTypeClass}">${escapeHtml(deliveryTypeText)}</span>
-                  <span class="tag tag-orders">${escapeHtml(String(orderCount))}</span>
-                  <span class="tag tag-route">${escapeHtml(routeShort)}</span>
-                </div>
                 <div class="drag-handle ${sortMode ? '' : 'disabled'}">☰</div>
               </div>
             </div>
