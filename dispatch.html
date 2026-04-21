@@ -173,12 +173,36 @@
       align-items: center;
       justify-content: space-between;
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-      border-left: 4px solid #60a5fa;
     }
     .row-left {
       flex: 1;
       min-width: 0;
-    }    .row-title {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .type-box {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 14px;
+      font-weight: 800;
+      line-height: 1;
+      background: #e5e7eb;
+      color: #334155;
+    }
+    .type-box.alert {
+      background: #fee2e2;
+      color: #dc2626;
+      font-size: 15px;
+    }
+    .row-title {
+      flex: 1;
+      min-width: 0;
       font-size: 16px;
       font-weight: bold;
       line-height: 1.35;
@@ -188,25 +212,17 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+    .order-count {
+      color: #6b7280;
+      font-weight: 600;
+      margin-left: 4px;
+    }
     .row-right {
       flex-shrink: 0;
       display: flex;
       align-items: center;
       gap: 6px;
       margin-left: 8px;
-    }
-    .inline-type {
-      font-weight: 800;
-      margin-right: 1px;
-    }
-    .inline-type.alert {
-      color: #dc2626;
-      font-size: 18px;
-    }
-    .inline-count {
-      color: #374151;
-      font-weight: 700;
-      margin-right: 1px;
     }
     .drag-handle {
       font-size: 18px;
@@ -239,15 +255,26 @@
         padding: 9px 10px;
         gap: 8px;
       }
+      .row-left {
+        gap: 8px;
+      }
+      .type-box {
+        width: 26px;
+        height: 26px;
+        font-size: 13px;
+      }
+      .type-box.alert {
+        font-size: 14px;
+      }
       .row-title {
         font-size: 15px;
+      }
+      .order-count {
+        font-size: 13px;
       }
       .row-right {
         gap: 4px;
         margin-left: 6px;
-      }
-      .inline-type.alert {
-        font-size: 17px;
       }
     }
   </style>
@@ -497,7 +524,7 @@
         box.innerHTML = list.map(item => {
           const mainLabel = getMainLabel(item);
           const deliveryTypeText = isStoreStop(item) ? '店' : '指';
-          const deliveryTypeClass = isStoreStop(item) ? 'inline-type' : 'inline-type alert';
+          const deliveryTypeClass = isStoreStop(item) ? 'type-box' : 'type-box alert';
           const orderCount = getOrderCount(item);
 
           return `
@@ -505,7 +532,8 @@
                  data-stop-key="${escapeHtml(item.stopKey)}"
                  data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(item.taskIds || [])))}">
               <div class="row-left">
-                <div class="row-title"><span class="${deliveryTypeClass}">${escapeHtml(deliveryTypeText)}</span><span class="inline-count">-${escapeHtml(String(orderCount))}-</span><span>${escapeHtml(mainLabel)}</span></div>
+                <div class="${deliveryTypeClass}">${escapeHtml(deliveryTypeText)}</div>
+                <div class="row-title">${escapeHtml(mainLabel)}<span class="order-count">(${escapeHtml(String(orderCount))})</span></div>
               </div>
               <div class="row-right">
                 <div class="drag-handle ${sortMode ? '' : 'disabled'}">☰</div>
