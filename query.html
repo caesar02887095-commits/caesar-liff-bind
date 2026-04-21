@@ -264,6 +264,7 @@
           `LINE 使用者：<b>${escapeHtml(currentDisplayName || '未辨識')}</b>`;
 
         await loadPortal();
+        startAutoRefresh();
       } catch (err) {
         renderMessage('載入失敗：' + (err.message || err), 'bad');
       }
@@ -363,9 +364,33 @@
       } catch (e) {}
     }
 
-    async function loadPortal() {
-      const url = `${GAS_WEBAPP_URL}?action=get_customer_portal&uid=${encodeURIComponent(currentUid)}`;
-      const resp = await fetch(url);
+    let autoRefreshTimer = null;
+
+    function startAutoRefresh() {
+      stopAutoRefresh();
+      autoRefreshTimer = setInterval(() => {
+        if (document.hidden) return;
+        loadPortal({ silent: true });
+      }, 20000);
+    }
+
+    function stopAutoRefresh() {
+      if (autoRefreshTimer) {
+        clearInterval(autoRefreshTimer);
+        autoRefreshTimer = null;
+      }
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        loadPortal({ silent: true });
+      }
+    });
+
+    async function loadPortal(options = {}) {
+      const silent = !!options.silent;
+      const url = `${GAS_WEBAPP_URL}?action=get_customer_portal&uid=${encodeURIComponent(currentUid)}&_ts=${Date.now()}`;
+      const resp = await fetch(url, { cache: 'no-store' });
       const json = await resp.json();
 
       if (!json.ok) {
@@ -598,7 +623,7 @@
         <div class="flow-step">
           <div class="flow-dot"></div>
           <div class="flow-text">
-            <div class="flow-main">即將送達你的訂單</div>
+            <div class="flow-main">等待送達</div>
           </div>
         </div>
       `;
