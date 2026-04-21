@@ -151,11 +151,36 @@
   <script>
     const LIFF_ID = '2009380550-ow9SlJK4';
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
+    let currentUid = '';
+    let currentOrderNo = '';
 
     function getQueryParam(name) {
       const url = new URL(window.location.href);
       return url.searchParams.get(name) || '';
     }
+
+    let autoRefreshTimer = null;
+
+    function startAutoRefresh() {
+      stopAutoRefresh();
+      autoRefreshTimer = setInterval(() => {
+        if (document.hidden) return;
+        loadDetail({ silent: true });
+      }, 20000);
+    }
+
+    function stopAutoRefresh() {
+      if (autoRefreshTimer) {
+        clearInterval(autoRefreshTimer);
+        autoRefreshTimer = null;
+      }
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        loadDetail({ silent: true });
+      }
+    });
 
     async function initPage() {
       try {
@@ -173,23 +198,31 @@
         document.getElementById('topInfo').innerHTML =
           `查詢單號：<b>${escapeHtml(orderNo || '')}</b>`;
 
-        const url =
-          `${GAS_WEBAPP_URL}?action=get_customer_tracking_detail` +
-          `&uid=${encodeURIComponent(uid)}` +
-          `&orderNo=${encodeURIComponent(orderNo)}`;
-
-        const resp = await fetch(url);
-        const json = await resp.json();
-
-        if (!json.ok) {
-          renderMessage(json.error || '讀取失敗', 'bad');
-          return;
-        }
-
-        renderDetail(json.data || {});
+        currentUid = uid;
+        currentOrderNo = orderNo;
+        await loadDetail();
+        startAutoRefresh();
       } catch (err) {
         renderMessage('讀取失敗：' + (err.message || err), 'bad');
       }
+    }
+
+    async function loadDetail(options = {}) {
+      const url =
+        `${GAS_WEBAPP_URL}?action=get_customer_tracking_detail` +
+        `&uid=${encodeURIComponent(currentUid)}` +
+        `&orderNo=${encodeURIComponent(currentOrderNo)}` +
+        `&_ts=${Date.now()}`;
+
+      const resp = await fetch(url, { cache: 'no-store' });
+      const json = await resp.json();
+
+      if (!json.ok) {
+        renderMessage(json.error || '讀取失敗', 'bad');
+        return;
+      }
+
+      renderDetail(json.data || {});
     }
 
     function renderDetail(data) {
@@ -322,7 +355,7 @@
         <div class="flow-step">
           <div class="flow-dot"></div>
           <div class="flow-text">
-            <div class="flow-main">即將送達你的訂單</div>
+            <div class="flow-main">等待送達</div>
           </div>
         </div>
       `;
