@@ -191,14 +191,26 @@
     .tag-delivery {
       background: #eef2ff;
       color: #4338ca;
+      min-width: 24px;
+      text-align: center;
+    }
+    .tag-delivery.alert {
+      background: #fef2f2;
+      color: #dc2626;
+      font-size: 13px;
+      font-weight: 800;
     }
     .tag-orders {
       background: #ecfdf5;
       color: #166534;
+      min-width: 22px;
+      text-align: center;
     }
     .tag-route {
       background: #f3f4f6;
       color: #4b5563;
+      min-width: 22px;
+      text-align: center;
     }
     .row-title {
       font-size: 16px;
@@ -266,8 +278,11 @@
         gap: 4px;
       }
       .tag {
-        padding: 2px 6px;
+        padding: 2px 5px;
         font-size: 11px;
+      }
+      .tag-delivery.alert {
+        font-size: 12px;
       }
     }
   </style>
@@ -516,8 +531,10 @@
 
         box.innerHTML = list.map(item => {
           const mainLabel = getMainLabel(item);
-          const deliveryType = item.deliveryType || (isStoreStop(item) ? '送店' : '指定送達');
+          const deliveryTypeText = isStoreStop(item) ? '店' : '指';
+          const deliveryTypeClass = isStoreStop(item) ? 'tag tag-delivery' : 'tag tag-delivery alert';
           const orderCount = getOrderCount(item);
+          const routeShort = getRouteShortName(groupName);
 
           return `
             <div class="row"
@@ -528,9 +545,9 @@
               </div>
               <div class="row-right">
                 <div class="meta-inline">
-                  <span class="tag tag-delivery">${escapeHtml(deliveryType)}</span>
-                  <span class="tag tag-orders">${escapeHtml(String(orderCount))} 張單</span>
-                  <span class="tag tag-route">${escapeHtml(groupName)}</span>
+                  <span class="${deliveryTypeClass}">${escapeHtml(deliveryTypeText)}</span>
+                  <span class="tag tag-orders">${escapeHtml(String(orderCount))}</span>
+                  <span class="tag tag-route">${escapeHtml(routeShort)}</span>
                 </div>
                 <div class="drag-handle ${sortMode ? '' : 'disabled'}">☰</div>
               </div>
@@ -712,8 +729,18 @@
       return 1;
     }
 
-    function isStoreStop(item) {
-      const deliveryType = String(item.deliveryType || '').trim();
+
+    function getRouteShortName(groupName) {
+      switch (String(groupName || '').trim()) {
+        case '調度': return '調';
+        case '市區': return '市';
+        case '竹東': return '東';
+        case '湖口': return '湖';
+        default: return String(groupName || '').trim();
+      }
+    }
+
+    function isStoreStop(item) {      const deliveryType = String(item.deliveryType || '').trim();
       if (deliveryType === '送店') return true;
       const address = String(item.address || '').trim();
       return !address || address === '送店';
