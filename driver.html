@@ -532,10 +532,13 @@
       }
 
       completedList.forEach((item, idx) => {
+        const doneText = item.note
+          ? `${item.label || ''} (${item.note})`
+          : `${item.label || ''}`;
+
         htmlParts.push(`
           <div class="card done">
-            <div class="display-name">${escapeHtml(item.label || '')}</div>
-            ${item.note ? `<div class="done-note">${escapeHtml(item.note)}</div>` : ''}
+            <div class="display-name">${escapeHtml(doneText)}</div>
           </div>
         `);
 
