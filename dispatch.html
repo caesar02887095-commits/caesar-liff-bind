@@ -171,19 +171,13 @@
       display: flex;
       gap: 10px;
       align-items: center;
+      justify-content: space-between;
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
       border-left: 4px solid #60a5fa;
     }
     .row-left {
       flex: 1;
       min-width: 0;
-    }
-    .row-top {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      flex-wrap: wrap;
-      margin-bottom: 4px;
     }
     .tag {
       display: inline-block;
@@ -207,17 +201,28 @@
       color: #4b5563;
     }
     .row-title {
-      font-size: 17px;
+      font-size: 16px;
       font-weight: bold;
       line-height: 1.35;
       word-break: break-word;
       color: #111827;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
     .row-right {
       flex-shrink: 0;
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 6px;
+      margin-left: 8px;
+    }
+    .meta-inline {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: nowrap;
+      white-space: nowrap;
     }
     .drag-handle {
       font-size: 18px;
@@ -243,6 +248,27 @@
     .sortable-chosen {
       background: #eff6ff;
       border: 1px dashed #60a5fa;
+    }
+
+    @media (max-width: 640px) {
+      .row {
+        padding: 9px 10px;
+        gap: 8px;
+      }
+      .row-title {
+        font-size: 15px;
+      }
+      .row-right {
+        gap: 4px;
+        margin-left: 6px;
+      }
+      .meta-inline {
+        gap: 4px;
+      }
+      .tag {
+        padding: 2px 6px;
+        font-size: 11px;
+      }
     }
   </style>
 </head>
@@ -498,14 +524,14 @@
                  data-stop-key="${escapeHtml(item.stopKey)}"
                  data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(item.taskIds || [])))}">
               <div class="row-left">
-                <div class="row-top">
+                <div class="row-title">${escapeHtml(mainLabel)}</div>
+              </div>
+              <div class="row-right">
+                <div class="meta-inline">
                   <span class="tag tag-delivery">${escapeHtml(deliveryType)}</span>
                   <span class="tag tag-orders">${escapeHtml(String(orderCount))} 張單</span>
                   <span class="tag tag-route">${escapeHtml(groupName)}</span>
                 </div>
-                <div class="row-title">${escapeHtml(mainLabel)}</div>
-              </div>
-              <div class="row-right">
                 <div class="drag-handle ${sortMode ? '' : 'disabled'}">☰</div>
               </div>
             </div>
