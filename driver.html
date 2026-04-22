@@ -616,6 +616,27 @@
       bindActionButtons();
     }
 
+
+    function renderDraftPhotoGrid(group) {
+      const photos = Array.isArray(group.draftPhotos) ? group.draftPhotos : [];
+      if (!photos.length) return '';
+      return `
+        <div class="photo-preview-grid">
+          ${photos.map((photo, idx) => `
+            <div class="photo-thumb">
+              <a href="${escapeHtml(photo.url || photo.previewUrl || '')}" target="_blank" rel="noopener">
+                <img src="${escapeHtml(photo.previewUrl || photo.url || '')}" alt="draft-photo-${idx + 1}">
+              </a>
+              <button class="photo-delete-btn btn-photo-delete"
+                      data-group-key="${escapeHtml(group.key)}"
+                      data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}"
+                      data-photo-index="${idx}">×</button>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
     function bindActionButtons() {
       const startBtn = document.getElementById('btn-start-departure');
       if (startBtn) {
@@ -958,6 +979,30 @@
         alert('照片已清除');
       } catch (err) {
         alert('照片清除失敗：' + (err.message || err));
+      } finally {
+        hideOverlay();
+      }
+    }
+
+    async function deleteUploadedPhoto(taskIdsJson, groupKey, photoIndex) {
+      let taskIds = [];
+      try { taskIds = JSON.parse(taskIdsJson); } catch (e) { alert('任務資料格式錯誤'); return; }
+      if (photoIndex < 0) return;
+      showOverlay('刪除照片中...');
+      try {
+        const resp = await fetch(GAS_WEBAPP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'delete_driver_photo', taskIds, driverName: currentDriverName, photoIndex })
+        });
+        const text = await resp.text();
+        let json = {};
+        try { json = JSON.parse(text); } catch (e) { throw new Error(text || '照片刪除失敗'); }
+        if (!json.ok) throw new Error(json.message || json.error || '照片刪除失敗');
+        syncPhotoCountToState_(groupKey, Number(json.totalCount || 0));
+        await loadTasks();
+      } catch (err) {
+        alert('照片刪除失敗：' + (err.message || err));
       } finally {
         hideOverlay();
       }
