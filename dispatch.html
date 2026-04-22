@@ -365,6 +365,7 @@
     const LOCAL_KEY_PREFIX = 'caesar_dispatch_board_snapshot_';
 
     let currentPeriod = '上午';
+    let currentBatchId = '';
     let dispatchBoard = null;
     let sortableRefs = [];
     let sortMode = false;
@@ -411,6 +412,7 @@
       try {
         localStorage.setItem(getLocalSnapshotKey(currentPeriod), JSON.stringify({
           savedAt: Date.now(),
+          batchId: currentBatchId || '',
           data: snapshot
         }));
       } catch (e) {
@@ -423,7 +425,9 @@
         const raw = localStorage.getItem(getLocalSnapshotKey(period));
         if (!raw) return null;
         const parsed = JSON.parse(raw);
-        return parsed && parsed.data ? parsed.data : null;
+        if (!parsed || !parsed.data) return null;
+        if ((parsed.batchId || '') !== (currentBatchId || '')) return null;
+        return parsed.data;
       } catch (e) {
         console.warn('getLocalSnapshot failed', e);
         return null;
@@ -441,6 +445,7 @@
       }
 
       dispatchBoard = json.data || { groups: {} };
+      currentBatchId = dispatchBoard.batchId || '';
 
       const localSnapshot = getLocalSnapshot(currentPeriod);
       if (localSnapshot) {
