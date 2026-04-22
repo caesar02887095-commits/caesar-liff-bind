@@ -268,7 +268,7 @@
             </div>
           ` : ''}
 
-          ${photos.length ? `<div class="photo-wrap">${photos.map((photo, idx) => `<div class="photo-item"><img src="${escapeHtml(photo.previewUrl || photo.url || '')}" alt="送達照片${idx + 1}"><a class="photo-link" href="${escapeHtml(photo.url || '')}" target="_blank">查看原圖</a></div>`).join('')}</div>` : ''}
+          ${photos.length ? `<div class="photo-wrap">${photos.map((photo, idx) => `<a class="photo-item" href="${escapeHtml(photo.url || '')}" target="_blank"><img src="${escapeHtml(photo.previewUrl || photo.url || '')}" alt="送達照片${idx + 1}"><span class="photo-badge">照片${idx + 1}</span></a>`).join('')}</div>` : ''}
           <div class="items">
             ${items.map(item => `• ${escapeHtml(item.model || '')} x${escapeHtml(item.qty || '')}`).join('<br>')}
           </div>
