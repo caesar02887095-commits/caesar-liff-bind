@@ -509,9 +509,10 @@
       const driverName = String(order.driverName || '').trim();
       const etaText = String(order.etaText || '').trim();
       const driverSuffix = driverName ? `｜司機 ${driverName}` : '';
+      const timeSuffix = formatStatusTimeLabel(order);
 
       if (taskStatus === '已完成') {
-        return { text: `送貨已完成${driverSuffix}`, className: 'done' };
+        return { text: `送貨已完成${driverSuffix}${timeSuffix}`, className: 'done' };
       }
       if (taskStatus === '放門口' || taskStatus === '改送隔壁' || taskStatus === '聯繫後改期' || taskStatus === '取消配送' || taskStatus === '特殊回報') {
         return {
@@ -523,6 +524,24 @@
         return { text: `司機配送中${driverSuffix}`, className: 'active' };
       }
       return { text: `理貨中${driverSuffix}`, className: 'preparing' };
+    }
+
+
+    function formatStatusTimeLabel(order) {
+      const taskStatus = String(order.taskStatus || '').trim();
+      if (taskStatus !== '已完成') return '';
+
+      const raw = String(order.updatedAt || '').trim();
+      if (!raw) return '';
+
+      const dt = new Date(raw);
+      if (isNaN(dt.getTime())) return '';
+
+      const hh = String(dt.getHours()).padStart(2, '0');
+      const mm = String(dt.getMinutes()).padStart(2, '0');
+      const periodText = String(order.deliveryTime || '').trim();
+      const periodLabel = periodText ? `${periodText} ` : '';
+      return `｜${periodLabel}${hh}:${mm}`;
     }
 
     function renderRequestForm() {
