@@ -79,11 +79,6 @@
       color: #333;
       margin-top: 8px;
     }
-    .btn-toggle {
-      background: #dbeafe;
-      color: #1d4ed8;
-      margin-top: 10px;
-    }
     .order-card {
       border: 1px solid #d8dee8;
       border-radius: 14px;
@@ -136,14 +131,10 @@
       margin-bottom: 4px;
       word-break: break-word;
     }
-    .progress-shell {
+    .status-pill {
       margin-top: 12px;
       padding-top: 10px;
       border-top: 1px dashed #d1d5db;
-      display: none;
-    }
-    .progress-shell.show {
-      display: block;
     }
     .status-big {
       font-size: 16px;
@@ -169,40 +160,15 @@
       font-weight: bold;
       line-height: 1.2;
     }
-    .flow {
-      margin-top: 10px;
-    }
-    .flow-step {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      margin-bottom: 12px;
-    }
-    .flow-dot {
-      width: 14px;
-      height: 14px;
-      border-radius: 999px;
-      margin-top: 3px;
-      flex-shrink: 0;
-      background: #cbd5e1;
-    }
-    .flow-dot.active {
-      background: #2563eb;
-    }
-    .flow-dot.done {
-      background: #16a34a;
-    }
-    .flow-text {
-      font-size: 14px;
+    .status-text {
+      font-size: 16px;
+      font-weight: bold;
       line-height: 1.6;
     }
-    .flow-main {
-      font-weight: bold;
-    }
-    .flow-sub {
-      color: #6b7280;
-      font-size: 13px;
-    }
+    .status-text.done { color: #166534; }
+    .status-text.active { color: #1d4ed8; }
+    .status-text.warn { color: #9a3412; }
+    .status-text.cancel { color: #991b1b; }
     .loading {
       text-align: center;
       color: #666;
@@ -443,7 +409,7 @@
         html += `
           <div class="card">
             <div class="status">訂單 / 配送查詢</div>
-            ${orders.map((order, idx) => renderOrderCard(order, idx)).join('')}
+            ${orders.map(order => renderOrderCard(order)).join('')}
           </div>
         `;
       }
@@ -457,12 +423,14 @@
       document.getElementById('app').innerHTML = html;
     }
 
-    function renderOrderCard(order, idx) {
+    function renderOrderCard(order) {
       const canTrack = !!order.hasTracking;
       const mergedOrderNos = Array.isArray(order.orderNos) ? order.orderNos.filter(Boolean) : [];
       const mergedCount = mergedOrderNos.length || (order.orderNo ? 1 : 0);
       const mergedOrderText = mergedOrderNos.length ? mergedOrderNos.join(' / ') : (order.orderNo || '');
       const detailLines = Array.isArray(order.detailLines) ? order.detailLines : [];
+      const etaText = order.etaText || '';
+      const statusInfo = getStatusInfo(order);
 
       return `
         <div class="order-card">
@@ -487,161 +455,34 @@
             }
           </div>
 
-          ${canTrack ? `
-            <button class="btn btn-toggle" onclick="toggleProgress(${idx})" id="toggle-btn-${idx}">
-              展開送貨進度
-            </button>
-            <div class="progress-shell" id="progress-shell-${idx}">
-              ${renderProgressDetail(order)}
-            </div>
-          ` : `
-            <div class="progress-shell show">
-              <div class="status-big warn">尚未排車</div>
-              <div class="row">目前這批配送尚未安排路線。</div>
-            </div>
-          `}
-        </div>
-      `;
-    }
-
-    function renderProgressDetail(order) {
-      const progressText = order.taskStatusText || '配送處理中';
-      const taskStatus = order.taskStatus || '';
-      const etaText = order.etaText || '';
-
-      return `
-        <div class="status-big ok">${escapeHtml(progressText)}</div>
-        <div class="row">配送司機：${escapeHtml(order.driverName || '未排車')}</div>
-        ${etaText ? `
-          <div class="eta-box">
-            <div class="eta-title">預估送達時間</div>
-            <div class="eta-time">${escapeHtml(etaText)}</div>
+          <div class="status-pill">
+            <div class="status-text ${statusInfo.className}">${escapeHtml(statusInfo.text)}</div>
+            ${canTrack && etaText ? `
+              <div class="eta-box">
+                <div class="eta-title">預估送達時間</div>
+                <div class="eta-time">${escapeHtml(etaText)}</div>
+              </div>
+            ` : ''}
           </div>
-        ` : ''}
-        <div class="flow">
-          ${renderFlow(taskStatus)}
         </div>
       `;
     }
 
-    function renderFlow(taskStatus) {
+    function getStatusInfo(order) {
+      if (!order.hasTracking) {
+        return { text: '尚未排車', className: 'warn' };
+      }
+
+      const taskStatus = String(order.taskStatus || '').trim();
+      const taskStatusText = String(order.taskStatusText || '').trim();
+
       if (taskStatus === '已完成') {
-        return `
-          <div class="flow-step">
-            <div class="flow-dot done"></div>
-            <div class="flow-text">
-              <div class="flow-main">已排車</div>
-            </div>
-          </div>
-          <div class="flow-step">
-            <div class="flow-dot done"></div>
-            <div class="flow-text">
-              <div class="flow-main">司機配送中</div>
-            </div>
-          </div>
-          <div class="flow-step">
-            <div class="flow-dot done"></div>
-            <div class="flow-text">
-              <div class="flow-main">你的訂單已完成配送</div>
-            </div>
-          </div>
-        `;
+        return { text: '送貨已完成', className: 'done' };
       }
-
-      if (taskStatus === '聯繫後改期') {
-        return `
-          <div class="flow-step">
-            <div class="flow-dot done"></div>
-            <div class="flow-text">
-              <div class="flow-main">已排車</div>
-            </div>
-          </div>
-          <div class="flow-step">
-            <div class="flow-dot active"></div>
-            <div class="flow-text">
-              <div class="flow-main">配送安排已異動</div>
-              <div class="flow-sub">請等待後續通知</div>
-            </div>
-          </div>
-        `;
+      if (taskStatus === '放門口' || taskStatus === '改送隔壁' || taskStatus === '聯繫後改期' || taskStatus === '取消配送' || taskStatus === '特殊回報') {
+        return { text: taskStatusText || taskStatus, className: taskStatus === '取消配送' ? 'cancel' : 'warn' };
       }
-
-      if (taskStatus === '取消配送') {
-        return `
-          <div class="flow-step">
-            <div class="flow-dot done"></div>
-            <div class="flow-text">
-              <div class="flow-main">已排車</div>
-            </div>
-          </div>
-          <div class="flow-step">
-            <div class="flow-dot active"></div>
-            <div class="flow-text">
-              <div class="flow-main">配送已取消</div>
-            </div>
-          </div>
-        `;
-      }
-
-      if (taskStatus === '放門口' || taskStatus === '改送隔壁') {
-        return `
-          <div class="flow-step">
-            <div class="flow-dot done"></div>
-            <div class="flow-text">
-              <div class="flow-main">已排車</div>
-            </div>
-          </div>
-          <div class="flow-step">
-            <div class="flow-dot done"></div>
-            <div class="flow-text">
-              <div class="flow-main">司機配送中</div>
-            </div>
-          </div>
-          <div class="flow-step">
-            <div class="flow-dot done"></div>
-            <div class="flow-text">
-              <div class="flow-main">${escapeHtml(taskStatus)}</div>
-            </div>
-          </div>
-        `;
-      }
-
-      return `
-        <div class="flow-step">
-          <div class="flow-dot done"></div>
-          <div class="flow-text">
-            <div class="flow-main">已排車</div>
-          </div>
-        </div>
-        <div class="flow-step">
-          <div class="flow-dot active"></div>
-          <div class="flow-text">
-            <div class="flow-main">司機配送中</div>
-            <div class="flow-sub">正依路線順序前往送達</div>
-          </div>
-        </div>
-        <div class="flow-step">
-          <div class="flow-dot"></div>
-          <div class="flow-text">
-            <div class="flow-main">等待送達</div>
-          </div>
-        </div>
-      `;
-    }
-
-    function toggleProgress(idx) {
-      const shell = document.getElementById(`progress-shell-${idx}`);
-      const btn = document.getElementById(`toggle-btn-${idx}`);
-      if (!shell || !btn) return;
-
-      const isOpen = shell.classList.contains('show');
-      if (isOpen) {
-        shell.classList.remove('show');
-        btn.textContent = '展開送貨進度';
-      } else {
-        shell.classList.add('show');
-        btn.textContent = '收合送貨進度';
-      }
+      return { text: '司機配送中', className: 'active' };
     }
 
     function renderRequestForm() {
