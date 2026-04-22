@@ -98,18 +98,39 @@
       line-height: 1.2;
     }
 
-    .status-line {
+    .status-banner {
       margin-top: 10px;
-      padding-top: 10px;
-      border-top: 1px dashed #d1d5db;
-      font-size: 16px;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 15px;
       font-weight: bold;
       line-height: 1.6;
     }
-    .status-line.done { color: #166534; }
-    .status-line.active { color: #1d4ed8; }
-    .status-line.warn { color: #9a3412; }
-    .status-line.cancel { color: #991b1b; }
+    .status-banner.done {
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #86efac;
+    }
+    .status-banner.active {
+      background: #dbeafe;
+      color: #1d4ed8;
+      border: 1px solid #93c5fd;
+    }
+    .status-banner.preparing {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fcd34d;
+    }
+    .status-banner.warn {
+      background: #ffedd5;
+      color: #9a3412;
+      border: 1px solid #fdba74;
+    }
+    .status-banner.cancel {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
   </style>
 </head>
 <body>
@@ -232,7 +253,8 @@
           <div class="row">送貨地點：${placeText}</div>
           ${data.phone ? `<div class="row">電話：${escapeHtml(data.phone)}</div>` : ''}
           <div class="row">送貨時間：${escapeHtml(formatDeliveryDisplay(data.deliveryDateText, data.deliveryTime))}</div>
-          ${data.driverName ? `<div class="row">配送司機：${escapeHtml(data.driverName)}</div>` : ''}
+
+          <div class="status-banner ${statusInfo.className}">${escapeHtml(statusInfo.text)}</div>
 
           ${showEta ? `
             <div class="eta-box">
@@ -240,8 +262,6 @@
               <div class="eta-time">${escapeHtml(data.etaText || '')}</div>
             </div>
           ` : ''}
-
-          <div class="status-line ${statusInfo.className}">${escapeHtml(statusInfo.text)}</div>
 
           <div class="items">
             ${items.map(item => `• ${escapeHtml(item.model || '')} x${escapeHtml(item.qty || '')}`).join('<br>')}
@@ -256,20 +276,26 @@
     function getDetailStatusInfo(data) {
       const step = String(data.progressStep || '').trim();
       const text = String(data.progressText || '').trim();
+      const driverName = String(data.driverName || '').trim();
+      const etaText = String(data.etaText || '').trim();
+      const driverSuffix = driverName ? `｜司機 ${driverName}` : '';
 
       if (step === 'DONE' || text === '送貨已完成' || text === '已完成') {
-        return { text: '送貨已完成', className: 'done' };
+        return { text: `送貨已完成${driverSuffix}`, className: 'done' };
       }
       if (step === 'CANCEL') {
-        return { text: text || '配送已取消', className: 'cancel' };
+        return { text: `${text || '配送已取消'}${driverSuffix}`, className: 'cancel' };
       }
       if (step === 'DELAY') {
-        return { text: text || '聯繫後改期', className: 'warn' };
+        return { text: `${text || '聯繫後改期'}${driverSuffix}`, className: 'warn' };
       }
       if (text === '放門口' || text === '改送隔壁' || text === '特殊回報') {
-        return { text: text, className: 'warn' };
+        return { text: `${text}${driverSuffix}`, className: 'warn' };
       }
-      return { text: '司機配送中', className: 'active' };
+      if (etaText) {
+        return { text: `司機配送中${driverSuffix}`, className: 'active' };
+      }
+      return { text: `理貨中${driverSuffix}`, className: 'preparing' };
     }
 
     function isSpecifiedDelivery(address) {
