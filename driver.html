@@ -219,9 +219,21 @@
       background: #d97706;
       color: #fff;
     }
-    .btn-start {
+.btn-start {
       background: #0891b2;
       color: #fff;
+    }
+
+    .btn-photo {
+      background: #7c3aed;
+      color: #fff;
+    }
+
+    .photo-note {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #6b7280;
+      line-height: 1.5;
     }
     .empty {
       text-align: center;
@@ -341,6 +353,7 @@
     let currentBatchId = '';
     let departureStarted = false;
     let groupedStopsCache = [];
+    const PHOTO_SUPPLEMENT_WINDOW_MIN = 10;
 
     function getQueryParam(name) {
       const url = new URL(window.location.href);
@@ -462,13 +475,15 @@
             orderNos: [],
             tasks: [],
             isStore: (!rawAddress || rawAddress === '送店'),
-            sortOrder: task.sortOrder || ''
+            sortOrder: task.sortOrder || '',
+            photoCount: 0
           };
         }
 
         map[key].taskIds.push(task.taskId || '');
         map[key].orderNos.push(task.orderNo || '');
         map[key].tasks.push(task);
+        map[key].photoCount = Math.max(map[key].photoCount || 0, Number(task.photoCount || 0));
       });
 
       return Object.values(map).sort((a, b) => {
@@ -535,10 +550,13 @@
         const doneText = item.note
           ? `${item.label || ''} (${item.note})`
           : `${item.label || ''}`;
+        const canSupplement = canSupplementPhoto(item);
+        const photoText = item.photoCount ? ` 已有${item.photoCount}張照片` : ' 可補照片';
 
         htmlParts.push(`
           <div class="card done">
             <div class="display-name">${escapeHtml(doneText)}</div>
+            ${canSupplement ? `<div class="btn-row" style="display:flex; margin-top:8px;"><button class="btn btn-photo btn-photo-upload" data-group-key="${escapeHtml(item.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(item.taskIds || [])))}">補傳照片${escapeHtml(photoText)}</button></div>` : ''}
           </div>
         `);
 
@@ -583,9 +601,11 @@
 
               <div class="btn-row">
                 <button class="btn btn-nav" data-nav="${escapeHtml(navTarget)}">導航</button>
+                <button class="btn btn-photo btn-photo-upload" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">傳照片${group.photoCount ? `(${group.photoCount})` : ''}</button>
                 <button class="btn btn-done" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">完成配送</button>
                 <button class="btn btn-special" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">特殊回報</button>
               </div>
+              <div class="photo-note">指定送達建議拍照，最多 2 張。</div>
             </div>
           `);
         });
@@ -612,6 +632,14 @@
           const groupKey = btn.getAttribute('data-group-key') || '';
           const taskIdsJson = decodeURIComponent(btn.getAttribute('data-taskids') || '');
           await submitGroupedStatus(taskIdsJson, 'DONE', groupKey, '');
+        });
+      });
+
+      document.querySelectorAll('.btn-photo-upload').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const groupKey = btn.getAttribute('data-group-key') || '';
+          const taskIdsJson = decodeURIComponent(btn.getAttribute('data-taskids') || '[]');
+          await chooseAndUploadPhotos(taskIdsJson, groupKey);
         });
       });
 
@@ -794,7 +822,10 @@
         completedList.push({
           key: group.key,
           label: getMainLabel(group),
-          note: note || ''
+          note: note || '',
+          taskIds: group.taskIds || [],
+          completedAt: Date.now(),
+          photoCount: Number(group.photoCount || 0)
         });
       }
 
@@ -804,6 +835,106 @@
 
       groupedStopsCache = groupedStopsCache.filter(x => x.key !== groupKey);
       renderTasks(currentTasks);
+    }
+
+
+    function canSupplementPhoto(item) {
+      const completedAt = Number(item && item.completedAt || 0);
+      if (!completedAt) return false;
+      return (Date.now() - completedAt) <= PHOTO_SUPPLEMENT_WINDOW_MIN * 60 * 1000;
+    }
+
+    function chooseImageFiles_() {
+      return new Promise(resolve => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.multiple = true;
+        input.setAttribute('capture', 'environment');
+        input.onchange = () => resolve(Array.from(input.files || []).slice(0, 2));
+        input.click();
+      });
+    }
+
+    async function compressImageFile_(file) {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const img = await new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = dataUrl;
+      });
+      const maxSide = 1280;
+      let { width, height } = img;
+      if (width > height && width > maxSide) {
+        height = Math.round(height * (maxSide / width));
+        width = maxSide;
+      } else if (height >= width && height > maxSide) {
+        width = Math.round(width * (maxSide / height));
+        height = maxSide;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      const compressed = canvas.toDataURL('image/jpeg', 0.72);
+      return {
+        fileName: file.name || 'photo.jpg',
+        mimeType: 'image/jpeg',
+        dataBase64: compressed.split(',')[1]
+      };
+    }
+
+    async function uploadGroupPhotos(taskIds, groupKey) {
+      const files = await chooseImageFiles_();
+      if (!files.length) return null;
+      showOverlay('上傳照片中...');
+      try {
+        const photos = [];
+        for (const file of files.slice(0, 2)) {
+          photos.push(await compressImageFile_(file));
+        }
+        const resp = await fetch(GAS_WEBAPP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'upload_driver_photos', taskIds, driverName: currentDriverName, photos })
+        });
+        const text = await resp.text();
+        let json = {};
+        try { json = JSON.parse(text); } catch (e) { throw new Error(text || '照片上傳失敗'); }
+        if (!json.ok) throw new Error(json.message || json.error || '照片上傳失敗');
+        syncPhotoCountToState_(groupKey, Number(json.totalCount || photos.length));
+        return json;
+      } finally {
+        hideOverlay();
+      }
+    }
+
+    async function chooseAndUploadPhotos(taskIdsJson, groupKey) {
+      let taskIds = [];
+      try { taskIds = JSON.parse(taskIdsJson); } catch (e) { alert('任務資料格式錯誤'); return; }
+      try {
+        const result = await uploadGroupPhotos(taskIds, groupKey);
+        if (result) {
+          renderTasks(currentTasks);
+          alert('照片已上傳');
+        }
+      } catch (err) {
+        alert('照片上傳失敗：' + (err.message || err));
+      }
+    }
+
+    function syncPhotoCountToState_(groupKey, count) {
+      groupedStopsCache = groupedStopsCache.map(item => item.key === groupKey ? { ...item, photoCount: count } : item);
+      const localState = loadLocalState();
+      localState.completedList = (localState.completedList || []).map(item => item.key === groupKey ? { ...item, photoCount: count } : item);
+      saveLocalState(localState);
     }
 
     function getCurrentGpsText() {
