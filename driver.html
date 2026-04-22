@@ -602,6 +602,7 @@
               <div class="btn-row">
                 <button class="btn btn-nav" data-nav="${escapeHtml(navTarget)}">導航</button>
                 <button class="btn btn-photo btn-photo-upload" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">傳照片${group.photoCount ? `(${group.photoCount})` : ''}</button>
+                ${group.photoCount ? `<button class="btn btn-cancel btn-photo-clear" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">清照片</button>` : ''}
                 <button class="btn btn-done" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">完成配送</button>
                 <button class="btn btn-special" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">特殊回報</button>
               </div>
@@ -640,6 +641,14 @@
           const groupKey = btn.getAttribute('data-group-key') || '';
           const taskIdsJson = decodeURIComponent(btn.getAttribute('data-taskids') || '[]');
           await chooseAndUploadPhotos(taskIdsJson, groupKey);
+        });
+      });
+
+      document.querySelectorAll('.btn-photo-clear').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const groupKey = btn.getAttribute('data-group-key') || '';
+          const taskIdsJson = decodeURIComponent(btn.getAttribute('data-taskids') || '[]');
+          await clearUploadedPhotos(taskIdsJson, groupKey);
         });
       });
 
@@ -926,6 +935,31 @@
         }
       } catch (err) {
         alert('照片上傳失敗：' + (err.message || err));
+      }
+    }
+
+    async function clearUploadedPhotos(taskIdsJson, groupKey) {
+      let taskIds = [];
+      try { taskIds = JSON.parse(taskIdsJson); } catch (e) { alert('任務資料格式錯誤'); return; }
+      if (!confirm('確定清除這站已上傳照片？')) return;
+      showOverlay('清除照片中...');
+      try {
+        const resp = await fetch(GAS_WEBAPP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'clear_driver_photos', taskIds, driverName: currentDriverName })
+        });
+        const text = await resp.text();
+        let json = {};
+        try { json = JSON.parse(text); } catch (e) { throw new Error(text || '照片清除失敗'); }
+        if (!json.ok) throw new Error(json.message || json.error || '照片清除失敗');
+        syncPhotoCountToState_(groupKey, 0);
+        renderTasks(currentTasks);
+        alert('照片已清除');
+      } catch (err) {
+        alert('照片清除失敗：' + (err.message || err));
+      } finally {
+        hideOverlay();
       }
     }
 
