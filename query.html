@@ -136,10 +136,38 @@
       padding-top: 10px;
       border-top: 1px dashed #d1d5db;
     }
-    .status-big {
-      font-size: 16px;
+    .status-banner {
+      margin-top: 10px;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 15px;
       font-weight: bold;
-      margin-bottom: 10px;
+      line-height: 1.6;
+    }
+    .status-banner.done {
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #86efac;
+    }
+    .status-banner.active {
+      background: #dbeafe;
+      color: #1d4ed8;
+      border: 1px solid #93c5fd;
+    }
+    .status-banner.preparing {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fcd34d;
+    }
+    .status-banner.warn {
+      background: #ffedd5;
+      color: #9a3412;
+      border: 1px solid #fdba74;
+    }
+    .status-banner.cancel {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
     }
     .eta-box {
       background: #eff6ff;
@@ -160,15 +188,6 @@
       font-weight: bold;
       line-height: 1.2;
     }
-    .status-text {
-      font-size: 16px;
-      font-weight: bold;
-      line-height: 1.6;
-    }
-    .status-text.done { color: #166534; }
-    .status-text.active { color: #1d4ed8; }
-    .status-text.warn { color: #9a3412; }
-    .status-text.cancel { color: #991b1b; }
     .loading {
       text-align: center;
       color: #666;
@@ -456,7 +475,7 @@
           </div>
 
           <div class="status-pill">
-            <div class="status-text ${statusInfo.className}">${escapeHtml(statusInfo.text)}</div>
+            <div class="status-banner ${statusInfo.className}">${escapeHtml(statusInfo.text)}</div>
             ${canTrack && etaText ? `
               <div class="eta-box">
                 <div class="eta-title">預估送達時間</div>
@@ -475,14 +494,23 @@
 
       const taskStatus = String(order.taskStatus || '').trim();
       const taskStatusText = String(order.taskStatusText || '').trim();
+      const driverName = String(order.driverName || '').trim();
+      const etaText = String(order.etaText || '').trim();
+      const driverSuffix = driverName ? `｜司機 ${driverName}` : '';
 
       if (taskStatus === '已完成') {
-        return { text: '送貨已完成', className: 'done' };
+        return { text: `送貨已完成${driverSuffix}`, className: 'done' };
       }
       if (taskStatus === '放門口' || taskStatus === '改送隔壁' || taskStatus === '聯繫後改期' || taskStatus === '取消配送' || taskStatus === '特殊回報') {
-        return { text: taskStatusText || taskStatus, className: taskStatus === '取消配送' ? 'cancel' : 'warn' };
+        return {
+          text: `${taskStatusText || taskStatus}${driverSuffix}`,
+          className: taskStatus === '取消配送' ? 'cancel' : 'warn'
+        };
       }
-      return { text: '司機配送中', className: 'active' };
+      if (etaText) {
+        return { text: `司機配送中${driverSuffix}`, className: 'active' };
+      }
+      return { text: `理貨中${driverSuffix}`, className: 'preparing' };
     }
 
     function renderRequestForm() {
