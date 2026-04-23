@@ -433,7 +433,7 @@
     }
 
     function getStorageKey() {
-      return `caesar_driver_state__${currentDriverName}__${currentPeriod}__${currentBatchId}`;
+      return `caesar_driver_state__${currentDriverName}__${currentPeriod}`;
     }
 
     function loadLocalState() {
@@ -606,6 +606,7 @@
                 <button class="btn btn-done" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">完成配送</button>
                 <button class="btn btn-special" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">特殊回報</button>
               </div>
+              ${renderDraftPhotoGrid(group)}
               <div class="photo-note">指定送達建議拍照，最多 2 張。</div>
             </div>
           `);
@@ -670,6 +671,17 @@
           const groupKey = btn.getAttribute('data-group-key') || '';
           const taskIdsJson = decodeURIComponent(btn.getAttribute('data-taskids') || '[]');
           await clearUploadedPhotos(taskIdsJson, groupKey);
+        });
+      });
+
+      document.querySelectorAll('.btn-photo-delete').forEach(btn => {
+        btn.addEventListener('click', async (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          const groupKey = btn.getAttribute('data-group-key') || '';
+          const taskIdsJson = decodeURIComponent(btn.getAttribute('data-taskids') || '[]');
+          const photoIndex = Number(btn.getAttribute('data-photo-index') || '-1');
+          await deleteUploadedPhoto(taskIdsJson, groupKey, photoIndex);
         });
       });
 
