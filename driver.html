@@ -1054,9 +1054,9 @@
         alert('最多只能上傳 2 張照片');
         return null;
       }
+      const remainCount = Math.max(0, 2 - existingPhotos.length);
       const files = await chooseImageFiles_(remainCount);
       if (!files.length) return null;
-      const remainCount = Math.max(0, 2 - existingPhotos.length);
       const picked = files.slice(0, remainCount);
       if (!picked.length) {
         alert('最多只能上傳 2 張照片');
