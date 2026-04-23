@@ -235,6 +235,42 @@
       color: #6b7280;
       line-height: 1.5;
     }
+    .photo-preview-grid {
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .photo-thumb {
+      position: relative;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      aspect-ratio: 1 / 1;
+    }
+    .photo-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .photo-delete-btn {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 24px;
+      height: 24px;
+      border: none;
+      border-radius: 999px;
+      background: rgba(17,24,39,0.78);
+      color: #fff;
+      font-size: 16px;
+      line-height: 24px;
+      text-align: center;
+      cursor: pointer;
+      padding: 0;
+    }
     .empty {
       text-align: center;
       color: #666;
@@ -513,9 +549,14 @@
     function renderTasks(tasks) {
       const grouped = groupTasksByStop(tasks);
       const localState = loadLocalState();
-      departureStarted = !!localState.departed;
 
       const completedStatusSet = new Set(['已完成', '放門口', '改送隔壁', '聯繫後改期', '取消配送', '特殊回報']);
+      departureStarted = tasks.some(task => {
+        const status = String(task.status || '').trim();
+        const etaText = String(task.etaText || '').trim();
+        return !!etaText || completedStatusSet.has(status);
+      });
+      localState.departed = departureStarted;
       const serverCompletedGroups = grouped.filter(g => completedStatusSet.has(String(g.status || '').trim()));
       const pendingGroups = grouped.filter(g => !completedStatusSet.has(String(g.status || '').trim()));
       const completedList = serverCompletedGroups.map(g => ({
