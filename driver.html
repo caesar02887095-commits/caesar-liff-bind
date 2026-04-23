@@ -393,6 +393,7 @@
     const PHOTO_SUPPLEMENT_WINDOW_MIN = 10;
     const TASK_POLL_MS = 4000;
     let taskPollTimer = null;
+    let suppressAutoReloadUntil = 0;
 
     function getQueryParam(name) {
       const url = new URL(window.location.href);
@@ -438,6 +439,7 @@
       if (taskPollTimer) clearInterval(taskPollTimer);
       taskPollTimer = setInterval(() => {
         if (document.hidden) return;
+        if (Date.now() < suppressAutoReloadUntil) return;
         loadTasks(true);
       }, TASK_POLL_MS);
     }
@@ -480,6 +482,7 @@
 
     async function loadTasks(silent = false) {
       try {
+        if (silent && Date.now() < suppressAutoReloadUntil) return;
         clearError();
         if (!silent) renderLoading();
 
@@ -746,7 +749,8 @@
               <button class="photo-delete-btn btn-photo-delete"
                       data-group-key="${escapeHtml(group.key)}"
                       data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}"
-                      data-photo-index="${idx}">×</button>
+                      data-photo-index="${idx}"
+                      data-file-id="${escapeHtml(photo.fileId || '')}">×</button>
             </div>
           `).join('')}
         </div>
@@ -788,7 +792,8 @@
           const groupKey = btn.getAttribute('data-group-key') || '';
           const taskIdsJson = decodeURIComponent(btn.getAttribute('data-taskids') || '[]');
           const photoIndex = Number(btn.getAttribute('data-photo-index') || '-1');
-          await deleteUploadedPhoto(taskIdsJson, groupKey, photoIndex);
+          const fileId = btn.getAttribute('data-file-id') || '';
+          await deleteUploadedPhoto(taskIdsJson, groupKey, photoIndex, fileId);
         });
       });
 
@@ -833,8 +838,9 @@
 
         pendingDeparture = true;
         departureStarted = true;
+        suppressAutoReloadUntil = Date.now() + 8000;
         renderTasks(currentTasks);
-        setTimeout(() => loadTasks(true), 500);
+        setTimeout(() => { suppressAutoReloadUntil = 0; loadTasks(true); }, 2500);
       } catch (err) {
         alert('出發處理失敗：' + (err.message || err));
       } finally {
@@ -912,8 +918,9 @@
         showOverlay(actionType === 'DONE' ? '回報配送完成中...' : '送出特殊回報中...');
         await submitGroupStatus(taskIds, actionType, note);
         const displayStatus = actionType === 'DONE' ? '已完成' : (note || '特殊回報');
+        suppressAutoReloadUntil = Date.now() + 8000;
         markGroupDone(groupKey, displayStatus);
-        setTimeout(() => loadTasks(true), 500);
+        setTimeout(() => { suppressAutoReloadUntil = 0; loadTasks(true); }, 2500);
       } catch (err) {
         alert('整站回報失敗：' + (err.message || err));
       } finally {
@@ -1063,6 +1070,7 @@
         return null;
       }
       showOverlay('上傳照片中...');
+      suppressAutoReloadUntil = Date.now() + 5000;
       try {
         const photos = [];
         for (const file of picked) {
@@ -1094,16 +1102,17 @@
         alert('照片上傳失敗：' + (err.message || err));
       }
     }
-    async function deleteUploadedPhoto(taskIdsJson, groupKey, photoIndex) {
+    async function deleteUploadedPhoto(taskIdsJson, groupKey, photoIndex, fileId = '') {
       let taskIds = [];
       try { taskIds = JSON.parse(taskIdsJson); } catch (e) { alert('任務資料格式錯誤'); return; }
       if (photoIndex < 0) return;
       showOverlay('刪除照片中...');
+      suppressAutoReloadUntil = Date.now() + 5000;
       try {
         const resp = await fetch(GAS_WEBAPP_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify({ action: 'delete_driver_photo', taskIds, driverName: currentDriverName, photoIndex })
+          body: JSON.stringify({ action: 'delete_driver_photo', taskIds, driverName: currentDriverName, photoIndex, fileId })
         });
         const text = await resp.text();
         let json = {};
