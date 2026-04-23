@@ -385,6 +385,7 @@
 
     let currentDriverName = '';
     let pendingGroupStates = {};
+    let localCompletedGroups = {};
     let pendingDeparture = false;
     let currentPeriod = '上午';
     let currentTasks = [];
@@ -449,7 +450,7 @@
       pendingGroupStates[groupKey] = {
         ...(pendingGroupStates[groupKey] || {}),
         ...payload,
-        expireAt: Date.now() + 15000
+        expireAt: Date.now() + 60000
       };
     }
 
@@ -458,6 +459,14 @@
       Object.keys(pendingGroupStates).forEach(key => {
         const item = pendingGroupStates[key];
         if (!item || !item.expireAt || item.expireAt < now) delete pendingGroupStates[key];
+      });
+    }
+
+    function cleanupLocalCompletedGroups() {
+      const now = Date.now();
+      Object.keys(localCompletedGroups).forEach(key => {
+        const item = localCompletedGroups[key];
+        if (!item || !item.expireAt || item.expireAt < now) delete localCompletedGroups[key];
       });
     }
 
@@ -505,6 +514,17 @@
 
         currentTasks = applyPendingStatesToTasks((json.data && json.data.tasks) ? json.data.tasks : []);
         currentBatchId = (json.data && json.data.batchId) ? json.data.batchId : '';
+        cleanupLocalCompletedGroups();
+        const serverDoneStatuses = new Set(['已完成','放門口','改送隔壁','聯繫後改期','取消配送','特殊回報']);
+        currentTasks.forEach(task => {
+          const shopName = String(task.shopName || '').trim();
+          const rawAddress = String(task.address || '').trim();
+          const normalizedAddress = (!rawAddress || rawAddress === '送店') ? '__STORE__' : rawAddress;
+          const key = `${shopName}__${normalizedAddress}`;
+          if (serverDoneStatuses.has(String(task.status || '').trim()) && localCompletedGroups[key]) {
+            delete localCompletedGroups[key];
+          }
+        });
         const serverHasDeparted = currentTasks.some(task => String(task.etaText || '').trim() || ['已完成','放門口','改送隔壁','聯繫後改期','取消配送','特殊回報'].includes(String(task.status || '').trim()));
         if (serverHasDeparted) pendingDeparture = false;
         renderTasks(currentTasks);
@@ -616,7 +636,10 @@
       });
       departureStarted = !!pendingDeparture || serverDeparted;
       const serverCompletedGroups = grouped.filter(g => completedStatusSet.has(String(g.status || '').trim()));
-      const pendingGroups = grouped.filter(g => !completedStatusSet.has(String(g.status || '').trim()));
+      cleanupLocalCompletedGroups();
+      const serverCompletedKeySet = new Set(serverCompletedGroups.map(g => g.key));
+      const localCompletedList = Object.values(localCompletedGroups).filter(item => item && !serverCompletedKeySet.has(item.key));
+      const pendingGroups = grouped.filter(g => !completedStatusSet.has(String(g.status || '').trim()) && !localCompletedGroups[g.key]);
       const completedList = serverCompletedGroups.map(g => ({
         key: g.key,
         label: getMainLabel(g),
@@ -626,7 +649,7 @@
         draftPhotos: Array.isArray(g.draftPhotos) ? g.draftPhotos : [],
         reportedAt: g.reportedAt || '',
         completedAt: g.reportedAt ? new Date(g.reportedAt).getTime() : Date.now()
-      }));
+      })).concat(localCompletedList.sort((a,b)=> (a.completedAt||0)-(b.completedAt||0)));
 
       groupedStopsCache = pendingGroups.slice();
 
@@ -997,6 +1020,17 @@
       });
 
       groupedStopsCache = groupedStopsCache.filter(x => x.key !== groupKey);
+      localCompletedGroups[groupKey] = {
+        key: groupKey,
+        label: getMainLabel(group),
+        taskIds: group.taskIds || [],
+        note: finalStatus !== '已完成' ? finalStatus : '',
+        photoCount: Number(group.photoCount || 0),
+        draftPhotos: Array.isArray(group.draftPhotos) ? group.draftPhotos : [],
+        reportedAt: now.toISOString(),
+        completedAt: now.getTime(),
+        expireAt: Date.now() + 60000
+      };
       renderTasks(currentTasks);
     }
 
