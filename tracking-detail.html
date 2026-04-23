@@ -288,16 +288,16 @@
       const timeSuffix = formatDetailStatusTimeLabel(data);
 
       if (step === 'DONE' || text === '送貨已完成' || text === '已完成') {
-        return { text: `送貨已完成${driverSuffix}${timeSuffix}`, className: 'done' };
+        return { text: text || `送貨已完成${driverSuffix}${timeSuffix}`, className: 'done' };
       }
       if (step === 'CANCEL') {
-        return { text: `${text || '配送已取消'}${driverSuffix}`, className: 'cancel' };
+        return { text: text || '配送已取消', className: 'cancel' };
       }
       if (step === 'DELAY') {
-        return { text: `${text || '聯繫後改期'}${driverSuffix}`, className: 'warn' };
+        return { text: text || '聯繫後改期', className: 'warn' };
       }
-      if (text === '放門口' || text === '改送隔壁' || text === '特殊回報') {
-        return { text: `${text}${driverSuffix}`, className: 'warn' };
+      if (text === '放門口' || text === '改送隔壁' || text === '特殊回報' || text.includes('已放門口') || text.includes('已改送隔壁') || text.includes('已改期')) {
+        return { text: text, className: 'warn' };
       }
       if (etaText) {
         return { text: `司機配送中${driverSuffix}`, className: 'active' };
