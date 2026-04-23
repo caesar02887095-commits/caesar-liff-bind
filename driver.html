@@ -441,6 +441,42 @@
       }, TASK_POLL_MS);
     }
 
+    function setPendingGroupState(groupKey, payload) {
+      pendingGroupStates[groupKey] = {
+        ...(pendingGroupStates[groupKey] || {}),
+        ...payload,
+        expireAt: Date.now() + 15000
+      };
+    }
+
+    function cleanupPendingStates() {
+      const now = Date.now();
+      Object.keys(pendingGroupStates).forEach(key => {
+        const item = pendingGroupStates[key];
+        if (!item || !item.expireAt || item.expireAt < now) delete pendingGroupStates[key];
+      });
+    }
+
+    function applyPendingStatesToTasks(tasks) {
+      cleanupPendingStates();
+      return (Array.isArray(tasks) ? tasks : []).map(task => {
+        const shopName = String(task.shopName || '').trim();
+        const rawAddress = String(task.address || '').trim();
+        const normalizedAddress = (!rawAddress || rawAddress === '送店') ? '__STORE__' : rawAddress;
+        const key = `${shopName}__${normalizedAddress}`;
+        const pending = pendingGroupStates[key];
+        if (!pending) return task;
+        return {
+          ...task,
+          status: pending.status || task.status,
+          reportedAt: pending.reportedAt || task.reportedAt,
+          photoCount: typeof pending.photoCount === 'number' ? pending.photoCount : task.photoCount,
+          draftPhotos: Array.isArray(pending.draftPhotos) ? pending.draftPhotos : task.draftPhotos,
+          etaText: pending.clearEta ? '' : task.etaText
+        };
+      });
+    }
+
     async function loadTasks(silent = false) {
       try {
         clearError();
@@ -452,7 +488,8 @@
         const url =
           `${GAS_WEBAPP_URL}?action=get_driver_tasks` +
           `&driver=${encodeURIComponent(currentDriverName)}` +
-          `&period=${encodeURIComponent(currentPeriod)}`;
+          `&period=${encodeURIComponent(currentPeriod)}` +
+          `&ts=${Date.now()}`;
 
         const resp = await fetch(url, { cache: 'no-store' });
         const json = await resp.json();
@@ -461,9 +498,10 @@
           throw new Error(json.error || '讀取任務失敗');
         }
 
-        currentTasks = (json.data && json.data.tasks) ? json.data.tasks : [];
+        currentTasks = applyPendingStatesToTasks((json.data && json.data.tasks) ? json.data.tasks : []);
         currentBatchId = (json.data && json.data.batchId) ? json.data.batchId : '';
-        if (window.__driverActionLock) return;
+        const serverHasDeparted = currentTasks.some(task => String(task.etaText || '').trim() || ['已完成','放門口','改送隔壁','聯繫後改期','取消配送','特殊回報'].includes(String(task.status || '').trim()));
+        if (serverHasDeparted) pendingDeparture = false;
         renderTasks(currentTasks);
       } catch (err) {
         if (!silent) {
@@ -564,7 +602,6 @@
 
     function renderTasks(tasks) {
       const grouped = groupTasksByStop(tasks);
-      const localState = loadLocalState();
 
       const completedStatusSet = new Set(['已完成', '放門口', '改送隔壁', '聯繫後改期', '取消配送', '特殊回報']);
       const serverDeparted = tasks.some(task => {
@@ -572,8 +609,7 @@
         const etaText = String(task.etaText || '').trim();
         return !!etaText || completedStatusSet.has(status);
       });
-      departureStarted = !!localState.departed || serverDeparted;
-      localState.departed = departureStarted;
+      departureStarted = !!pendingDeparture || serverDeparted;
       const serverCompletedGroups = grouped.filter(g => completedStatusSet.has(String(g.status || '').trim()));
       const pendingGroups = grouped.filter(g => !completedStatusSet.has(String(g.status || '').trim()));
       const completedList = serverCompletedGroups.map(g => ({
@@ -583,11 +619,9 @@
         note: (g.status && g.status !== '已完成') ? g.status : '',
         photoCount: Number(g.photoCount || 0),
         draftPhotos: Array.isArray(g.draftPhotos) ? g.draftPhotos : [],
-        reportedAt: g.reportedAt || ''
+        reportedAt: g.reportedAt || '',
+        completedAt: g.reportedAt ? new Date(g.reportedAt).getTime() : Date.now()
       }));
-
-      localState.completedList = completedList;
-      saveLocalState(localState);
 
       groupedStopsCache = pendingGroups.slice();
 
@@ -796,9 +830,7 @@
           throw new Error(json.message || json.error || '記錄出發失敗');
         }
 
-        const localState = loadLocalState();
-        localState.departed = true;
-        saveLocalState(localState);
+        pendingDeparture = true;
         departureStarted = true;
         renderTasks(currentTasks);
         setTimeout(() => loadTasks(true), 500);
@@ -940,8 +972,7 @@
 
       const finalStatus = note || '已完成';
       const now = new Date();
-      const localState = loadLocalState();
-      const completedList = localState.completedList || [];
+      setPendingGroupState(groupKey, { status: finalStatus, reportedAt: now.toISOString(), clearEta: true, photoCount: Number(group.photoCount || 0), draftPhotos: Array.isArray(group.draftPhotos) ? group.draftPhotos : [] });
 
       currentTasks = currentTasks.map(task => {
         const shopName = String(task.shopName || '').trim();
@@ -955,23 +986,6 @@
           reportedAt: now.toISOString()
         };
       });
-
-      if (!completedList.some(x => x.key === group.key)) {
-        completedList.push({
-          key: group.key,
-          label: getMainLabel(group),
-          note: finalStatus === '已完成' ? '' : finalStatus,
-          taskIds: group.taskIds || [],
-          completedAt: Date.now(),
-          photoCount: Number(group.photoCount || 0),
-          draftPhotos: Array.isArray(group.draftPhotos) ? group.draftPhotos : [],
-          reportedAt: now.toISOString()
-        });
-      }
-
-      localState.completedList = completedList;
-      localState.lastCompletedKey = groupKey;
-      saveLocalState(localState);
 
       groupedStopsCache = groupedStopsCache.filter(x => x.key !== groupKey);
       renderTasks(currentTasks);
@@ -989,7 +1003,6 @@
         input.type = 'file';
         input.accept = 'image/*';
         input.multiple = true;
-        input.setAttribute('capture', '');
         input.onchange = () => {
           const files = Array.from(input.files || []).slice(0, Math.max(1, maxCount || 2));
           resolve(files);
@@ -1040,7 +1053,7 @@
         alert('最多只能上傳 2 張照片');
         return null;
       }
-      const files = await chooseImageFiles_(2);
+      const files = await chooseImageFiles_(remainCount);
       if (!files.length) return null;
       const remainCount = Math.max(0, 2 - existingPhotos.length);
       const picked = files.slice(0, remainCount);
@@ -1113,9 +1126,7 @@
         const key = `${shopName}__${normalizedAddress}`;
         return key === groupKey ? { ...task, photoCount: count, draftPhotos: Array.isArray(photos) ? photos : [] } : task;
       });
-      const localState = loadLocalState();
-      localState.completedList = (localState.completedList || []).map(item => item.key === groupKey ? { ...item, photoCount: count, draftPhotos: Array.isArray(photos) ? photos : [] } : item);
-      saveLocalState(localState);
+      setPendingGroupState(groupKey, { photoCount: count, draftPhotos: Array.isArray(photos) ? photos : [] });
     }
 
     function getCurrentGpsText() {
