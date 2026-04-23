@@ -512,11 +512,11 @@
       const timeSuffix = formatStatusTimeLabel(order);
 
       if (taskStatus === '已完成') {
-        return { text: `送貨已完成${driverSuffix}${timeSuffix}`, className: 'done' };
+        return { text: taskStatusText || `送貨已完成${driverSuffix}${timeSuffix}`, className: 'done' };
       }
       if (taskStatus === '放門口' || taskStatus === '改送隔壁' || taskStatus === '聯繫後改期' || taskStatus === '取消配送' || taskStatus === '特殊回報') {
         return {
-          text: `${taskStatusText || taskStatus}${driverSuffix}`,
+          text: taskStatusText || taskStatus,
           className: taskStatus === '取消配送' ? 'cancel' : 'warn'
         };
       }
