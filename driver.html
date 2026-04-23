@@ -476,7 +476,11 @@
             tasks: [],
             isStore: (!rawAddress || rawAddress === '送店'),
             sortOrder: task.sortOrder || '',
-            photoCount: 0
+            photoCount: 0,
+            draftPhotos: [],
+            status: task.status || '',
+            reportedAt: task.reportedAt || '',
+            note: ''
           };
         }
 
@@ -484,6 +488,12 @@
         map[key].orderNos.push(task.orderNo || '');
         map[key].tasks.push(task);
         map[key].photoCount = Math.max(map[key].photoCount || 0, Number(task.photoCount || 0));
+        const taskPhotos = Array.isArray(task.draftPhotos) ? task.draftPhotos : [];
+        if (taskPhotos.length > (map[key].draftPhotos || []).length) {
+          map[key].draftPhotos = taskPhotos;
+        }
+        map[key].status = task.status || map[key].status || '';
+        map[key].reportedAt = task.reportedAt || map[key].reportedAt || '';
       });
 
       return Object.values(map).sort((a, b) => {
@@ -505,9 +515,21 @@
       const localState = loadLocalState();
       departureStarted = !!localState.departed;
 
-      const completedList = localState.completedList || [];
-      const completedKeys = new Set(completedList.map(x => x.key));
-      const pendingGroups = grouped.filter(g => !completedKeys.has(g.key));
+      const completedStatusSet = new Set(['已完成', '放門口', '改送隔壁', '聯繫後改期', '取消配送', '特殊回報']);
+      const serverCompletedGroups = grouped.filter(g => completedStatusSet.has(String(g.status || '').trim()));
+      const pendingGroups = grouped.filter(g => !completedStatusSet.has(String(g.status || '').trim()));
+      const completedList = serverCompletedGroups.map(g => ({
+        key: g.key,
+        label: getMainLabel(g),
+        taskIds: g.taskIds || [],
+        note: (g.status && g.status !== '已完成') ? g.status : '',
+        photoCount: Number(g.photoCount || 0),
+        draftPhotos: Array.isArray(g.draftPhotos) ? g.draftPhotos : [],
+        reportedAt: g.reportedAt || ''
+      }));
+
+      localState.completedList = completedList;
+      saveLocalState(localState);
 
       groupedStopsCache = pendingGroups.slice();
 
@@ -556,6 +578,7 @@
         htmlParts.push(`
           <div class="card done">
             <div class="display-name">${escapeHtml(doneText)}</div>
+            ${renderDraftPhotoGrid(item)}
             ${canSupplement ? `<div class="btn-row" style="display:flex; margin-top:8px;"><button class="btn btn-photo btn-photo-upload" data-group-key="${escapeHtml(item.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(item.taskIds || [])))}">補傳照片${escapeHtml(photoText)}</button></div>` : ''}
           </div>
         `);
@@ -950,7 +973,7 @@
         let json = {};
         try { json = JSON.parse(text); } catch (e) { throw new Error(text || '照片上傳失敗'); }
         if (!json.ok) throw new Error(json.message || json.error || '照片上傳失敗');
-        syncPhotoCountToState_(groupKey, Number(json.totalCount || photos.length));
+        syncPhotoStateToGroup_(groupKey, Number(json.totalCount || photos.length), Array.isArray(json.photos) ? json.photos : []);
         return json;
       } finally {
         hideOverlay();
@@ -986,7 +1009,7 @@
         let json = {};
         try { json = JSON.parse(text); } catch (e) { throw new Error(text || '照片清除失敗'); }
         if (!json.ok) throw new Error(json.message || json.error || '照片清除失敗');
-        syncPhotoCountToState_(groupKey, 0);
+        syncPhotoStateToGroup_(groupKey, 0, []);
         renderTasks(currentTasks);
         alert('照片已清除');
       } catch (err) {
@@ -1011,7 +1034,7 @@
         let json = {};
         try { json = JSON.parse(text); } catch (e) { throw new Error(text || '照片刪除失敗'); }
         if (!json.ok) throw new Error(json.message || json.error || '照片刪除失敗');
-        syncPhotoCountToState_(groupKey, Number(json.totalCount || 0));
+        syncPhotoStateToGroup_(groupKey, Number(json.totalCount || 0), Array.isArray(json.photos) ? json.photos : []);
         await loadTasks();
       } catch (err) {
         alert('照片刪除失敗：' + (err.message || err));
@@ -1020,10 +1043,17 @@
       }
     }
 
-    function syncPhotoCountToState_(groupKey, count) {
-      groupedStopsCache = groupedStopsCache.map(item => item.key === groupKey ? { ...item, photoCount: count } : item);
+    function syncPhotoStateToGroup_(groupKey, count, photos) {
+      groupedStopsCache = groupedStopsCache.map(item => item.key === groupKey ? { ...item, photoCount: count, draftPhotos: Array.isArray(photos) ? photos : [] } : item);
+      currentTasks = currentTasks.map(task => {
+        const shopName = String(task.shopName || '').trim();
+        const rawAddress = String(task.address || '').trim();
+        const normalizedAddress = (!rawAddress || rawAddress === '送店') ? '__STORE__' : rawAddress;
+        const key = `${shopName}__${normalizedAddress}`;
+        return key === groupKey ? { ...task, photoCount: count, draftPhotos: Array.isArray(photos) ? photos : [] } : task;
+      });
       const localState = loadLocalState();
-      localState.completedList = (localState.completedList || []).map(item => item.key === groupKey ? { ...item, photoCount: count } : item);
+      localState.completedList = (localState.completedList || []).map(item => item.key === groupKey ? { ...item, photoCount: count, draftPhotos: Array.isArray(photos) ? photos : [] } : item);
       saveLocalState(localState);
     }
 
