@@ -51,6 +51,10 @@
       line-height: 1.8;
       margin-bottom: 4px;
     }
+    .photo-wrap { margin-top: 12px; display:flex; gap:8px; flex-wrap:wrap; }
+    .photo-item { width: calc(50% - 4px); border-radius: 10px; overflow: hidden; border: 1px solid #dbe4ef; background:#fff; }
+    .photo-item img { width:100%; display:block; aspect-ratio:4 / 3; object-fit:cover; }
+    .photo-link { display:block; padding:6px 8px; font-size:12px; color:#1d4ed8; text-align:center; text-decoration:none; }
     .items {
       margin-top: 8px;
       padding-top: 8px;
@@ -98,39 +102,38 @@
       line-height: 1.2;
     }
 
-    .flow {
+    .status-banner {
       margin-top: 10px;
-    }
-    .flow-step {
-      display: flex;
-      align-items: flex-start;
-      gap: 10px;
-      margin-bottom: 12px;
-    }
-    .flow-dot {
-      width: 14px;
-      height: 14px;
-      border-radius: 999px;
-      margin-top: 3px;
-      flex-shrink: 0;
-      background: #cbd5e1;
-    }
-    .flow-dot.active {
-      background: #2563eb;
-    }
-    .flow-dot.done {
-      background: #16a34a;
-    }
-    .flow-text {
-      font-size: 14px;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 15px;
+      font-weight: bold;
       line-height: 1.6;
     }
-    .flow-main {
-      font-weight: bold;
+    .status-banner.done {
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #86efac;
     }
-    .flow-sub {
-      color: #6b7280;
-      font-size: 13px;
+    .status-banner.active {
+      background: #dbeafe;
+      color: #1d4ed8;
+      border: 1px solid #93c5fd;
+    }
+    .status-banner.preparing {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fcd34d;
+    }
+    .status-banner.warn {
+      background: #ffedd5;
+      color: #9a3412;
+      border: 1px solid #fdba74;
+    }
+    .status-banner.cancel {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
     }
   </style>
 </head>
@@ -151,13 +154,36 @@
   <script>
     const LIFF_ID = '2009380550-ow9SlJK4';
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
-    const UID_CACHE_KEY = 'caesar_uid';
-    fetch(GAS_WEBAPP_URL + '?action=ping&_ts=' + Date.now(), { cache: 'no-store' }).catch(() => {});
+    let currentUid = '';
+    let currentOrderNo = '';
 
     function getQueryParam(name) {
       const url = new URL(window.location.href);
       return url.searchParams.get(name) || '';
     }
+
+    let autoRefreshTimer = null;
+
+    function startAutoRefresh() {
+      stopAutoRefresh();
+      autoRefreshTimer = setInterval(() => {
+        if (document.hidden) return;
+        loadDetail({ silent: true });
+      }, 20000);
+    }
+
+    function stopAutoRefresh() {
+      if (autoRefreshTimer) {
+        clearInterval(autoRefreshTimer);
+        autoRefreshTimer = null;
+      }
+    }
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        loadDetail({ silent: true });
+      }
+    });
 
     async function initPage() {
       try {
@@ -168,39 +194,38 @@
           return;
         }
 
-        const cachedUid = sessionStorage.getItem(UID_CACHE_KEY) || '';
-        let uid = cachedUid;
-        if (cachedUid) {
-          liff.getProfile().then(profile => {
-            sessionStorage.setItem(UID_CACHE_KEY, profile.userId || cachedUid);
-          }).catch(() => {});
-        } else {
-          const profile = await liff.getProfile();
-          uid = profile.userId || '';
-          sessionStorage.setItem(UID_CACHE_KEY, uid);
-        }
+        const profile = await liff.getProfile();
+        const uid = profile.userId || '';
         const orderNo = getQueryParam('orderNo');
 
         document.getElementById('topInfo').innerHTML =
           `查詢單號：<b>${escapeHtml(orderNo || '')}</b>`;
 
-        const url =
-          `${GAS_WEBAPP_URL}?action=get_customer_tracking_detail` +
-          `&uid=${encodeURIComponent(uid)}` +
-          `&orderNo=${encodeURIComponent(orderNo)}`;
-
-        const resp = await fetch(url, { cache: 'no-store' });
-        const json = await resp.json();
-
-        if (!json.ok) {
-          renderMessage(json.error || '讀取失敗', 'bad');
-          return;
-        }
-
-        renderDetail(json.data || {});
+        currentUid = uid;
+        currentOrderNo = orderNo;
+        await loadDetail();
+        startAutoRefresh();
       } catch (err) {
         renderMessage('讀取失敗：' + (err.message || err), 'bad');
       }
+    }
+
+    async function loadDetail(options = {}) {
+      const url =
+        `${GAS_WEBAPP_URL}?action=get_customer_tracking_detail` +
+        `&uid=${encodeURIComponent(currentUid)}` +
+        `&orderNo=${encodeURIComponent(currentOrderNo)}` +
+        `&_ts=${Date.now()}`;
+
+      const resp = await fetch(url, { cache: 'no-store' });
+      const json = await resp.json();
+
+      if (!json.ok) {
+        renderMessage(json.error || '讀取失敗', 'bad');
+        return;
+      }
+
+      renderDetail(json.data || {});
     }
 
     function renderDetail(data) {
@@ -218,23 +243,23 @@
       }
 
       const items = Array.isArray(data.items) ? data.items : [];
-      const progressText = data.progressText || '';
-      const progressStep = data.progressStep || '';
       const showEta = !!data.etaText;
-
+      const photos = Array.isArray(data.photos) ? data.photos : [];
+      const statusInfo = getDetailStatusInfo(data);
       const placeText = isSpecifiedDelivery(data.address)
         ? '指定送達'
         : escapeHtml(data.storeName || '');
 
       document.getElementById('app').innerHTML = `
         <div class="card">
-          <div class="status ok">${escapeHtml(progressText)}</div>
+          <div class="status ${statusInfo.className}">${escapeHtml(statusInfo.text)}</div>
           <div class="row">單號：${escapeHtml(data.orderNo || '')}</div>
           <div class="row">店家名稱：${escapeHtml(data.storeName || '')}</div>
           <div class="row">送貨地點：${placeText}</div>
           ${data.phone ? `<div class="row">電話：${escapeHtml(data.phone)}</div>` : ''}
           <div class="row">送貨時間：${escapeHtml(formatDeliveryDisplay(data.deliveryDateText, data.deliveryTime))}</div>
-          <div class="row">配送司機：${escapeHtml(data.driverName || '')}</div>
+
+          <div class="status-banner ${statusInfo.className}">${escapeHtml(statusInfo.text)}</div>
 
           ${showEta ? `
             <div class="eta-box">
@@ -243,10 +268,7 @@
             </div>
           ` : ''}
 
-          <div class="flow">
-            ${renderFlow(progressStep)}
-          </div>
-
+          ${photos.length ? `<div class="photo-wrap">${photos.map((photo, idx) => `<a class="photo-item" href="${escapeHtml(photo.url || '')}" target="_blank"><img src="${escapeHtml(photo.previewUrl || photo.url || '')}" alt="送達照片${idx + 1}"><span class="photo-badge">照片${idx + 1}</span></a>`).join('')}</div>` : ''}
           <div class="items">
             ${items.map(item => `• ${escapeHtml(item.model || '')} x${escapeHtml(item.qty || '')}`).join('<br>')}
           </div>
@@ -257,86 +279,49 @@
       `;
     }
 
-    function renderFlow(step) {
-      if (step === 'DONE') {
-        return `
-          <div class="flow-step">
-            <div class="flow-dot done"></div>
-            <div class="flow-text">
-              <div class="flow-main">已排車</div>
-            </div>
-          </div>
-          <div class="flow-step">
-            <div class="flow-dot done"></div>
-            <div class="flow-text">
-              <div class="flow-main">司機配送中</div>
-            </div>
-          </div>
-          <div class="flow-step">
-            <div class="flow-dot done"></div>
-            <div class="flow-text">
-              <div class="flow-main">你的訂單已完成配送</div>
-            </div>
-          </div>
-        `;
-      }
+    function getDetailStatusInfo(data) {
+      const step = String(data.progressStep || '').trim();
+      const text = String(data.progressText || '').trim();
+      const driverName = String(data.driverName || '').trim();
+      const etaText = String(data.etaText || '').trim();
+      const driverSuffix = driverName ? `｜司機 ${driverName}` : '';
+      const timeSuffix = formatDetailStatusTimeLabel(data);
 
-      if (step === 'DELAY') {
-        return `
-          <div class="flow-step">
-            <div class="flow-dot done"></div>
-            <div class="flow-text">
-              <div class="flow-main">已排車</div>
-            </div>
-          </div>
-          <div class="flow-step">
-            <div class="flow-dot active"></div>
-            <div class="flow-text">
-              <div class="flow-main">配送安排已異動</div>
-              <div class="flow-sub">請等待後續通知</div>
-            </div>
-          </div>
-        `;
+      if (step === 'DONE' || text === '送貨已完成' || text === '已完成') {
+        return { text: text || `送貨已完成${driverSuffix}${timeSuffix}`, className: 'done' };
       }
-
       if (step === 'CANCEL') {
-        return `
-          <div class="flow-step">
-            <div class="flow-dot done"></div>
-            <div class="flow-text">
-              <div class="flow-main">已排車</div>
-            </div>
-          </div>
-          <div class="flow-step">
-            <div class="flow-dot active"></div>
-            <div class="flow-text">
-              <div class="flow-main">配送已取消</div>
-            </div>
-          </div>
-        `;
+        return { text: text || '配送已取消', className: 'cancel' };
       }
+      if (step === 'DELAY') {
+        return { text: text || '聯繫後改期', className: 'warn' };
+      }
+      if (text === '放門口' || text === '改送隔壁' || text === '特殊回報' || text.includes('已放門口') || text.includes('已改送隔壁') || text.includes('已改期')) {
+        return { text: text, className: 'warn' };
+      }
+      if (etaText) {
+        return { text: `司機配送中${driverSuffix}`, className: 'active' };
+      }
+      return { text: `理貨中${driverSuffix}`, className: 'preparing' };
+    }
 
-      return `
-        <div class="flow-step">
-          <div class="flow-dot done"></div>
-          <div class="flow-text">
-            <div class="flow-main">已排車</div>
-          </div>
-        </div>
-        <div class="flow-step">
-          <div class="flow-dot active"></div>
-          <div class="flow-text">
-            <div class="flow-main">司機配送中</div>
-            <div class="flow-sub">正依路線順序前往送達</div>
-          </div>
-        </div>
-        <div class="flow-step">
-          <div class="flow-dot"></div>
-          <div class="flow-text">
-            <div class="flow-main">即將送達你的訂單</div>
-          </div>
-        </div>
-      `;
+
+    function formatDetailStatusTimeLabel(data) {
+      const step = String(data.progressStep || '').trim();
+      const text = String(data.progressText || '').trim();
+      if (!(step === 'DONE' || text === '送貨已完成' || text === '已完成')) return '';
+
+      const raw = String(data.updatedAt || '').trim();
+      if (!raw) return '';
+
+      const dt = new Date(raw);
+      if (isNaN(dt.getTime())) return '';
+
+      const hh = String(dt.getHours()).padStart(2, '0');
+      const mm = String(dt.getMinutes()).padStart(2, '0');
+      const periodText = String(data.deliveryTime || '').trim();
+      const periodLabel = periodText ? `${periodText} ` : '';
+      return `｜${periodLabel}${hh}:${mm}`;
     }
 
     function isSpecifiedDelivery(address) {
