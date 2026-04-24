@@ -151,6 +151,8 @@
   <script>
     const LIFF_ID = '2009380550-ow9SlJK4';
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
+    const UID_CACHE_KEY = 'caesar_uid';
+    fetch(GAS_WEBAPP_URL + '?action=ping&_ts=' + Date.now(), { cache: 'no-store' }).catch(() => {});
 
     function getQueryParam(name) {
       const url = new URL(window.location.href);
@@ -166,8 +168,17 @@
           return;
         }
 
-        const profile = await liff.getProfile();
-        const uid = profile.userId || '';
+        const cachedUid = sessionStorage.getItem(UID_CACHE_KEY) || '';
+        let uid = cachedUid;
+        if (cachedUid) {
+          liff.getProfile().then(profile => {
+            sessionStorage.setItem(UID_CACHE_KEY, profile.userId || cachedUid);
+          }).catch(() => {});
+        } else {
+          const profile = await liff.getProfile();
+          uid = profile.userId || '';
+          sessionStorage.setItem(UID_CACHE_KEY, uid);
+        }
         const orderNo = getQueryParam('orderNo');
 
         document.getElementById('topInfo').innerHTML =
@@ -178,7 +189,7 @@
           `&uid=${encodeURIComponent(uid)}` +
           `&orderNo=${encodeURIComponent(orderNo)}`;
 
-        const resp = await fetch(url);
+        const resp = await fetch(url, { cache: 'no-store' });
         const json = await resp.json();
 
         if (!json.ok) {
