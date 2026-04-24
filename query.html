@@ -234,8 +234,17 @@
 
     const RETURN_URL_KEY = 'caesar_return_url';
     const RETURN_RESTORED_KEY = 'caesar_return_restored';
+    const UID_CACHE_KEY = 'caesar_uid';
+    const DNAME_CACHE_KEY = 'caesar_dname';
 
     let currentUid = '';
+    let gasWarmupPromise = null;
+    function warmupGas_() {
+      if (gasWarmupPromise) return gasWarmupPromise;
+      gasWarmupPromise = fetch(GAS_WEBAPP_URL + '?action=ping&_ts=' + Date.now(), { cache: 'no-store' }).catch(() => {});
+      return gasWarmupPromise;
+    }
+    warmupGas_();
     let currentDisplayName = '';
 
     async function initPage() {
@@ -256,12 +265,31 @@
 
         cleanupAuthNoise_();
 
-        const profile = await liff.getProfile();
-        currentUid = profile.userId || '';
-        currentDisplayName = profile.displayName || '';
+        const cachedUid = sessionStorage.getItem(UID_CACHE_KEY) || '';
+        const cachedDname = sessionStorage.getItem(DNAME_CACHE_KEY) || '';
 
-        document.getElementById('userInfo').innerHTML =
-          `LINE 使用者：<b>${escapeHtml(currentDisplayName || '未辨識')}</b>`;
+        if (cachedUid) {
+          currentUid = cachedUid;
+          currentDisplayName = cachedDname;
+          document.getElementById('userInfo').innerHTML =
+            `LINE 使用者：<b>${escapeHtml(currentDisplayName || '未辨識')}</b>`;
+          liff.getProfile().then(profile => {
+            currentUid = profile.userId || currentUid;
+            currentDisplayName = profile.displayName || currentDisplayName;
+            sessionStorage.setItem(UID_CACHE_KEY, currentUid);
+            sessionStorage.setItem(DNAME_CACHE_KEY, currentDisplayName);
+            document.getElementById('userInfo').innerHTML =
+              `LINE 使用者：<b>${escapeHtml(currentDisplayName || '未辨識')}</b>`;
+          }).catch(() => {});
+        } else {
+          const profile = await liff.getProfile();
+          currentUid = profile.userId || '';
+          currentDisplayName = profile.displayName || '';
+          sessionStorage.setItem(UID_CACHE_KEY, currentUid);
+          sessionStorage.setItem(DNAME_CACHE_KEY, currentDisplayName);
+          document.getElementById('userInfo').innerHTML =
+            `LINE 使用者：<b>${escapeHtml(currentDisplayName || '未辨識')}</b>`;
+        }
 
         await loadPortal();
       } catch (err) {
@@ -363,8 +391,8 @@
       } catch (e) {}
     }
 
-    async function loadPortal() {
-      const url = `${GAS_WEBAPP_URL}?action=get_customer_portal&uid=${encodeURIComponent(currentUid)}`;
+    async function loadPortal(options = {}) {
+      const url = `${GAS_WEBAPP_URL}?action=get_customer_portal&uid=${encodeURIComponent(currentUid)}&_ts=${Date.now()}`;
       const resp = await fetch(url);
       const json = await resp.json();
 
