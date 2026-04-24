@@ -12,13 +12,11 @@
       background: #f5f6f8;
       color: #222;
     }
-
     .wrap {
       max-width: 520px;
       margin: 0 auto;
       padding: 10px;
     }
-
     .topbar {
       background: #2c3e50;
       color: #fff;
@@ -26,25 +24,21 @@
       padding: 14px;
       margin-bottom: 12px;
     }
-
     .title {
       font-size: 19px;
       font-weight: bold;
       margin-bottom: 6px;
     }
-
     .sub {
       font-size: 14px;
       line-height: 1.55;
       opacity: 0.95;
     }
-
     .tabs {
       display: flex;
       gap: 8px;
       margin: 12px 0;
     }
-
     .tab-btn {
       flex: 1;
       border: none;
@@ -56,12 +50,10 @@
       background: #d9dde3;
       color: #333;
     }
-
     .tab-btn.active {
       background: #EBA13A;
       color: #fff;
     }
-
     .panel {
       background: #fff;
       border-radius: 12px;
@@ -69,7 +61,6 @@
       margin-bottom: 10px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
-
     .status-bar {
       display: flex;
       justify-content: space-between;
@@ -78,7 +69,6 @@
       font-size: 14px;
       color: #555;
     }
-
     .refresh-btn {
       border: none;
       border-radius: 10px;
@@ -90,7 +80,6 @@
       cursor: pointer;
       white-space: nowrap;
     }
-
     .card {
       background: #fff;
       border-radius: 14px;
@@ -99,26 +88,29 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.06);
       transition: all 0.2s ease;
     }
-
     .card.done {
       background: #e5e7eb;
-      opacity: 0.72;
+      opacity: 0.78;
       margin-left: 12px;
-      padding: 8px 12px;
+      padding: 10px 12px;
     }
-
     .card.done .card-top,
     .card.done .address-box,
-    .card.done .btn-row {
+    .card.done .btn-row,
+    .card.done .depart-box {
       display: none;
     }
-
     .card.done .display-name {
       font-size: 15px;
       margin-bottom: 0;
-      color: #4b5563;
+      color: #374151;
     }
-
+    .done-note {
+      margin-top: 6px;
+      font-size: 13px;
+      color: #4b5563;
+      line-height: 1.5;
+    }
     .card-top {
       display: flex;
       justify-content: space-between;
@@ -126,14 +118,12 @@
       gap: 8px;
       margin-bottom: 8px;
     }
-
     .left-badges {
       display: flex;
       gap: 6px;
       align-items: center;
       flex-wrap: wrap;
     }
-
     .badge-sort {
       background: #0f172a;
       color: #fff;
@@ -144,7 +134,6 @@
       min-width: 20px;
       text-align: center;
     }
-
     .badge-route {
       background: #eef1f5;
       color: #333;
@@ -152,7 +141,6 @@
       padding: 4px 9px;
       font-size: 12px;
     }
-
     .badge-right {
       background: #e5e7eb;
       color: #374151;
@@ -165,7 +153,6 @@
       max-width: 165px;
       word-break: break-word;
     }
-
     .display-name {
       font-size: 19px;
       font-weight: bold;
@@ -173,7 +160,6 @@
       margin-bottom: 6px;
       word-break: break-word;
     }
-
     .address-box {
       margin-top: 8px;
       background: #fff7ed;
@@ -184,7 +170,6 @@
       font-size: 13px;
       line-height: 1.55;
     }
-
     .depart-box {
       margin-top: 8px;
       background: #ecfeff;
@@ -195,7 +180,6 @@
       font-size: 13px;
       line-height: 1.55;
     }
-
     .travel-connector {
       display: flex;
       align-items: center;
@@ -205,13 +189,11 @@
       font-size: 13px;
       margin: 2px 0 10px;
     }
-
     .btn-row {
       display: flex;
       gap: 8px;
       margin-top: 10px;
     }
-
     .btn {
       flex: 1;
       border: none;
@@ -221,32 +203,74 @@
       font-weight: bold;
       cursor: pointer;
     }
-
     .btn:disabled {
       opacity: 0.5;
       cursor: not-allowed;
     }
-
     .btn-nav {
       background: #dbeafe;
       color: #1d4ed8;
     }
-
     .btn-done {
       background: #16a34a;
       color: #fff;
     }
-
     .btn-special {
       background: #d97706;
       color: #fff;
     }
-
-    .btn-start {
+.btn-start {
       background: #0891b2;
       color: #fff;
     }
 
+    .btn-photo {
+      background: #7c3aed;
+      color: #fff;
+    }
+
+    .photo-note {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #6b7280;
+      line-height: 1.5;
+    }
+    .photo-preview-grid {
+      margin-top: 10px;
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 8px;
+    }
+    .photo-thumb {
+      position: relative;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #f3f4f6;
+      border: 1px solid #e5e7eb;
+      aspect-ratio: 1 / 1;
+    }
+    .photo-thumb img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      display: block;
+    }
+    .photo-delete-btn {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 24px;
+      height: 24px;
+      border: none;
+      border-radius: 999px;
+      background: rgba(17,24,39,0.78);
+      color: #fff;
+      font-size: 16px;
+      line-height: 24px;
+      text-align: center;
+      cursor: pointer;
+      padding: 0;
+    }
     .empty {
       text-align: center;
       color: #666;
@@ -255,14 +279,12 @@
       border-radius: 12px;
       font-size: 15px;
     }
-
     .loading {
       text-align: center;
       padding: 24px 14px;
       color: #666;
       font-size: 15px;
     }
-
     .error {
       background: #fee2e2;
       color: #991b1b;
@@ -272,7 +294,6 @@
       font-size: 14px;
       line-height: 1.55;
     }
-
     .footer-note {
       margin-top: 12px;
       font-size: 12px;
@@ -280,7 +301,6 @@
       text-align: center;
       line-height: 1.6;
     }
-
     .overlay {
       position: fixed;
       inset: 0;
@@ -290,11 +310,9 @@
       justify-content: center;
       z-index: 9999;
     }
-
     .overlay.show {
       display: flex;
     }
-
     .overlay-box {
       background: #fff;
       border-radius: 14px;
@@ -303,7 +321,6 @@
       text-align: center;
       box-shadow: 0 8px 30px rgba(0,0,0,0.18);
     }
-
     .spinner {
       width: 34px;
       height: 34px;
@@ -313,13 +330,11 @@
       animation: spin 0.8s linear infinite;
       margin: 0 auto 12px;
     }
-
     .overlay-text {
       font-size: 14px;
       color: #374151;
       font-weight: bold;
     }
-
     @keyframes spin {
       from { transform: rotate(0deg); }
       to { transform: rotate(360deg); }
@@ -368,13 +383,22 @@
     const LIFF_ID = '2009380550-ow9SlJK4';
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
 
+    const RETURN_URL_KEY = 'caesar_return_url';
+    const RETURN_RESTORED_KEY = 'caesar_return_restored';
+
     let currentDriverName = '';
-    fetch(GAS_WEBAPP_URL + '?action=ping&_ts=' + Date.now(), { cache: 'no-store' }).catch(() => {});
+    let pendingGroupStates = {};
+    let localCompletedGroups = {};
+    let pendingDeparture = false;
     let currentPeriod = '上午';
     let currentTasks = [];
     let currentBatchId = '';
     let departureStarted = false;
     let groupedStopsCache = [];
+    const PHOTO_SUPPLEMENT_WINDOW_MIN = 10;
+    const TASK_POLL_MS = 4000;
+    let taskPollTimer = null;
+    let suppressAutoReloadUntil = 0;
 
     function getQueryParam(name) {
       const url = new URL(window.location.href);
@@ -383,16 +407,22 @@
 
     async function initPage() {
       try {
+        saveCurrentPageState_();
+
         await liff.init({ liffId: LIFF_ID });
         if (!liff.isLoggedIn()) {
-          liff.login();
+          prepareLoginRedirect_();
+          liff.login({ redirectUri: window.location.href });
           return;
         }
 
-        const cachedUid = sessionStorage.getItem(UID_CACHE_KEY) || '';
-        const profile = cachedUid ? { userId: cachedUid, displayName: '' } : await liff.getProfile();
-        if (!cachedUid && profile && profile.userId) sessionStorage.setItem(UID_CACHE_KEY, profile.userId || '');
-        else if (cachedUid) { liff.getProfile().then(p => sessionStorage.setItem(UID_CACHE_KEY, p.userId || cachedUid)).catch(() => {}); }
+        if (restoreReturnPageIfNeeded_()) {
+          return;
+        }
+
+        cleanupAuthNoise_();
+
+        const profile = await liff.getProfile();
         const queryDriver = getQueryParam('driver');
         const queryPeriod = getQueryParam('period');
 
@@ -401,9 +431,91 @@
 
         setTabs();
         await loadTasks();
+        startTaskPolling();
       } catch (err) {
         showError('初始化失敗：' + (err.message || err));
       }
+    }
+
+    function saveCurrentPageState_() {
+      try {
+        if (window.location.search.includes('liff.state=') || window.location.search.includes('code=')) {
+          return;
+        }
+        sessionStorage.setItem(RETURN_URL_KEY, window.location.href);
+      } catch (e) {}
+    }
+
+    function prepareLoginRedirect_() {
+      try {
+        sessionStorage.setItem(RETURN_URL_KEY, window.location.href);
+        sessionStorage.removeItem(RETURN_RESTORED_KEY);
+      } catch (e) {}
+    }
+
+    function restoreReturnPageIfNeeded_() {
+      try {
+        const savedUrl = sessionStorage.getItem(RETURN_URL_KEY) || '';
+        const restored = sessionStorage.getItem(RETURN_RESTORED_KEY) || '';
+
+        if (!savedUrl) return false;
+
+        const currentUrl = window.location.href;
+        const savedClean = normalizeUrlForCompare_(savedUrl);
+        const currentClean = normalizeUrlForCompare_(currentUrl);
+
+        if (savedClean && currentClean && savedClean !== currentClean && restored !== '1') {
+          sessionStorage.setItem(RETURN_RESTORED_KEY, '1');
+          window.location.replace(savedUrl);
+          return true;
+        }
+
+        sessionStorage.removeItem(RETURN_RESTORED_KEY);
+        sessionStorage.removeItem(RETURN_URL_KEY);
+        return false;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function normalizeUrlForCompare_(url) {
+      try {
+        const u = new URL(url);
+        const params = new URLSearchParams(u.search);
+        params.delete('code');
+        params.delete('state');
+        params.delete('friendship_status_changed');
+        params.delete('liffClientId');
+        params.delete('liffRedirectUri');
+        params.delete('access_token');
+        params.delete('id_token');
+        params.delete('expires_in');
+        params.delete('token_type');
+
+        const search = params.toString();
+        return u.origin + u.pathname + (search ? '?' + search : '') + (u.hash || '');
+      } catch (e) {
+        return url;
+      }
+    }
+
+    function cleanupAuthNoise_() {
+      try {
+        const url = new URL(window.location.href);
+        const params = url.searchParams;
+        const noisyKeys = ['code','state','friendship_status_changed','liffClientId','liffRedirectUri','access_token','id_token','expires_in','token_type'];
+        let changed = false;
+        noisyKeys.forEach(key => {
+          if (params.has(key)) {
+            params.delete(key);
+            changed = true;
+          }
+        });
+        if (changed) {
+          const newUrl = url.origin + url.pathname + (params.toString() ? '?' + params.toString() : '') + (url.hash || '');
+          window.history.replaceState({}, '', newUrl);
+        }
+      } catch (e) {}
     }
 
     function setTabs() {
@@ -417,10 +529,65 @@
       loadTasks();
     }
 
-    async function loadTasks() {
+
+    function startTaskPolling() {
+      if (taskPollTimer) clearInterval(taskPollTimer);
+      taskPollTimer = setInterval(() => {
+        if (document.hidden) return;
+        if (Date.now() < suppressAutoReloadUntil) return;
+        loadTasks(true);
+      }, TASK_POLL_MS);
+    }
+
+    function setPendingGroupState(groupKey, payload) {
+      pendingGroupStates[groupKey] = {
+        ...(pendingGroupStates[groupKey] || {}),
+        ...payload,
+        expireAt: Date.now() + 60000
+      };
+    }
+
+    function cleanupPendingStates() {
+      const now = Date.now();
+      Object.keys(pendingGroupStates).forEach(key => {
+        const item = pendingGroupStates[key];
+        if (!item || !item.expireAt || item.expireAt < now) delete pendingGroupStates[key];
+      });
+    }
+
+    function cleanupLocalCompletedGroups() {
+      const now = Date.now();
+      Object.keys(localCompletedGroups).forEach(key => {
+        const item = localCompletedGroups[key];
+        if (!item || !item.expireAt || item.expireAt < now) delete localCompletedGroups[key];
+      });
+    }
+
+    function applyPendingStatesToTasks(tasks) {
+      cleanupPendingStates();
+      return (Array.isArray(tasks) ? tasks : []).map(task => {
+        const shopName = String(task.shopName || '').trim();
+        const rawAddress = String(task.address || '').trim();
+        const normalizedAddress = (!rawAddress || rawAddress === '送店') ? '__STORE__' : rawAddress;
+        const key = `${shopName}__${normalizedAddress}`;
+        const pending = pendingGroupStates[key];
+        if (!pending) return task;
+        return {
+          ...task,
+          status: pending.status || task.status,
+          reportedAt: pending.reportedAt || task.reportedAt,
+          photoCount: typeof pending.photoCount === 'number' ? pending.photoCount : task.photoCount,
+          draftPhotos: Array.isArray(pending.draftPhotos) ? pending.draftPhotos : task.draftPhotos,
+          etaText: pending.clearEta ? '' : task.etaText
+        };
+      });
+    }
+
+    async function loadTasks(silent = false) {
       try {
+        if (silent && Date.now() < suppressAutoReloadUntil) return;
         clearError();
-        renderLoading();
+        if (!silent) renderLoading();
 
         document.getElementById('driverInfo').innerHTML =
           `司機：<b>${escapeHtml(currentDriverName || '未辨識')}</b><br>目前查看：<b>${currentPeriod}</b>`;
@@ -431,36 +598,50 @@
           `&period=${encodeURIComponent(currentPeriod)}` +
           `&ts=${Date.now()}`;
 
-        const resp = await fetch(url);
+        const resp = await fetch(url, { cache: 'no-store' });
         const json = await resp.json();
 
         if (!json.ok) {
           throw new Error(json.error || '讀取任務失敗');
         }
 
-        currentTasks = (json.data && json.data.tasks) ? json.data.tasks : [];
+        currentTasks = applyPendingStatesToTasks((json.data && json.data.tasks) ? json.data.tasks : []);
         currentBatchId = (json.data && json.data.batchId) ? json.data.batchId : '';
+        cleanupLocalCompletedGroups();
+        const serverDoneStatuses = new Set(['已完成','放門口','改送隔壁','聯繫後改期','取消配送','特殊回報']);
+        currentTasks.forEach(task => {
+          const shopName = String(task.shopName || '').trim();
+          const rawAddress = String(task.address || '').trim();
+          const normalizedAddress = (!rawAddress || rawAddress === '送店') ? '__STORE__' : rawAddress;
+          const key = `${shopName}__${normalizedAddress}`;
+          if (serverDoneStatuses.has(String(task.status || '').trim()) && localCompletedGroups[key]) {
+            delete localCompletedGroups[key];
+          }
+        });
+        const serverHasDeparted = currentTasks.some(task => String(task.etaText || '').trim() || ['已完成','放門口','改送隔壁','聯繫後改期','取消配送','特殊回報'].includes(String(task.status || '').trim()));
+        if (serverHasDeparted) pendingDeparture = false;
         renderTasks(currentTasks);
       } catch (err) {
-        showError('讀取任務失敗：' + (err.message || err));
-        renderEmpty('目前無法讀取任務。');
+        if (!silent) {
+          showError('讀取任務失敗：' + (err.message || err));
+          renderEmpty('目前無法讀取任務。');
+        }
       }
     }
 
     function renderLoading() {
       document.getElementById('summaryText').textContent = '載入中...';
-      document.getElementById('taskContainer').innerHTML =
-        '<div class="loading">任務載入中...</div>';
+      document.getElementById('taskContainer').innerHTML = '<div class="loading">任務載入中...</div>';
     }
 
     function renderEmpty(text) {
       document.getElementById('summaryText').textContent = '目前沒有任務';
-      document.getElementById('taskContainer').innerHTML =
-        `<div class="empty">${escapeHtml(text)}</div>`;
+      document.getElementById('taskContainer').innerHTML = `<div class="empty">${escapeHtml(text)}</div>`;
     }
 
     function getStorageKey() {
-      return `caesar_driver_state__${currentDriverName}__${currentPeriod}__${currentBatchId}`;
+      const scope = currentBatchId || currentPeriod;
+      return `caesar_driver_state__${currentDriverName}__${scope}`;
     }
 
     function loadLocalState() {
@@ -502,31 +683,66 @@
             orderNos: [],
             tasks: [],
             isStore: (!rawAddress || rawAddress === '送店'),
-            sortOrder: task.sortOrder || ''
+            sortOrder: task.sortOrder || '',
+            photoCount: 0,
+            draftPhotos: [],
+            status: task.status || '',
+            reportedAt: task.reportedAt || '',
+            note: ''
           };
         }
 
         map[key].taskIds.push(task.taskId || '');
         map[key].orderNos.push(task.orderNo || '');
         map[key].tasks.push(task);
+        map[key].photoCount = Math.max(map[key].photoCount || 0, Number(task.photoCount || 0));
+        const taskPhotos = Array.isArray(task.draftPhotos) ? task.draftPhotos : [];
+        if (taskPhotos.length > (map[key].draftPhotos || []).length) {
+          map[key].draftPhotos = taskPhotos;
+        }
+        map[key].status = task.status || map[key].status || '';
+        map[key].reportedAt = task.reportedAt || map[key].reportedAt || '';
       });
 
       return Object.values(map).sort((a, b) => {
         const orderA = Number(a.sortOrder || 999999);
         const orderB = Number(b.sortOrder || 999999);
         if (orderA !== orderB) return orderA - orderB;
-        return String(a.shopName || '').localeCompare(String(b.shopName || ''), 'zh-Hant');
+        return String(getMainLabel(a) || '').localeCompare(String(getMainLabel(b) || ''), 'zh-Hant');
       });
+    }
+
+    function getMainLabel(group) {
+      const address = String(group.address || '').trim();
+      const shopName = String(group.shopName || '').trim();
+      return group.isStore ? (shopName || '未填店家') : (address || shopName || '未填地址');
     }
 
     function renderTasks(tasks) {
       const grouped = groupTasksByStop(tasks);
-      const localState = loadLocalState();
-      departureStarted = !!localState.departed;
 
-      const completedList = localState.completedList || [];
-      const completedKeys = new Set(completedList.map(x => x.key));
-      const pendingGroups = grouped.filter(g => !completedKeys.has(g.key));
+      const completedStatusSet = new Set(['已完成', '放門口', '改送隔壁', '聯繫後改期', '取消配送', '特殊回報']);
+      const serverDeparted = tasks.some(task => {
+        const status = String(task.status || '').trim();
+        const etaText = String(task.etaText || '').trim();
+        return !!etaText || completedStatusSet.has(status);
+      });
+      departureStarted = !!pendingDeparture || serverDeparted;
+      const serverCompletedGroups = grouped.filter(g => completedStatusSet.has(String(g.status || '').trim()));
+      cleanupLocalCompletedGroups();
+      const serverCompletedKeySet = new Set(serverCompletedGroups.map(g => g.key));
+      const localCompletedList = Object.values(localCompletedGroups).filter(item => item && !serverCompletedKeySet.has(item.key));
+      const pendingGroups = grouped.filter(g => !completedStatusSet.has(String(g.status || '').trim()) && !localCompletedGroups[g.key]);
+      const completedList = serverCompletedGroups.map(g => ({
+        key: g.key,
+        label: getMainLabel(g),
+        taskIds: g.taskIds || [],
+        note: (g.status && g.status !== '已完成') ? g.status : '',
+        photoCount: Number(g.photoCount || 0),
+        draftPhotos: Array.isArray(g.draftPhotos) ? g.draftPhotos : [],
+        reportedAt: g.reportedAt || '',
+        completedAt: g.reportedAt ? new Date(g.reportedAt).getTime() : Date.now()
+      })).concat(localCompletedList.sort((a,b)=> (a.completedAt||0)-(b.completedAt||0)));
 
       groupedStopsCache = pendingGroups.slice();
 
@@ -566,9 +782,17 @@
       }
 
       completedList.forEach((item, idx) => {
+        const doneText = item.note
+          ? `${item.label || ''} (${item.note})`
+          : `${item.label || ''}`;
+        const canSupplement = canSupplementPhoto(item);
+        const photoText = item.photoCount ? ` 已有${item.photoCount}張照片` : ' 可補照片';
+
         htmlParts.push(`
           <div class="card done">
-            <div class="display-name">${escapeHtml(item.label || '')}</div>
+            <div class="display-name">${escapeHtml(doneText)}</div>
+            ${renderDraftPhotoGrid(item)}
+            ${canSupplement ? `<div class="btn-row" style="display:flex; margin-top:8px;"><button class="btn btn-photo btn-photo-upload" data-group-key="${escapeHtml(item.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(item.taskIds || [])))}">補傳照片${escapeHtml(photoText)}</button></div>` : ''}
           </div>
         `);
 
@@ -587,6 +811,7 @@
         pendingGroups.forEach((group, index) => {
           const firstTask = group.tasks[0];
           const navTarget = getNavigationTarget(firstTask);
+          const mainLabel = getMainLabel(group);
 
           const addressBlock = !group.isStore
             ? `
@@ -607,14 +832,17 @@
                 <div class="badge-right">${escapeHtml(group.orderNos.join(', '))}</div>
               </div>
 
-              <div class="display-name">${escapeHtml(group.shopName || '')}</div>
+              <div class="display-name">${escapeHtml(mainLabel)}</div>
               ${addressBlock}
 
               <div class="btn-row">
                 <button class="btn btn-nav" data-nav="${escapeHtml(navTarget)}">導航</button>
+                <button class="btn btn-photo btn-photo-upload" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">傳照片${group.photoCount ? `(${group.photoCount})` : ''}</button>
                 <button class="btn btn-done" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">完成配送</button>
                 <button class="btn btn-special" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">特殊回報</button>
               </div>
+              ${renderDraftPhotoGrid(group)}
+              <div class="photo-note">指定送達建議拍照，最多 2 張。</div>
             </div>
           `);
         });
@@ -622,6 +850,28 @@
 
       document.getElementById('taskContainer').innerHTML = htmlParts.join('');
       bindActionButtons();
+    }
+
+
+    function renderDraftPhotoGrid(group) {
+      const photos = Array.isArray(group.draftPhotos) ? group.draftPhotos : [];
+      if (!photos.length) return '';
+      return `
+        <div class="photo-preview-grid">
+          ${photos.map((photo, idx) => `
+            <div class="photo-thumb">
+              <a href="${escapeHtml(photo.url || photo.previewUrl || '')}" target="_blank" rel="noopener">
+                <img src="${escapeHtml(photo.previewUrl || photo.url || '')}" alt="draft-photo-${idx + 1}">
+              </a>
+              <button class="photo-delete-btn btn-photo-delete"
+                      data-group-key="${escapeHtml(group.key)}"
+                      data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}"
+                      data-photo-index="${idx}"
+                      data-file-id="${escapeHtml(photo.fileId || '')}">×</button>
+            </div>
+          `).join('')}
+        </div>
+      `;
     }
 
     function bindActionButtons() {
@@ -640,7 +890,27 @@
         btn.addEventListener('click', async () => {
           const groupKey = btn.getAttribute('data-group-key') || '';
           const taskIdsJson = decodeURIComponent(btn.getAttribute('data-taskids') || '');
-          await submitGroupedStatus(taskIdsJson, 'DONE', groupKey);
+          await submitGroupedStatus(taskIdsJson, 'DONE', groupKey, '');
+        });
+      });
+
+      document.querySelectorAll('.btn-photo-upload').forEach(btn => {
+        btn.addEventListener('click', async () => {
+          const groupKey = btn.getAttribute('data-group-key') || '';
+          const taskIdsJson = decodeURIComponent(btn.getAttribute('data-taskids') || '[]');
+          await chooseAndUploadPhotos(taskIdsJson, groupKey);
+        });
+      });
+
+      document.querySelectorAll('.btn-photo-delete').forEach(btn => {
+        btn.addEventListener('click', async (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          const groupKey = btn.getAttribute('data-group-key') || '';
+          const taskIdsJson = decodeURIComponent(btn.getAttribute('data-taskids') || '[]');
+          const photoIndex = Number(btn.getAttribute('data-photo-index') || '-1');
+          const fileId = btn.getAttribute('data-file-id') || '';
+          await deleteUploadedPhoto(taskIdsJson, groupKey, photoIndex, fileId);
         });
       });
 
@@ -656,6 +926,8 @@
     async function startDeparture() {
       try {
         showOverlay('記錄出發並刷新 ETA...');
+        if (window.__driverActionLock) return;
+        window.__driverActionLock = true;
         const payload = {
           action: 'mark_driver_departure',
           driverName: currentDriverName,
@@ -681,14 +953,15 @@
           throw new Error(json.message || json.error || '記錄出發失敗');
         }
 
-        const localState = loadLocalState();
-        localState.departed = true;
-        saveLocalState(localState);
+        pendingDeparture = true;
         departureStarted = true;
+        suppressAutoReloadUntil = Date.now() + 8000;
         renderTasks(currentTasks);
+        setTimeout(() => { suppressAutoReloadUntil = 0; loadTasks(true); }, 2500);
       } catch (err) {
         alert('出發處理失敗：' + (err.message || err));
       } finally {
+        window.__driverActionLock = false;
         hideOverlay();
       }
     }
@@ -757,12 +1030,18 @@
       }
 
       try {
+        if (window.__driverActionLock) return;
+        window.__driverActionLock = true;
         showOverlay(actionType === 'DONE' ? '回報配送完成中...' : '送出特殊回報中...');
         await submitGroupStatus(taskIds, actionType, note);
-        markGroupDone(groupKey);
+        const displayStatus = actionType === 'DONE' ? '已完成' : (note || '特殊回報');
+        suppressAutoReloadUntil = Date.now() + 8000;
+        markGroupDone(groupKey, displayStatus);
+        setTimeout(() => { suppressAutoReloadUntil = 0; loadTasks(true); }, 2500);
       } catch (err) {
         alert('整站回報失敗：' + (err.message || err));
       } finally {
+        setTimeout(() => { window.__driverActionLock = false; }, 1200);
         hideOverlay();
       }
     }
@@ -791,7 +1070,7 @@
 
       if (choice === '1') {
         actionType = 'DROP_OFF';
-        note = '客戶同意放門口';
+        note = '放門口';
       } else if (choice === '2') {
         actionType = 'NEIGHBOR';
         note = '改送隔壁';
@@ -800,10 +1079,10 @@
         note = '聯繫後改期';
       } else if (choice === '4') {
         actionType = 'CANCELLED';
-        note = '客戶取消';
+        note = '取消配送';
       } else if (choice === '5') {
         actionType = 'OTHER';
-        note = prompt('請輸入補充說明') || '';
+        note = prompt('請輸入補充說明') || '特殊回報';
       } else {
         alert('無效選項');
         return;
@@ -812,26 +1091,180 @@
       await submitGroupedStatus(taskIdsJson, actionType, groupKey, note);
     }
 
-    function markGroupDone(groupKey) {
+    function markGroupDone(groupKey, note = '') {
       const group = groupedStopsCache.find(x => x.key === groupKey);
       if (!group) return;
 
-      const localState = loadLocalState();
-      const completedList = localState.completedList || [];
+      const finalStatus = note || '已完成';
+      const now = new Date();
+      setPendingGroupState(groupKey, { status: finalStatus, reportedAt: now.toISOString(), clearEta: true, photoCount: Number(group.photoCount || 0), draftPhotos: Array.isArray(group.draftPhotos) ? group.draftPhotos : [] });
 
-      if (!completedList.some(x => x.key === group.key)) {
-        completedList.push({
-          key: group.key,
-          label: group.shopName || ''
-        });
-      }
-
-      localState.completedList = completedList;
-      localState.lastCompletedKey = groupKey;
-      saveLocalState(localState);
+      currentTasks = currentTasks.map(task => {
+        const shopName = String(task.shopName || '').trim();
+        const rawAddress = String(task.address || '').trim();
+        const normalizedAddress = (!rawAddress || rawAddress === '送店') ? '__STORE__' : rawAddress;
+        const key = `${shopName}__${normalizedAddress}`;
+        if (key !== groupKey) return task;
+        return {
+          ...task,
+          status: finalStatus,
+          reportedAt: now.toISOString()
+        };
+      });
 
       groupedStopsCache = groupedStopsCache.filter(x => x.key !== groupKey);
+      localCompletedGroups[groupKey] = {
+        key: groupKey,
+        label: getMainLabel(group),
+        taskIds: group.taskIds || [],
+        note: finalStatus !== '已完成' ? finalStatus : '',
+        photoCount: Number(group.photoCount || 0),
+        draftPhotos: Array.isArray(group.draftPhotos) ? group.draftPhotos : [],
+        reportedAt: now.toISOString(),
+        completedAt: now.getTime(),
+        expireAt: Date.now() + 60000
+      };
       renderTasks(currentTasks);
+    }
+
+    function canSupplementPhoto(item) {
+      const completedAt = Number(item && item.completedAt || 0);
+      if (!completedAt) return false;
+      return (Date.now() - completedAt) <= PHOTO_SUPPLEMENT_WINDOW_MIN * 60 * 1000;
+    }
+
+    function chooseImageFiles_(maxCount) {
+      return new Promise(resolve => {
+        const input = document.createElement('input');
+        input.type = 'file';
+        input.accept = 'image/*';
+        input.multiple = true;
+        input.onchange = () => {
+          const files = Array.from(input.files || []).slice(0, Math.max(1, maxCount || 2));
+          resolve(files);
+        };
+        input.click();
+      });
+    }
+
+    async function compressImageFile_(file) {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const img = await new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = dataUrl;
+      });
+      const maxSide = 1280;
+      let { width, height } = img;
+      if (width > height && width > maxSide) {
+        height = Math.round(height * (maxSide / width));
+        width = maxSide;
+      } else if (height >= width && height > maxSide) {
+        width = Math.round(width * (maxSide / height));
+        height = maxSide;
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = width;
+      canvas.height = height;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, width, height);
+      const compressed = canvas.toDataURL('image/jpeg', 0.72);
+      return {
+        fileName: file.name || 'photo.jpg',
+        mimeType: 'image/jpeg',
+        dataBase64: compressed.split(',')[1]
+      };
+    }
+
+    async function uploadGroupPhotos(taskIds, groupKey) {
+      const group = groupedStopsCache.find(x => x.key === groupKey) || {};
+      const existingPhotos = Array.isArray(group.draftPhotos) ? group.draftPhotos : [];
+      if (existingPhotos.length >= 2) {
+        alert('最多只能上傳 2 張照片');
+        return null;
+      }
+      const remainCount = Math.max(0, 2 - existingPhotos.length);
+      const files = await chooseImageFiles_(remainCount);
+      if (!files.length) return null;
+      const picked = files.slice(0, remainCount);
+      if (!picked.length) {
+        alert('最多只能上傳 2 張照片');
+        return null;
+      }
+      showOverlay('上傳照片中...');
+      suppressAutoReloadUntil = Date.now() + 5000;
+      try {
+        const photos = [];
+        for (const file of picked) {
+          photos.push(await compressImageFile_(file));
+        }
+        const resp = await fetch(GAS_WEBAPP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'upload_driver_photos', taskIds, driverName: currentDriverName, photos })
+        });
+        const text = await resp.text();
+        let json = {};
+        try { json = JSON.parse(text); } catch (e) { throw new Error(text || '照片上傳失敗'); }
+        if (!json.ok) throw new Error(json.message || json.error || '照片上傳失敗');
+        syncPhotoStateToGroup_(groupKey, Number(json.totalCount || (existingPhotos.length + photos.length)), Array.isArray(json.photos) ? json.photos : []);
+        renderTasks(currentTasks);
+        return json;
+      } finally {
+        hideOverlay();
+      }
+    }
+
+    async function chooseAndUploadPhotos(taskIdsJson, groupKey) {
+      let taskIds = [];
+      try { taskIds = JSON.parse(taskIdsJson); } catch (e) { alert('任務資料格式錯誤'); return; }
+      try {
+        await uploadGroupPhotos(taskIds, groupKey);
+      } catch (err) {
+        alert('照片上傳失敗：' + (err.message || err));
+      }
+    }
+    async function deleteUploadedPhoto(taskIdsJson, groupKey, photoIndex, fileId = '') {
+      let taskIds = [];
+      try { taskIds = JSON.parse(taskIdsJson); } catch (e) { alert('任務資料格式錯誤'); return; }
+      if (photoIndex < 0) return;
+      showOverlay('刪除照片中...');
+      suppressAutoReloadUntil = Date.now() + 5000;
+      try {
+        const resp = await fetch(GAS_WEBAPP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'delete_driver_photo', taskIds, driverName: currentDriverName, photoIndex, fileId })
+        });
+        const text = await resp.text();
+        let json = {};
+        try { json = JSON.parse(text); } catch (e) { throw new Error(text || '照片刪除失敗'); }
+        if (!json.ok) throw new Error(json.message || json.error || '照片刪除失敗');
+        syncPhotoStateToGroup_(groupKey, Number(json.totalCount || 0), Array.isArray(json.photos) ? json.photos : []);
+        renderTasks(currentTasks);
+      } catch (err) {
+        alert('照片刪除失敗：' + (err.message || err));
+      } finally {
+        hideOverlay();
+      }
+    }
+
+    function syncPhotoStateToGroup_(groupKey, count, photos) {
+      groupedStopsCache = groupedStopsCache.map(item => item.key === groupKey ? { ...item, photoCount: count, draftPhotos: Array.isArray(photos) ? photos : [] } : item);
+      currentTasks = currentTasks.map(task => {
+        const shopName = String(task.shopName || '').trim();
+        const rawAddress = String(task.address || '').trim();
+        const normalizedAddress = (!rawAddress || rawAddress === '送店') ? '__STORE__' : rawAddress;
+        const key = `${shopName}__${normalizedAddress}`;
+        return key === groupKey ? { ...task, photoCount: count, draftPhotos: Array.isArray(photos) ? photos : [] } : task;
+      });
+      setPendingGroupState(groupKey, { photoCount: count, draftPhotos: Array.isArray(photos) ? photos : [] });
     }
 
     function getCurrentGpsText() {
@@ -870,8 +1303,7 @@
     }
 
     function showError(msg) {
-      document.getElementById('errorBox').innerHTML =
-        `<div class="error">${escapeHtml(msg)}</div>`;
+      document.getElementById('errorBox').innerHTML = `<div class="error">${escapeHtml(msg)}</div>`;
     }
 
     function clearError() {
@@ -886,6 +1318,10 @@
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
     }
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) loadTasks(true);
+    });
 
     initPage();
   </script>
