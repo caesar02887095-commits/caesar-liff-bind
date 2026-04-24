@@ -369,6 +369,7 @@
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
 
     let currentDriverName = '';
+    fetch(GAS_WEBAPP_URL + '?action=ping&_ts=' + Date.now(), { cache: 'no-store' }).catch(() => {});
     let currentPeriod = '上午';
     let currentTasks = [];
     let currentBatchId = '';
@@ -388,7 +389,10 @@
           return;
         }
 
-        const profile = await liff.getProfile();
+        const cachedUid = sessionStorage.getItem(UID_CACHE_KEY) || '';
+        const profile = cachedUid ? { userId: cachedUid, displayName: '' } : await liff.getProfile();
+        if (!cachedUid && profile && profile.userId) sessionStorage.setItem(UID_CACHE_KEY, profile.userId || '');
+        else if (cachedUid) { liff.getProfile().then(p => sessionStorage.setItem(UID_CACHE_KEY, p.userId || cachedUid)).catch(() => {}); }
         const queryDriver = getQueryParam('driver');
         const queryPeriod = getQueryParam('period');
 
@@ -424,7 +428,8 @@
         const url =
           `${GAS_WEBAPP_URL}?action=get_driver_tasks` +
           `&driver=${encodeURIComponent(currentDriverName)}` +
-          `&period=${encodeURIComponent(currentPeriod)}`;
+          `&period=${encodeURIComponent(currentPeriod)}` +
+          `&ts=${Date.now()}`;
 
         const resp = await fetch(url);
         const json = await resp.json();
