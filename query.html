@@ -79,6 +79,11 @@
       color: #333;
       margin-top: 8px;
     }
+    .btn-toggle {
+      background: #dbeafe;
+      color: #1d4ed8;
+      margin-top: 10px;
+    }
     .order-card {
       border: 1px solid #d8dee8;
       border-radius: 14px;
@@ -131,47 +136,19 @@
       margin-bottom: 4px;
       word-break: break-word;
     }
-    .photo-wrap { margin-top: 12px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
-    .photo-item { position: relative; border-radius: 10px; overflow: hidden; border: 1px solid #dbe4ef; background: #fff; display:block; text-decoration:none; }
-    .photo-item img { width: 100%; display: block; aspect-ratio: 1 / 1; object-fit: cover; }
-    .photo-badge { position:absolute; right:6px; bottom:6px; background: rgba(17,24,39,0.7); color:#fff; font-size:11px; padding:3px 6px; border-radius:999px; }
-    .status-pill {
+    .progress-shell {
       margin-top: 12px;
       padding-top: 10px;
       border-top: 1px dashed #d1d5db;
+      display: none;
     }
-    .status-banner {
-      margin-top: 10px;
-      border-radius: 12px;
-      padding: 12px 14px;
-      font-size: 15px;
+    .progress-shell.show {
+      display: block;
+    }
+    .status-big {
+      font-size: 16px;
       font-weight: bold;
-      line-height: 1.6;
-    }
-    .status-banner.done {
-      background: #dcfce7;
-      color: #166534;
-      border: 1px solid #86efac;
-    }
-    .status-banner.active {
-      background: #dbeafe;
-      color: #1d4ed8;
-      border: 1px solid #93c5fd;
-    }
-    .status-banner.preparing {
-      background: #fef3c7;
-      color: #92400e;
-      border: 1px solid #fcd34d;
-    }
-    .status-banner.warn {
-      background: #ffedd5;
-      color: #9a3412;
-      border: 1px solid #fdba74;
-    }
-    .status-banner.cancel {
-      background: #fee2e2;
-      color: #991b1b;
-      border: 1px solid #fca5a5;
+      margin-bottom: 10px;
     }
     .eta-box {
       background: #eff6ff;
@@ -191,6 +168,40 @@
       font-size: 20px;
       font-weight: bold;
       line-height: 1.2;
+    }
+    .flow {
+      margin-top: 10px;
+    }
+    .flow-step {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+    .flow-dot {
+      width: 14px;
+      height: 14px;
+      border-radius: 999px;
+      margin-top: 3px;
+      flex-shrink: 0;
+      background: #cbd5e1;
+    }
+    .flow-dot.active {
+      background: #2563eb;
+    }
+    .flow-dot.done {
+      background: #16a34a;
+    }
+    .flow-text {
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .flow-main {
+      font-weight: bold;
+    }
+    .flow-sub {
+      color: #6b7280;
+      font-size: 13px;
     }
     .loading {
       text-align: center;
@@ -223,6 +234,10 @@
 
     const RETURN_URL_KEY = 'caesar_return_url';
     const RETURN_RESTORED_KEY = 'caesar_return_restored';
+    const UID_CACHE_KEY = 'caesar_uid';
+    const DNAME_CACHE_KEY = 'caesar_dname';
+
+    fetch(GAS_WEBAPP_URL + '?action=ping&_ts=' + Date.now(), { cache: 'no-store' }).catch(() => {});
 
     let currentUid = '';
     let currentDisplayName = '';
@@ -230,6 +245,9 @@
     async function initPage() {
       try {
         saveCurrentPageState_();
+
+        const cachedUid = sessionStorage.getItem(UID_CACHE_KEY) || '';
+        const cachedDname = sessionStorage.getItem(DNAME_CACHE_KEY) || '';
 
         await liff.init({ liffId: LIFF_ID });
 
@@ -245,15 +263,27 @@
 
         cleanupAuthNoise_();
 
-        const profile = await liff.getProfile();
-        currentUid = profile.userId || '';
-        currentDisplayName = profile.displayName || '';
+        if (cachedUid) {
+          currentUid = cachedUid;
+          currentDisplayName = cachedDname;
+          liff.getProfile().then(profile => {
+            currentDisplayName = profile.displayName || currentDisplayName;
+            sessionStorage.setItem(UID_CACHE_KEY, profile.userId || cachedUid);
+            sessionStorage.setItem(DNAME_CACHE_KEY, currentDisplayName);
+            document.getElementById('userInfo').innerHTML = `LINE 使用者：<b>${escapeHtml(currentDisplayName || '未辨識')}</b>`;
+          }).catch(() => {});
+        } else {
+          const profile = await liff.getProfile();
+          currentUid = profile.userId || '';
+          currentDisplayName = profile.displayName || '';
+          sessionStorage.setItem(UID_CACHE_KEY, currentUid);
+          sessionStorage.setItem(DNAME_CACHE_KEY, currentDisplayName);
+        }
 
         document.getElementById('userInfo').innerHTML =
           `LINE 使用者：<b>${escapeHtml(currentDisplayName || '未辨識')}</b>`;
 
         await loadPortal();
-        startAutoRefresh();
       } catch (err) {
         renderMessage('載入失敗：' + (err.message || err), 'bad');
       }
@@ -353,31 +383,7 @@
       } catch (e) {}
     }
 
-    let autoRefreshTimer = null;
-
-    function startAutoRefresh() {
-      stopAutoRefresh();
-      autoRefreshTimer = setInterval(() => {
-        if (document.hidden) return;
-        loadPortal({ silent: true });
-      }, 20000);
-    }
-
-    function stopAutoRefresh() {
-      if (autoRefreshTimer) {
-        clearInterval(autoRefreshTimer);
-        autoRefreshTimer = null;
-      }
-    }
-
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) {
-        loadPortal({ silent: true });
-      }
-    });
-
-    async function loadPortal(options = {}) {
-      const silent = !!options.silent;
+    async function loadPortal() {
       const url = `${GAS_WEBAPP_URL}?action=get_customer_portal&uid=${encodeURIComponent(currentUid)}&_ts=${Date.now()}`;
       const resp = await fetch(url, { cache: 'no-store' });
       const json = await resp.json();
@@ -432,7 +438,7 @@
         html += `
           <div class="card">
             <div class="status">訂單 / 配送查詢</div>
-            ${orders.map(order => renderOrderCard(order)).join('')}
+            ${orders.map((order, idx) => renderOrderCard(order, idx)).join('')}
           </div>
         `;
       }
@@ -446,15 +452,12 @@
       document.getElementById('app').innerHTML = html;
     }
 
-    function renderOrderCard(order) {
+    function renderOrderCard(order, idx) {
       const canTrack = !!order.hasTracking;
       const mergedOrderNos = Array.isArray(order.orderNos) ? order.orderNos.filter(Boolean) : [];
       const mergedCount = mergedOrderNos.length || (order.orderNo ? 1 : 0);
       const mergedOrderText = mergedOrderNos.length ? mergedOrderNos.join(' / ') : (order.orderNo || '');
       const detailLines = Array.isArray(order.detailLines) ? order.detailLines : [];
-      const etaText = order.etaText || '';
-      const statusInfo = getStatusInfo(order);
-      const photos = Array.isArray(order.photos) ? order.photos : [];
 
       return `
         <div class="order-card">
@@ -479,69 +482,161 @@
             }
           </div>
 
-          <div class="status-pill">
-            <div class="status-banner ${statusInfo.className}">${escapeHtml(statusInfo.text)}</div>
-            ${canTrack && etaText ? `
-              <div class="eta-box">
-                <div class="eta-title">預估送達時間</div>
-                <div class="eta-time">${escapeHtml(etaText)}</div>
-              </div>
-            ` : ''}
-            ${photos.length ? `
-              <div class="photo-wrap">
-                ${photos.map((photo, idx) => `
-                  <a class="photo-item" href="${escapeHtml(photo.url || '')}" target="_blank"><img src="${escapeHtml(photo.previewUrl || photo.url || '')}" alt="送達照片${idx + 1}"><span class="photo-badge">照片${idx + 1}</span></a>
-                `).join('')}
-              </div>
-            ` : ''}
+          ${canTrack ? `
+            <button class="btn btn-toggle" onclick="toggleProgress(${idx})" id="toggle-btn-${idx}">
+              展開送貨進度
+            </button>
+            <div class="progress-shell" id="progress-shell-${idx}">
+              ${renderProgressDetail(order)}
+            </div>
+          ` : `
+            <div class="progress-shell show">
+              <div class="status-big warn">尚未排車</div>
+              <div class="row">目前這批配送尚未安排路線。</div>
+            </div>
+          `}
+        </div>
+      `;
+    }
+
+    function renderProgressDetail(order) {
+      const progressText = order.taskStatusText || '配送處理中';
+      const taskStatus = order.taskStatus || '';
+      const etaText = order.etaText || '';
+
+      return `
+        <div class="status-big ok">${escapeHtml(progressText)}</div>
+        <div class="row">配送司機：${escapeHtml(order.driverName || '未排車')}</div>
+        ${etaText ? `
+          <div class="eta-box">
+            <div class="eta-title">預估送達時間</div>
+            <div class="eta-time">${escapeHtml(etaText)}</div>
+          </div>
+        ` : ''}
+        <div class="flow">
+          ${renderFlow(taskStatus)}
+        </div>
+      `;
+    }
+
+    function renderFlow(taskStatus) {
+      if (taskStatus === '已完成') {
+        return `
+          <div class="flow-step">
+            <div class="flow-dot done"></div>
+            <div class="flow-text">
+              <div class="flow-main">已排車</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-dot done"></div>
+            <div class="flow-text">
+              <div class="flow-main">司機配送中</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-dot done"></div>
+            <div class="flow-text">
+              <div class="flow-main">你的訂單已完成配送</div>
+            </div>
+          </div>
+        `;
+      }
+
+      if (taskStatus === '聯繫後改期') {
+        return `
+          <div class="flow-step">
+            <div class="flow-dot done"></div>
+            <div class="flow-text">
+              <div class="flow-main">已排車</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-dot active"></div>
+            <div class="flow-text">
+              <div class="flow-main">配送安排已異動</div>
+              <div class="flow-sub">請等待後續通知</div>
+            </div>
+          </div>
+        `;
+      }
+
+      if (taskStatus === '取消配送') {
+        return `
+          <div class="flow-step">
+            <div class="flow-dot done"></div>
+            <div class="flow-text">
+              <div class="flow-main">已排車</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-dot active"></div>
+            <div class="flow-text">
+              <div class="flow-main">配送已取消</div>
+            </div>
+          </div>
+        `;
+      }
+
+      if (taskStatus === '放門口' || taskStatus === '改送隔壁') {
+        return `
+          <div class="flow-step">
+            <div class="flow-dot done"></div>
+            <div class="flow-text">
+              <div class="flow-main">已排車</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-dot done"></div>
+            <div class="flow-text">
+              <div class="flow-main">司機配送中</div>
+            </div>
+          </div>
+          <div class="flow-step">
+            <div class="flow-dot done"></div>
+            <div class="flow-text">
+              <div class="flow-main">${escapeHtml(taskStatus)}</div>
+            </div>
+          </div>
+        `;
+      }
+
+      return `
+        <div class="flow-step">
+          <div class="flow-dot done"></div>
+          <div class="flow-text">
+            <div class="flow-main">已排車</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot active"></div>
+          <div class="flow-text">
+            <div class="flow-main">司機配送中</div>
+            <div class="flow-sub">正依路線順序前往送達</div>
+          </div>
+        </div>
+        <div class="flow-step">
+          <div class="flow-dot"></div>
+          <div class="flow-text">
+            <div class="flow-main">即將送達你的訂單</div>
           </div>
         </div>
       `;
     }
 
-    function getStatusInfo(order) {
-      if (!order.hasTracking) {
-        return { text: '尚未排車', className: 'warn' };
+    function toggleProgress(idx) {
+      const shell = document.getElementById(`progress-shell-${idx}`);
+      const btn = document.getElementById(`toggle-btn-${idx}`);
+      if (!shell || !btn) return;
+
+      const isOpen = shell.classList.contains('show');
+      if (isOpen) {
+        shell.classList.remove('show');
+        btn.textContent = '展開送貨進度';
+      } else {
+        shell.classList.add('show');
+        btn.textContent = '收合送貨進度';
       }
-
-      const taskStatus = String(order.taskStatus || '').trim();
-      const taskStatusText = String(order.taskStatusText || '').trim();
-      const driverName = String(order.driverName || '').trim();
-      const etaText = String(order.etaText || '').trim();
-      const driverSuffix = driverName ? `｜司機 ${driverName}` : '';
-      const timeSuffix = formatStatusTimeLabel(order);
-
-      if (taskStatus === '已完成') {
-        return { text: taskStatusText || `送貨已完成${driverSuffix}${timeSuffix}`, className: 'done' };
-      }
-      if (taskStatus === '放門口' || taskStatus === '改送隔壁' || taskStatus === '聯繫後改期' || taskStatus === '取消配送' || taskStatus === '特殊回報') {
-        return {
-          text: taskStatusText || taskStatus,
-          className: taskStatus === '取消配送' ? 'cancel' : 'warn'
-        };
-      }
-      if (etaText) {
-        return { text: `司機配送中${driverSuffix}`, className: 'active' };
-      }
-      return { text: `理貨中${driverSuffix}`, className: 'preparing' };
-    }
-
-
-    function formatStatusTimeLabel(order) {
-      const taskStatus = String(order.taskStatus || '').trim();
-      if (taskStatus !== '已完成') return '';
-
-      const raw = String(order.updatedAt || '').trim();
-      if (!raw) return '';
-
-      const dt = new Date(raw);
-      if (isNaN(dt.getTime())) return '';
-
-      const hh = String(dt.getHours()).padStart(2, '0');
-      const mm = String(dt.getMinutes()).padStart(2, '0');
-      const periodText = String(order.deliveryTime || '').trim();
-      const periodLabel = periodText ? `${periodText} ` : '';
-      return `｜${periodLabel}${hh}:${mm}`;
     }
 
     function renderRequestForm() {
