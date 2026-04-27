@@ -13,11 +13,13 @@
       background: #f5f6f8;
       color: #222;
     }
+
     .wrap {
       max-width: 760px;
       margin: 0 auto;
       padding: 12px;
     }
+
     .topbar {
       background: #2c3e50;
       color: #fff;
@@ -25,21 +27,25 @@
       padding: 14px;
       margin-bottom: 12px;
     }
+
     .title {
       font-size: 20px;
       font-weight: bold;
       margin-bottom: 6px;
     }
+
     .sub {
       font-size: 14px;
       line-height: 1.6;
       opacity: 0.95;
     }
+
     .tabs {
       display: flex;
       gap: 8px;
       margin: 12px 0;
     }
+
     .tab-btn {
       flex: 1;
       border: none;
@@ -51,28 +57,33 @@
       background: #d9dde3;
       color: #333;
     }
+
     .tab-btn.active {
       background: #EBA13A;
       color: #fff;
     }
-    .route-panel, .toolbar {
+
+    .route-panel {
       background: #fff;
       border-radius: 12px;
       padding: 12px;
       margin-bottom: 12px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
+
     .route-title {
       font-size: 15px;
       font-weight: bold;
       color: #334155;
       margin-bottom: 10px;
     }
+
     .route-btns {
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
     }
+
     .route-btn {
       border: none;
       border-radius: 10px;
@@ -83,18 +94,26 @@
       background: #dbeafe;
       color: #1d4ed8;
     }
+
     .toolbar {
       display: flex;
       gap: 8px;
       justify-content: space-between;
       align-items: center;
+      background: #fff;
+      padding: 12px;
+      border-radius: 12px;
+      margin-bottom: 12px;
       flex-wrap: wrap;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
+
     .toolbar-right {
       display: flex;
       gap: 8px;
       flex-wrap: wrap;
     }
+
     .btn {
       border: none;
       border-radius: 10px;
@@ -103,29 +122,36 @@
       font-weight: bold;
       cursor: pointer;
     }
+
     .btn-save {
       background: #16a34a;
       color: #fff;
     }
+
     .btn-refresh {
       background: #d9dde3;
       color: #333;
     }
+
     .btn-sort {
       background: #c7d2fe;
       color: #3730a3;
     }
+
     .btn-cancel {
       background: #e5e7eb;
       color: #374151;
     }
+
     .btn:disabled {
       opacity: 0.6;
       cursor: not-allowed;
     }
+
     .group-block {
       margin-bottom: 14px;
     }
+
     .group-head {
       display: flex;
       justify-content: space-between;
@@ -134,21 +160,25 @@
       margin-bottom: 8px;
       flex-wrap: wrap;
     }
+
     .group-title {
       font-size: 16px;
       font-weight: bold;
       color: #334155;
     }
+
     .group-meta {
       display: flex;
       align-items: center;
       gap: 8px;
       flex-wrap: wrap;
     }
+
     .group-count {
       font-size: 12px;
       color: #64748b;
     }
+
     .group-driver {
       border: 1px solid #cbd5e1;
       border-radius: 8px;
@@ -157,12 +187,14 @@
       min-width: 110px;
       background: #fff;
     }
+
     .group-list {
       min-height: 60px;
       background: #eef2f7;
       border-radius: 12px;
       padding: 8px;
     }
+
     .row {
       background: #fff;
       border-radius: 12px;
@@ -171,59 +203,29 @@
       display: flex;
       gap: 10px;
       align-items: center;
-      justify-content: space-between;
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
+
     .row-left {
       flex: 1;
       min-width: 0;
-      display: flex;
-      align-items: center;
-      gap: 10px;
     }
-    .type-box {
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      font-size: 14px;
-      font-weight: 800;
-      line-height: 1;
-      background: #e5e7eb;
-      color: #334155;
-    }
-    .type-box.alert {
-      background: #fee2e2;
-      color: #dc2626;
-      font-size: 15px;
-    }
+
     .row-title {
-      flex: 1;
-      min-width: 0;
-      font-size: 16px;
+      font-size: 15px;
       font-weight: bold;
-      line-height: 1.35;
+      line-height: 1.4;
       word-break: break-word;
-      color: #111827;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+      color: #1f2937;
     }
-    .order-count {
-      color: #6b7280;
-      font-weight: 600;
-      margin-left: 4px;
-    }
+
     .row-right {
       flex-shrink: 0;
       display: flex;
       align-items: center;
-      gap: 6px;
-      margin-left: 8px;
+      gap: 8px;
     }
+
     .drag-handle {
       font-size: 18px;
       color: #94a3b8;
@@ -233,49 +235,25 @@
       user-select: none;
       touch-action: none;
     }
+
     .drag-handle.disabled {
       opacity: 0.35;
       cursor: default;
     }
+
     .empty {
       color: #64748b;
       font-size: 13px;
       padding: 8px;
     }
+
     .sortable-ghost {
       opacity: 0.35;
     }
+
     .sortable-chosen {
       background: #eff6ff;
       border: 1px dashed #60a5fa;
-    }
-
-    @media (max-width: 640px) {
-      .row {
-        padding: 9px 10px;
-        gap: 8px;
-      }
-      .row-left {
-        gap: 8px;
-      }
-      .type-box {
-        width: 26px;
-        height: 26px;
-        font-size: 13px;
-      }
-      .type-box.alert {
-        font-size: 14px;
-      }
-      .row-title {
-        font-size: 15px;
-      }
-      .order-count {
-        font-size: 13px;
-      }
-      .row-right {
-        gap: 4px;
-        margin-left: 6px;
-      }
     }
   </style>
 </head>
@@ -316,7 +294,7 @@
       <div class="group-head">
         <div class="group-title">調度</div>
         <div class="group-meta">
-          <div class="group-count" id="count-調度">0 站 / 0 張單</div>
+          <div class="group-count" id="count-調度">0 站</div>
           <select class="group-driver" id="driver-調度"></select>
         </div>
       </div>
@@ -327,7 +305,7 @@
       <div class="group-head">
         <div class="group-title">市區</div>
         <div class="group-meta">
-          <div class="group-count" id="count-市區">0 站 / 0 張單</div>
+          <div class="group-count" id="count-市區">0 站</div>
           <select class="group-driver" id="driver-市區"></select>
         </div>
       </div>
@@ -338,7 +316,7 @@
       <div class="group-head">
         <div class="group-title">竹東</div>
         <div class="group-meta">
-          <div class="group-count" id="count-竹東">0 站 / 0 張單</div>
+          <div class="group-count" id="count-竹東">0 站</div>
           <select class="group-driver" id="driver-竹東"></select>
         </div>
       </div>
@@ -349,7 +327,7 @@
       <div class="group-head">
         <div class="group-title">湖口</div>
         <div class="group-meta">
-          <div class="group-count" id="count-湖口">0 站 / 0 張單</div>
+          <div class="group-count" id="count-湖口">0 站</div>
           <select class="group-driver" id="driver-湖口"></select>
         </div>
       </div>
@@ -363,125 +341,48 @@
     const DRIVER_OPTIONS = ['莊主任','王經理','阿勇','阿凱','小老闆'];
     const GROUP_NAMES = ['調度','市區','竹東','湖口'];
     const LOCAL_KEY_PREFIX = 'caesar_dispatch_board_snapshot_';
-    const RETURN_URL_KEY = 'caesar_return_url';
-    const RETURN_RESTORED_KEY = 'caesar_return_restored';
 
     let currentPeriod = '上午';
-    let currentBatchId = '';
+
+    fetch(GAS_WEBAPP_URL + '?action=ping&_ts=' + Date.now(), { cache: 'no-store' }).catch(() => {});
+    const earlyDispatchPromise = fetch(`${GAS_WEBAPP_URL}?action=get_dispatch_board&period=${encodeURIComponent(currentPeriod)}&_ts=${Date.now()}`, { cache: 'no-store' }).then(r => r.json()).catch(() => null);
     let dispatchBoard = null;
     let sortableRefs = [];
     let sortMode = false;
     let isSaving = false;
 
     async function initPage() {
-      try {
-        saveCurrentPageState_();
-
-        await liff.init({ liffId: LIFF_ID });
-        if (!liff.isLoggedIn()) {
-          prepareLoginRedirect_();
-          liff.login({ redirectUri: window.location.href });
-          return;
-        }
-
-        if (restoreReturnPageIfNeeded_()) {
-          return;
-        }
-
-        cleanupAuthNoise_();
-        setTabs();
-        initDriverSelects();
-        await loadDispatchBoard();
-      } catch (err) {
-        alert('排車頁載入失敗：' + (err.message || err));
+      const [_, earlyData] = await Promise.all([
+        liff.init({ liffId: LIFF_ID }),
+        earlyDispatchPromise
+      ]);
+      if (!liff.isLoggedIn()) {
+        liff.login();
+        return;
       }
-    }
-
-    function saveCurrentPageState_() {
-      try {
-        if (window.location.search.includes('liff.state=') || window.location.search.includes('code=')) {
-          return;
+      setTabs();
+      initDriverSelects();
+      if (earlyData && earlyData.ok && safeStr_(earlyData.period || (earlyData.data && earlyData.data.period) || currentPeriod) === currentPeriod) {
+        dispatchBoard = earlyData.data || { groups: {} };
+        const localSnapshot = getLocalSnapshot(currentPeriod);
+        if (localSnapshot) {
+          dispatchBoard = mergeBoardWithLocalSnapshot(dispatchBoard, localSnapshot);
         }
-        sessionStorage.setItem(RETURN_URL_KEY, window.location.href);
-      } catch (e) {}
-    }
-
-    function prepareLoginRedirect_() {
-      try {
-        sessionStorage.setItem(RETURN_URL_KEY, window.location.href);
-        sessionStorage.removeItem(RETURN_RESTORED_KEY);
-      } catch (e) {}
-    }
-
-    function restoreReturnPageIfNeeded_() {
-      try {
-        const savedUrl = sessionStorage.getItem(RETURN_URL_KEY) || '';
-        const restored = sessionStorage.getItem(RETURN_RESTORED_KEY) || '';
-
-        if (!savedUrl) return false;
-
-        const currentUrl = window.location.href;
-        const savedClean = normalizeUrlForCompare_(savedUrl);
-        const currentClean = normalizeUrlForCompare_(currentUrl);
-
-        if (savedClean && currentClean && savedClean !== currentClean && restored !== '1') {
-          sessionStorage.setItem(RETURN_RESTORED_KEY, '1');
-          window.location.replace(savedUrl);
-          return true;
-        }
-
-        sessionStorage.removeItem(RETURN_RESTORED_KEY);
-        sessionStorage.removeItem(RETURN_URL_KEY);
-        return false;
-      } catch (e) {
-        return false;
+        renderDispatchBoard();
+        return;
       }
+      await loadDispatchBoard();
     }
 
-    function normalizeUrlForCompare_(url) {
-      try {
-        const u = new URL(url);
-        const params = new URLSearchParams(u.search);
-        params.delete('code');
-        params.delete('state');
-        params.delete('friendship_status_changed');
-        params.delete('liffClientId');
-        params.delete('liffRedirectUri');
-        params.delete('access_token');
-        params.delete('id_token');
-        params.delete('expires_in');
-        params.delete('token_type');
-
-        const search = params.toString();
-        return u.origin + u.pathname + (search ? '?' + search : '') + (u.hash || '');
-      } catch (e) {
-        return url;
-      }
-    }
-
-    function cleanupAuthNoise_() {
-      try {
-        const url = new URL(window.location.href);
-        const params = url.searchParams;
-        const noisyKeys = ['code','state','friendship_status_changed','liffClientId','liffRedirectUri','access_token','id_token','expires_in','token_type'];
-        let changed = false;
-        noisyKeys.forEach(key => {
-          if (params.has(key)) {
-            params.delete(key);
-            changed = true;
-          }
-        });
-        if (changed) {
-          const newUrl = url.origin + url.pathname + (params.toString() ? '?' + params.toString() : '') + (url.hash || '');
-          window.history.replaceState({}, '', newUrl);
-        }
-      } catch (e) {}
+    function safeStr_(value) {
+      return String(value == null ? '' : value).trim();
     }
 
     function initDriverSelects() {
       GROUP_NAMES.forEach(groupName => {
         const select = document.getElementById(`driver-${groupName}`);
         if (!select) return;
+
         select.innerHTML = [
           '<option value="">未指派</option>',
           ...DRIVER_OPTIONS.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)
@@ -508,7 +409,6 @@
       try {
         localStorage.setItem(getLocalSnapshotKey(currentPeriod), JSON.stringify({
           savedAt: Date.now(),
-          batchId: currentBatchId || '',
           data: snapshot
         }));
       } catch (e) {
@@ -521,18 +421,24 @@
         const raw = localStorage.getItem(getLocalSnapshotKey(period));
         if (!raw) return null;
         const parsed = JSON.parse(raw);
-        if (!parsed || !parsed.data) return null;
-        if ((parsed.batchId || '') !== (currentBatchId || '')) return null;
-        return parsed.data;
+        return parsed && parsed.data ? parsed.data : null;
       } catch (e) {
         console.warn('getLocalSnapshot failed', e);
         return null;
       }
     }
 
+    function clearLocalSnapshot(period) {
+      try {
+        localStorage.removeItem(getLocalSnapshotKey(period));
+      } catch (e) {
+        console.warn('clearLocalSnapshot failed', e);
+      }
+    }
+
     async function loadDispatchBoard() {
-      const url = `${GAS_WEBAPP_URL}?action=get_dispatch_board&period=${encodeURIComponent(currentPeriod)}`;
-      const resp = await fetch(url);
+      const url = `${GAS_WEBAPP_URL}?action=get_dispatch_board&period=${encodeURIComponent(currentPeriod)}&_ts=${Date.now()}`;
+      const resp = await fetch(url, { cache: 'no-store' });
       const json = await resp.json();
 
       if (!json.ok) {
@@ -541,7 +447,6 @@
       }
 
       dispatchBoard = json.data || { groups: {} };
-      currentBatchId = dispatchBoard.batchId || '';
 
       const localSnapshot = getLocalSnapshot(currentPeriod);
       if (localSnapshot) {
@@ -563,6 +468,7 @@
 
         const localItems = Array.isArray(localGroup.items) ? localGroup.items : [];
         const serverMap = new Map(serverList.map(item => [String(item.stopKey || ''), item]));
+
         const reordered = [];
 
         localItems.forEach(localItem => {
@@ -591,15 +497,13 @@
     }
 
     function renderDispatchBoard() {
-      document.getElementById('dispatchInfo').innerHTML = `目前查看：<b>${currentPeriod}</b>`;
+      document.getElementById('dispatchInfo').innerHTML =
+        `目前查看：<b>${currentPeriod}</b>`;
 
       const groups = dispatchBoard.groups || {};
       const totalStops = GROUP_NAMES.reduce((sum, name) => sum + ((groups[name] || []).length), 0);
-      const totalOrders = GROUP_NAMES.reduce((sum, name) => {
-        return sum + (groups[name] || []).reduce((inner, item) => inner + getOrderCount(item), 0);
-      }, 0);
 
-      document.getElementById('summaryText').textContent = `共 ${totalStops} 站 / ${totalOrders} 張單等待排車`;
+      document.getElementById('summaryText').textContent = `共 ${totalStops} 站待排車`;
 
       GROUP_NAMES.forEach(groupName => {
         const box = document.getElementById(`group-${groupName}`);
@@ -607,9 +511,8 @@
         const countBox = document.getElementById(`count-${groupName}`);
         const driverSelect = document.getElementById(`driver-${groupName}`);
 
-        const groupOrderCount = list.reduce((sum, item) => sum + getOrderCount(item), 0);
         if (countBox) {
-          countBox.textContent = `${list.length} 站 / ${groupOrderCount} 張單`;
+          countBox.textContent = `${list.length} 站`;
         }
 
         const groupDriverName = list.length > 0 ? (list[0].driverName || '') : '';
@@ -623,18 +526,12 @@
         }
 
         box.innerHTML = list.map(item => {
-          const mainLabel = getMainLabel(item);
-          const deliveryTypeText = isStoreStop(item) ? '店' : '指';
-          const deliveryTypeClass = isStoreStop(item) ? 'type-box' : 'type-box alert';
-          const orderCount = getOrderCount(item);
-
           return `
             <div class="row"
                  data-stop-key="${escapeHtml(item.stopKey)}"
                  data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(item.taskIds || [])))}">
               <div class="row-left">
-                <div class="${deliveryTypeClass}">${escapeHtml(deliveryTypeText)}</div>
-                <div class="row-title">${escapeHtml(mainLabel)}<span class="order-count">(${escapeHtml(String(orderCount))})</span></div>
+                <div class="row-title">${escapeHtml(item.displayLabel || '')}</div>
               </div>
               <div class="row-right">
                 <div class="drag-handle ${sortMode ? '' : 'disabled'}">☰</div>
@@ -687,8 +584,10 @@
       const localSnapshot = getLocalSnapshot(currentPeriod);
       if (localSnapshot && dispatchBoard) {
         dispatchBoard = mergeBoardWithLocalSnapshot(dispatchBoard, localSnapshot);
+        renderDispatchBoard();
+      } else {
+        renderDispatchBoard();
       }
-      renderDispatchBoard();
     }
 
     function syncLocalBoardFromDOM() {
@@ -736,7 +635,8 @@
         groups: groups
       };
 
-      saveLocalSnapshot(buildSnapshotFromDOM());
+      const localSnapshot = buildSnapshotFromDOM();
+      saveLocalSnapshot(localSnapshot);
 
       isSaving = true;
       setSavingState(true);
@@ -768,8 +668,8 @@
         document.querySelectorAll('.drag-handle').forEach(el => el.classList.add('disabled'));
         initSortables();
 
-        document.getElementById('summaryText').textContent = json.message || '排車已儲存';
-        alert(json.message || '排車看板已儲存');
+        document.getElementById('summaryText').textContent = '已儲存，目前先保留你調整後的位置';
+        alert('排車看板已儲存');
       } catch (err) {
         console.error(err);
         alert('儲存排車失敗');
@@ -802,6 +702,7 @@
 
       return rows.map((row, index) => {
         const taskIds = JSON.parse(decodeURIComponent(row.getAttribute('data-taskids') || '[]'));
+
         return {
           stopKey: row.getAttribute('data-stop-key') || '',
           taskIds: taskIds,
@@ -809,35 +710,6 @@
           displayOrder: index + 1
         };
       });
-    }
-
-    function getOrderCount(item) {
-      if (Array.isArray(item.orderNos) && item.orderNos.length) return item.orderNos.length;
-      if (Array.isArray(item.taskIds) && item.taskIds.length) return item.taskIds.length;
-      return 1;
-    }
-
-
-    function getRouteShortName(groupName) {
-      switch (String(groupName || '').trim()) {
-        case '調度': return '調';
-        case '市區': return '市';
-        case '竹東': return '東';
-        case '湖口': return '湖';
-        default: return String(groupName || '').trim();
-      }
-    }
-
-    function isStoreStop(item) {      const deliveryType = String(item.deliveryType || '').trim();
-      if (deliveryType === '送店') return true;
-      const address = String(item.address || '').trim();
-      return !address || address === '送店';
-    }
-
-    function getMainLabel(item) {
-      const address = String(item.address || '').trim();
-      const shopName = String(item.shopName || '').trim();
-      return isStoreStop(item) ? (shopName || address || '未填店家') : (address || shopName || '未填地址');
     }
 
     function openDriverRoute(driverName) {
@@ -855,11 +727,12 @@
         .replace(/'/g, '&#39;');
     }
 
-    document.addEventListener('change', function(e) {
-      const targetId = e.target && e.target.id ? e.target.id : '';
-      if (GROUP_NAMES.some(name => targetId === `driver-${name}`)) {
-        syncLocalBoardFromDOM();
-      }
+    GROUP_NAMES.forEach(groupName => {
+      document.addEventListener('change', function(e) {
+        if (e.target && e.target.id === `driver-${groupName}`) {
+          syncLocalBoardFromDOM();
+        }
+      });
     });
 
     initPage();
