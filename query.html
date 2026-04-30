@@ -233,15 +233,10 @@
 
     const RETURN_URL_KEY = 'caesar_return_url';
     const RETURN_RESTORED_KEY = 'caesar_return_restored';
+    const PROFILE_CACHE_KEY = 'caesar_liff_profile_cache';
+    let warmupPromise = null;
     const UID_CACHE_KEY = 'caesar_uid';
     const DNAME_CACHE_KEY = 'caesar_dname';
-
-
-    function warmPing_() {
-      try {
-        fetch(`${GAS_WEBAPP_URL}?action=ping&_ts=${Date.now()}`, { cache: 'no-store' }).catch(() => {});
-      } catch (e) {}
-    }
 
     let currentUid = '';
     let currentDisplayName = '';
@@ -258,6 +253,36 @@
       return gasWarmupPromise;
     }
     warmupGas_(); // 立即執行，不等任何東西
+
+
+    function warmupGas_() {
+      return fetch(`${GAS_WEBAPP_URL}?action=ping&_ts=${Date.now()}`, { cache: 'no-store' }).catch(() => null);
+    }
+
+    function readProfileCache_() {
+      try {
+        const raw = sessionStorage.getItem(PROFILE_CACHE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !parsed.userId) return null;
+        return parsed;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    async function getCachedLiffProfile_() {
+      const cached = readProfileCache_();
+      if (cached) return cached;
+      const profile = await liff.getProfile();
+      try {
+        sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({
+          userId: profile.userId || '',
+          displayName: profile.displayName || ''
+        }));
+      } catch (e) {}
+      return profile;
+    }
 
     let autoRefreshTimer = null;
 
@@ -318,7 +343,7 @@
               `LINE 使用者：<b>${escapeHtml(currentDisplayName || '未辨識')}</b>`;
           }).catch(() => {});
         } else {
-          const profile = await liff.getProfile();
+          const profile = await getCachedLiffProfile_();
           currentUid = profile.userId || '';
           currentDisplayName = profile.displayName || '';
           sessionStorage.setItem(UID_CACHE_KEY, currentUid);
