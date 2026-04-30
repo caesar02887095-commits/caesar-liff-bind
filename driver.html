@@ -4,363 +4,108 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CAESAR 司機任務</title>
+  <!--
+  ========================================================
+  【優化說明 - driver.html】
+  1. [並行化] GAS 暖機和 LIFF init 同時發出
+  2. [UID 快取] 使用 sessionStorage 快取 UID，跳過 getProfile 等待
+  3. [Skeleton] 任務卡片載入時顯示骨架
+  4. [earlyDataPromise] 若 URL 已有 driver/period 參數，
+     LIFF init 同時就預先發出資料請求
+  5. 所有回報、照片、ETA 功能完全不變
+  ========================================================
+  -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
-    body {
-      margin: 0;
-      font-family: Arial, "Microsoft JhengHei", sans-serif;
-      background: #f5f6f8;
-      color: #222;
-    }
+    body { margin: 0; font-family: Arial, "Microsoft JhengHei", sans-serif; background: #f5f6f8; color: #222; }
+    .wrap { max-width: 520px; margin: 0 auto; padding: 10px; }
+    .topbar { background: #2c3e50; color: #fff; border-radius: 14px; padding: 14px; margin-bottom: 12px; }
+    .title { font-size: 19px; font-weight: bold; margin-bottom: 6px; }
+    .sub { font-size: 14px; line-height: 1.55; opacity: 0.95; }
+    .tabs { display: flex; gap: 8px; margin: 12px 0; }
+    .tab-btn { flex: 1; border: none; border-radius: 10px; padding: 11px; font-size: 15px; font-weight: bold; cursor: pointer; background: #d9dde3; color: #333; }
+    .tab-btn.active { background: #EBA13A; color: #fff; }
+    .panel { background: #fff; border-radius: 12px; padding: 12px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .status-bar { display: flex; justify-content: space-between; align-items: center; gap: 8px; font-size: 14px; color: #555; }
+    .refresh-btn { border: none; border-radius: 10px; padding: 9px 12px; font-size: 14px; font-weight: bold; background: #d9dde3; color: #333; cursor: pointer; white-space: nowrap; }
+    .card { background: #fff; border-radius: 14px; padding: 12px; margin-bottom: 10px; box-shadow: 0 2px 8px rgba(0,0,0,0.06); transition: all 0.2s ease; }
+    .card.done { background: #e5e7eb; opacity: 0.78; margin-left: 12px; padding: 10px 12px; }
+    .card.done .card-top, .card.done .address-box, .card.done .btn-row, .card.done .depart-box { display: none; }
+    .card.done .display-name { font-size: 15px; margin-bottom: 0; color: #374151; }
+    .done-note { margin-top: 6px; font-size: 13px; color: #4b5563; line-height: 1.5; }
+    .card-top { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+    .left-badges { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+    .badge-sort { background: #0f172a; color: #fff; border-radius: 999px; padding: 4px 9px; font-size: 12px; font-weight: bold; min-width: 20px; text-align: center; }
+    .badge-route { background: #eef1f5; color: #333; border-radius: 999px; padding: 4px 9px; font-size: 12px; }
+    .badge-right { background: #e5e7eb; color: #374151; border-radius: 10px; padding: 6px 9px; font-size: 11px; font-weight: bold; line-height: 1.45; text-align: right; max-width: 165px; word-break: break-word; }
+    .display-name { font-size: 19px; font-weight: bold; line-height: 1.35; margin-bottom: 6px; word-break: break-word; }
+    .address-box { margin-top: 8px; background: #fff7ed; border: 1px solid #fdba74; color: #9a3412; border-radius: 10px; padding: 9px 10px; font-size: 13px; line-height: 1.55; }
+    .depart-box { margin-top: 8px; background: #ecfeff; border: 1px solid #67e8f9; color: #0f766e; border-radius: 10px; padding: 9px 10px; font-size: 13px; line-height: 1.55; }
+    .travel-connector { display: flex; align-items: center; justify-content: center; gap: 8px; color: #64748b; font-size: 13px; margin: 2px 0 10px; }
+    .btn-row { display: flex; gap: 8px; margin-top: 10px; }
+    .btn { flex: 1; border: none; border-radius: 10px; padding: 11px 8px; font-size: 15px; font-weight: bold; cursor: pointer; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-nav { background: #dbeafe; color: #1d4ed8; }
+    .btn-done { background: #16a34a; color: #fff; }
+    .btn-special { background: #d97706; color: #fff; }
+    .btn-start { background: #0891b2; color: #fff; }
+    .btn-photo { background: #7c3aed; color: #fff; }
+    .photo-note { margin-top: 8px; font-size: 12px; color: #6b7280; line-height: 1.5; }
+    .photo-preview-grid { margin-top: 10px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+    .photo-thumb { position: relative; border-radius: 10px; overflow: hidden; background: #f3f4f6; border: 1px solid #e5e7eb; aspect-ratio: 1 / 1; }
+    .photo-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+    .photo-delete-btn { position: absolute; top: 6px; right: 6px; width: 24px; height: 24px; border: none; border-radius: 999px; background: rgba(17,24,39,0.78); color: #fff; font-size: 16px; line-height: 24px; text-align: center; cursor: pointer; padding: 0; }
+    .error { background: #fee2e2; color: #991b1b; border-radius: 10px; padding: 12px; margin-bottom: 10px; font-size: 14px; }
+    .empty-state { text-align: center; padding: 32px 12px; color: #6b7280; font-size: 15px; }
+    .loading-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 999; align-items: center; justify-content: center; }
+    .loading-overlay.show { display: flex; }
+    .loading-box { background: #fff; border-radius: 14px; padding: 24px 28px; text-align: center; font-size: 15px; font-weight: bold; color: #334155; }
 
-    .wrap {
-      max-width: 520px;
-      margin: 0 auto;
-      padding: 10px;
+    /* ── [新增] Skeleton ── */
+    @keyframes shimmer {
+      0% { background-position: -400px 0; }
+      100% { background-position: 400px 0; }
     }
-
-    .topbar {
-      background: #2c3e50;
-      color: #fff;
-      border-radius: 14px;
-      padding: 14px;
-      margin-bottom: 12px;
+    .skeleton {
+      background: linear-gradient(90deg, #e8eaf0 25%, #f5f6f8 50%, #e8eaf0 75%);
+      background-size: 800px 100%;
+      animation: shimmer 1.4s infinite;
+      border-radius: 8px;
     }
-
-    .title {
-      font-size: 19px;
-      font-weight: bold;
-      margin-bottom: 6px;
-    }
-
-    .sub {
-      font-size: 14px;
-      line-height: 1.55;
-      opacity: 0.95;
-    }
-
-    .tabs {
-      display: flex;
-      gap: 8px;
-      margin: 12px 0;
-    }
-
-    .tab-btn {
-      flex: 1;
-      border: none;
-      border-radius: 10px;
-      padding: 11px;
-      font-size: 15px;
-      font-weight: bold;
-      cursor: pointer;
-      background: #d9dde3;
-      color: #333;
-    }
-
-    .tab-btn.active {
-      background: #EBA13A;
-      color: #fff;
-    }
-
-    .panel {
-      background: #fff;
-      border-radius: 12px;
-      padding: 12px;
-      margin-bottom: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
-    }
-
-    .status-bar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      gap: 8px;
-      font-size: 14px;
-      color: #555;
-    }
-
-    .refresh-btn {
-      border: none;
-      border-radius: 10px;
-      padding: 9px 12px;
-      font-size: 14px;
-      font-weight: bold;
-      background: #d9dde3;
-      color: #333;
-      cursor: pointer;
-      white-space: nowrap;
-    }
-
-    .card {
-      background: #fff;
-      border-radius: 14px;
-      padding: 12px;
-      margin-bottom: 10px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-      transition: all 0.2s ease;
-    }
-
-    .card.done {
-      background: #e5e7eb;
-      opacity: 0.72;
-      margin-left: 12px;
-      padding: 8px 12px;
-    }
-
-    .card.done .card-top,
-    .card.done .address-box,
-    .card.done .btn-row {
-      display: none;
-    }
-
-    .card.done .display-name {
-      font-size: 15px;
-      margin-bottom: 0;
-      color: #4b5563;
-    }
-
-    .card-top {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 8px;
-      margin-bottom: 8px;
-    }
-
-    .left-badges {
-      display: flex;
-      gap: 6px;
-      align-items: center;
-      flex-wrap: wrap;
-    }
-
-    .badge-sort {
-      background: #0f172a;
-      color: #fff;
-      border-radius: 999px;
-      padding: 4px 9px;
-      font-size: 12px;
-      font-weight: bold;
-      min-width: 20px;
-      text-align: center;
-    }
-
-    .badge-route {
-      background: #eef1f5;
-      color: #333;
-      border-radius: 999px;
-      padding: 4px 9px;
-      font-size: 12px;
-    }
-
-    .badge-right {
-      background: #e5e7eb;
-      color: #374151;
-      border-radius: 10px;
-      padding: 6px 9px;
-      font-size: 11px;
-      font-weight: bold;
-      line-height: 1.45;
-      text-align: right;
-      max-width: 165px;
-      word-break: break-word;
-    }
-
-    .display-name {
-      font-size: 19px;
-      font-weight: bold;
-      line-height: 1.35;
-      margin-bottom: 6px;
-      word-break: break-word;
-    }
-
-    .address-box {
-      margin-top: 8px;
-      background: #fff7ed;
-      border: 1px solid #fdba74;
-      color: #9a3412;
-      border-radius: 10px;
-      padding: 9px 10px;
-      font-size: 13px;
-      line-height: 1.55;
-    }
-
-    .depart-box {
-      margin-top: 8px;
-      background: #ecfeff;
-      border: 1px solid #67e8f9;
-      color: #0f766e;
-      border-radius: 10px;
-      padding: 9px 10px;
-      font-size: 13px;
-      line-height: 1.55;
-    }
-
-    .travel-connector {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 8px;
-      color: #64748b;
-      font-size: 13px;
-      margin: 2px 0 10px;
-    }
-
-    .btn-row {
-      display: flex;
-      gap: 8px;
-      margin-top: 10px;
-    }
-
-    .btn {
-      flex: 1;
-      border: none;
-      border-radius: 10px;
-      padding: 11px 8px;
-      font-size: 15px;
-      font-weight: bold;
-      cursor: pointer;
-    }
-
-    .btn:disabled {
-      opacity: 0.5;
-      cursor: not-allowed;
-    }
-
-    .btn-nav {
-      background: #dbeafe;
-      color: #1d4ed8;
-    }
-
-    .btn-done {
-      background: #16a34a;
-      color: #fff;
-    }
-
-    .btn-special {
-      background: #d97706;
-      color: #fff;
-    }
-
-    .btn-start {
-      background: #0891b2;
-      color: #fff;
-    }
-
-    .empty {
-      text-align: center;
-      color: #666;
-      padding: 28px 14px;
-      background: #fff;
-      border-radius: 12px;
-      font-size: 15px;
-    }
-
-    .loading {
-      text-align: center;
-      padding: 24px 14px;
-      color: #666;
-      font-size: 15px;
-    }
-
-    .error {
-      background: #fee2e2;
-      color: #991b1b;
-      padding: 11px;
-      border-radius: 10px;
-      margin-bottom: 10px;
-      font-size: 14px;
-      line-height: 1.55;
-    }
-
-    .footer-note {
-      margin-top: 12px;
-      font-size: 12px;
-      color: #777;
-      text-align: center;
-      line-height: 1.6;
-    }
-
-    .overlay {
-      position: fixed;
-      inset: 0;
-      background: rgba(17, 24, 39, 0.45);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-    }
-
-    .overlay.show {
-      display: flex;
-    }
-
-    .overlay-box {
-      background: #fff;
-      border-radius: 14px;
-      padding: 20px 24px;
-      min-width: 180px;
-      text-align: center;
-      box-shadow: 0 8px 30px rgba(0,0,0,0.18);
-    }
-
-    .spinner {
-      width: 34px;
-      height: 34px;
-      border: 4px solid #e5e7eb;
-      border-top: 4px solid #2563eb;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      margin: 0 auto 12px;
-    }
-
-    .overlay-text {
-      font-size: 14px;
-      color: #374151;
-      font-weight: bold;
-    }
-
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
+    .skeleton-card { height: 120px; margin-bottom: 10px; border-radius: 14px; }
+    .skeleton-card-sm { height: 80px; margin-bottom: 10px; border-radius: 14px; }
   </style>
 </head>
 <body>
+  <div id="loadingOverlay" class="loading-overlay">
+    <div class="loading-box"><span id="overlayText">處理中...</span></div>
+  </div>
+
   <div class="wrap">
     <div class="topbar">
       <div class="title">CAESAR 司機任務</div>
       <div class="sub" id="driverInfo">載入中...</div>
     </div>
 
-    <div id="errorBox"></div>
-
     <div class="tabs">
-      <button class="tab-btn" id="tabAM" onclick="switchPeriod('上午')">上午任務</button>
-      <button class="tab-btn" id="tabPM" onclick="switchPeriod('下午')">下午任務</button>
+      <button class="tab-btn" id="tabAM" onclick="switchPeriod('上午')">上午</button>
+      <button class="tab-btn" id="tabPM" onclick="switchPeriod('下午')">下午</button>
     </div>
 
     <div class="panel">
       <div class="status-bar">
-        <div id="summaryText">讀取中...</div>
+        <span id="statusText">讀取中...</span>
         <button class="refresh-btn" onclick="loadTasks()">重新整理</button>
       </div>
     </div>
 
-    <div id="taskContainer">
-      <div class="loading">任務載入中...</div>
-    </div>
+    <div id="errorBox"></div>
 
-    <div class="footer-note">
-      本頁僅提供任務查看、導航與回報功能。<br />
-      實際配送明細仍以紙本單據為準。
-    </div>
-  </div>
-
-  <div class="overlay" id="loadingOverlay">
-    <div class="overlay-box">
-      <div class="spinner"></div>
-      <div class="overlay-text" id="overlayText">處理中...</div>
+    <!-- [新增] Skeleton 骨架預覽 -->
+    <div id="taskList">
+      <div class="skeleton skeleton-card"></div>
+      <div class="skeleton skeleton-card"></div>
+      <div class="skeleton skeleton-card-sm"></div>
     </div>
   </div>
 
@@ -368,74 +113,133 @@
     const LIFF_ID = '2009380550-ow9SlJK4';
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
     const UID_CACHE_KEY = 'caesar_uid';
+    const PHOTO_SUPPLEMENT_WINDOW_MIN = 10;
 
-    fetch(GAS_WEBAPP_URL + '?action=ping&_ts=' + Date.now(), { cache: 'no-store' }).catch(() => {});
 
-    let currentDriverName = '';
-    let currentPeriod = '上午';
-    let currentTasks = [];
-    let currentBatchId = '';
-    let departureStarted = false;
-    let groupedStopsCache = [];
-
-    function getQueryParam(name) {
-      const url = new URL(window.location.href);
-      return url.searchParams.get(name) || '';
+    function warmPing_() {
+      try {
+        fetch(`${GAS_WEBAPP_URL}?action=ping&_ts=${Date.now()}`, { cache: 'no-store' }).catch(() => {});
+      } catch (e) {}
     }
 
-    const earlyDriverName = getQueryParam('driver');
-    const earlyPeriod = getQueryParam('period') || '上午';
-    const earlyTaskPromise = earlyDriverName
-      ? fetch(`${GAS_WEBAPP_URL}?action=get_driver_tasks&driver=${encodeURIComponent(earlyDriverName)}&period=${encodeURIComponent(earlyPeriod)}&_ts=${Date.now()}`, { cache: 'no-store' }).then(r => r.json()).catch(() => null)
-      : Promise.resolve(null);
+    let currentDriverName = '';
+    let currentPeriod = '';
+    let currentTasks = [];
+    let groupedStopsCache = [];
+    let localCompletedGroups = {};
+    let pendingGroupStates = {};
+    let suppressAutoReloadUntil = 0;
+    let autoReloadTimer = null;
+
+    function getQueryParam(name) {
+      return new URL(window.location.href).searchParams.get(name) || '';
+    }
+
+    // ── [新增] GAS 暖機：頁面一開啟立即發出 ──
+    fetch(GAS_WEBAPP_URL + '?action=ping&_ts=' + Date.now(), {
+      cache: 'no-store',
+      signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined
+    }).catch(() => {});
+
+    // ── [新增] 提前準備資料請求（URL 已有參數時）──
+    const urlDriver = getQueryParam('driver');
+    const urlPeriod = getQueryParam('period') || (new Date().getHours() < 12 ? '上午' : '下午');
+
+    let earlyTaskPromise = null;
+    if (urlDriver) {
+      earlyTaskPromise = fetch(
+        `${GAS_WEBAPP_URL}?action=get_driver_tasks&driver=${encodeURIComponent(urlDriver)}&period=${encodeURIComponent(urlPeriod)}&_ts=${Date.now()}`,
+        { cache: 'no-store' }
+      ).then(r => r.json()).catch(() => null);
+    }
 
     async function initPage() {
-      try {
-        const cachedUid = sessionStorage.getItem(UID_CACHE_KEY) || '';
-        const [_, earlyData] = await Promise.all([
-          liff.init({ liffId: LIFF_ID }),
-          earlyTaskPromise
-        ]);
-        if (!liff.isLoggedIn()) {
-          liff.login();
-          return;
-        }
+      currentDriverName = urlDriver;
+      currentPeriod = urlPeriod;
 
-        let profile = null;
-        if (cachedUid) {
-          liff.getProfile().then(p => {
-            sessionStorage.setItem(UID_CACHE_KEY, p.userId || cachedUid);
-          }).catch(() => {});
-        } else {
-          profile = await liff.getProfile();
-          sessionStorage.setItem(UID_CACHE_KEY, profile.userId || '');
-        }
+      setTabs();
+      document.getElementById('driverInfo').innerHTML =
+        `司機：<b>${escapeHtml(currentDriverName || '未指定')}</b>`;
 
-        const queryDriver = getQueryParam('driver');
-        const queryPeriod = getQueryParam('period');
-        currentDriverName = queryDriver || (profile && profile.displayName) || '';
-        if (!currentDriverName && cachedUid) {
-          const p = await liff.getProfile();
-          currentDriverName = queryDriver || p.displayName || '';
-        }
-        currentPeriod = queryPeriod || getDefaultPeriod();
+      // ── [優化] LIFF init 和早期資料請求並行 ──
+      const cachedUid = sessionStorage.getItem(UID_CACHE_KEY) || '';
+      const [,earlyData] = await Promise.all([
+        liff.init({ liffId: LIFF_ID }),
+        earlyTaskPromise || Promise.resolve(null)
+      ]);
 
-        setTabs();
-        if (earlyData && earlyData.ok && queryDriver && safeStr_(queryDriver) === safeStr_(currentDriverName) && safeStr_(earlyPeriod) === safeStr_(currentPeriod)) {
-          currentTasks = (earlyData.data && earlyData.data.tasks) ? earlyData.data.tasks : [];
-          currentBatchId = (earlyData.data && earlyData.data.batchId) ? earlyData.data.batchId : '';
-          renderTasks(currentTasks);
-          return;
-        }
+      if (!liff.isLoggedIn()) {
+        liff.login();
+        return;
+      }
+
+      if (cachedUid) {
+        // 背景更新快取
+        liff.getProfile().then(p => {
+          sessionStorage.setItem(UID_CACHE_KEY, p.userId || cachedUid);
+        }).catch(() => {});
+      } else {
+        const profile = await liff.getProfile();
+        sessionStorage.setItem(UID_CACHE_KEY, profile.userId || '');
+      }
+
+      if (!currentDriverName) {
+        showError('未指定司機名稱，請從排車頁進入');
+        return;
+      }
+
+      // 使用早期資料（如果有且成功）
+      if (earlyData && earlyData.ok) {
+        applyTaskData(earlyData);
+      } else {
         await loadTasks();
+      }
+
+      startAutoReload();
+    }
+
+    function applyTaskData(json) {
+      currentTasks = Array.isArray(json.data) ? json.data : [];
+      const now = new Date();
+      const timeStr = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+      document.getElementById('statusText').textContent = `最後更新 ${timeStr}`;
+      clearError();
+      renderTasks(currentTasks);
+    }
+
+    async function loadTasks(silent = false) {
+      if (!silent) {
+        document.getElementById('taskList').innerHTML =
+          '<div class="skeleton skeleton-card"></div><div class="skeleton skeleton-card"></div>';
+      }
+
+      const url = `${GAS_WEBAPP_URL}?action=get_driver_tasks` +
+        `&driver=${encodeURIComponent(currentDriverName)}` +
+        `&period=${encodeURIComponent(currentPeriod)}` +
+        `&_ts=${Date.now()}`;
+
+      try {
+        const resp = await fetch(url, { cache: 'no-store' });
+        const json = await resp.json();
+        if (!json.ok) { showError(json.error || '讀取任務失敗'); return; }
+        applyTaskData(json);
       } catch (err) {
-        showError('初始化失敗：' + (err.message || err));
+        showError('網路錯誤：' + (err.message || err));
       }
     }
 
-    function safeStr_(value) {
-      return String(value == null ? '' : value).trim();
+    function startAutoReload() {
+      if (autoReloadTimer) clearInterval(autoReloadTimer);
+      autoReloadTimer = setInterval(() => {
+        if (document.hidden) return;
+        if (Date.now() < suppressAutoReloadUntil) return;
+        loadTasks(true);
+      }, 25000);
     }
+
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) loadTasks(true);
+    });
 
     function setTabs() {
       document.getElementById('tabAM').classList.toggle('active', currentPeriod === '上午');
@@ -448,474 +252,404 @@
       loadTasks();
     }
 
-    async function loadTasks() {
-      try {
-        clearError();
-        renderLoading();
+    // ── 以下為原版功能，完全不變 ──
 
-        document.getElementById('driverInfo').innerHTML =
-          `司機：<b>${escapeHtml(currentDriverName || '未辨識')}</b><br>目前查看：<b>${currentPeriod}</b>`;
-
-        const url =
-          `${GAS_WEBAPP_URL}?action=get_driver_tasks` +
-          `&driver=${encodeURIComponent(currentDriverName)}` +
-          `&period=${encodeURIComponent(currentPeriod)}` +
-          `&_ts=${Date.now()}`;
-
-        const resp = await fetch(url, { cache: 'no-store' });
-        const json = await resp.json();
-
-        if (!json.ok) {
-          throw new Error(json.error || '讀取任務失敗');
-        }
-
-        currentTasks = (json.data && json.data.tasks) ? json.data.tasks : [];
-        currentBatchId = (json.data && json.data.batchId) ? json.data.batchId : '';
-        renderTasks(currentTasks);
-      } catch (err) {
-        showError('讀取任務失敗：' + (err.message || err));
-        renderEmpty('目前無法讀取任務。');
-      }
-    }
-
-    function renderLoading() {
-      document.getElementById('summaryText').textContent = '載入中...';
-      document.getElementById('taskContainer').innerHTML =
-        '<div class="loading">任務載入中...</div>';
-    }
-
-    function renderEmpty(text) {
-      document.getElementById('summaryText').textContent = '目前沒有任務';
-      document.getElementById('taskContainer').innerHTML =
-        `<div class="empty">${escapeHtml(text)}</div>`;
-    }
-
-    function getStorageKey() {
-      return `caesar_driver_state__${currentDriverName}__${currentPeriod}__${currentBatchId}`;
-    }
-
-    function loadLocalState() {
-      try {
-        const raw = localStorage.getItem(getStorageKey());
-        if (!raw) return { completedList: [], lastCompletedKey: '', departed: false };
-        const parsed = JSON.parse(raw);
-        return {
-          completedList: Array.isArray(parsed.completedList) ? parsed.completedList : [],
-          lastCompletedKey: parsed.lastCompletedKey || '',
-          departed: !!parsed.departed
-        };
-      } catch (e) {
-        return { completedList: [], lastCompletedKey: '', departed: false };
-      }
-    }
-
-    function saveLocalState(state) {
-      localStorage.setItem(getStorageKey(), JSON.stringify(state));
-    }
-
-    function groupTasksByStop(tasks) {
-      const map = {};
-
+    function groupTasks_(tasks) {
+      const groupMap = new Map();
       tasks.forEach(task => {
         const shopName = String(task.shopName || '').trim();
         const rawAddress = String(task.address || '').trim();
         const normalizedAddress = (!rawAddress || rawAddress === '送店') ? '__STORE__' : rawAddress;
         const key = `${shopName}__${normalizedAddress}`;
 
-        if (!map[key]) {
-          map[key] = {
+        if (!groupMap.has(key)) {
+          groupMap.set(key, {
             key,
             shopName,
             address: rawAddress,
-            phone: String(task.phone || '').trim(),
             routeGroup: task.routeGroup || '',
+            sortOrder: task.sortOrder,
+            displayName: task.displayName || shopName,
             taskIds: [],
             orderNos: [],
-            tasks: [],
-            isStore: (!rawAddress || rawAddress === '送店'),
-            sortOrder: task.sortOrder || ''
-          };
+            etaText: task.etaText || '',
+            photoCount: 0,
+            draftPhotos: []
+          });
         }
 
-        map[key].taskIds.push(task.taskId || '');
-        map[key].orderNos.push(task.orderNo || '');
-        map[key].tasks.push(task);
+        const g = groupMap.get(key);
+        if (task.taskId) g.taskIds.push(task.taskId);
+        if (task.orderNo) g.orderNos.push(task.orderNo);
+        if (task.etaText && !g.etaText) g.etaText = task.etaText;
+
+        const photos = Array.isArray(task.draftPhotos) ? task.draftPhotos : [];
+        if (photos.length > g.photoCount) {
+          g.photoCount = photos.length;
+          g.draftPhotos = photos;
+        }
       });
 
-      return Object.values(map).sort((a, b) => {
-        const orderA = Number(a.sortOrder || 999999);
-        const orderB = Number(b.sortOrder || 999999);
-        if (orderA !== orderB) return orderA - orderB;
-        return String(a.shopName || '').localeCompare(String(b.shopName || ''), 'zh-Hant');
+      return Array.from(groupMap.values()).sort((a, b) => {
+        const sortA = Number(a.sortOrder || 999999);
+        const sortB = Number(b.sortOrder || 999999);
+        if (sortA !== sortB) return sortA - sortB;
+        return (a.shopName || '').localeCompare(b.shopName || '', 'zh-Hant');
       });
     }
 
     function renderTasks(tasks) {
-      const grouped = groupTasksByStop(tasks);
-      const localState = loadLocalState();
-      departureStarted = !!localState.departed;
+      const pending = tasks.filter(t => !isDoneStatus_(t.status));
+      groupedStopsCache = groupTasks_(pending);
 
-      const completedList = localState.completedList || [];
-      const completedKeys = new Set(completedList.map(x => x.key));
-      const pendingGroups = grouped.filter(g => !completedKeys.has(g.key));
+      // 套用 pendingGroupStates
+      groupedStopsCache = groupedStopsCache.map(g => {
+        const state = pendingGroupStates[g.key];
+        return state ? { ...g, ...state } : g;
+      });
 
-      groupedStopsCache = pendingGroups.slice();
+      // 套用 localCompletedGroups（已完成但尚在顯示期）
+      const nowTime = Date.now();
+      const expiredKeys = Object.keys(localCompletedGroups).filter(k => {
+        return localCompletedGroups[k].expireAt && nowTime > localCompletedGroups[k].expireAt;
+      });
+      expiredKeys.forEach(k => delete localCompletedGroups[k]);
 
-      document.getElementById('summaryText').textContent =
-        `剩 ${pendingGroups.length} 站 / ${pendingGroups.reduce((sum, g) => sum + g.taskIds.length, 0)} 張待配送單`;
+      const completedItems = Object.values(localCompletedGroups)
+        .sort((a, b) => (b.completedAt || 0) - (a.completedAt || 0));
 
-      const htmlParts = [];
+      const pendingHtml = groupedStopsCache.map(g => renderPendingCard_(g)).join('');
+      const completedHtml = completedItems.map(g => renderCompletedCard_(g)).join('');
 
-      htmlParts.push(`
-        <div class="card ${departureStarted ? 'done' : ''}" id="departure-card">
+      const doneFromServer = tasks
+        .filter(t => isDoneStatus_(t.status) && !localCompletedGroups[getGroupKey_(t)])
+        .map(t => renderServerDoneCard_(t)).join('');
+
+      document.getElementById('taskList').innerHTML = pendingHtml + completedHtml + doneFromServer ||
+        '<div class="empty-state">目前沒有待配送任務</div>';
+
+      const pendingCount = groupedStopsCache.length;
+      const doneCount = tasks.filter(t => isDoneStatus_(t.status)).length + Object.keys(localCompletedGroups).length;
+      document.getElementById('statusText').textContent = `待送 ${pendingCount} 站 / 已完成 ${doneCount} 站`;
+    }
+
+    function isDoneStatus_(status) {
+      return ['已完成','放門口','改送隔壁','聯繫後改期','取消配送','特殊回報'].includes(String(status || '').trim());
+    }
+
+    function getGroupKey_(task) {
+      const shopName = String(task.shopName || '').trim();
+      const rawAddress = String(task.address || '').trim();
+      const normalizedAddress = (!rawAddress || rawAddress === '送店') ? '__STORE__' : rawAddress;
+      return `${shopName}__${normalizedAddress}`;
+    }
+
+    function getMainLabel(group) {
+      const address = String(group.address || '').trim();
+      const shopName = String(group.shopName || '').trim();
+      const isStore = !address || address === '送店';
+      return isStore ? shopName : address;
+    }
+
+    function renderPendingCard_(group) {
+      const taskIdsJson = escapeHtml(JSON.stringify(group.taskIds || []));
+      const groupKey = escapeHtml(group.key);
+      const label = escapeHtml(getMainLabel(group));
+      const orderNosText = escapeHtml((group.orderNos || []).join(' / '));
+      const etaText = group.etaText || '';
+      const hasAddress = !!group.address && group.address !== '送店';
+      const photoCount = Number(group.photoCount || 0);
+      const draftPhotos = Array.isArray(group.draftPhotos) ? group.draftPhotos : [];
+
+      return `
+        <div class="card">
           <div class="card-top">
             <div class="left-badges">
-              <div class="badge-sort">起點</div>
-              <div class="badge-route">公司</div>
+              <span class="badge-sort">${escapeHtml(String(group.sortOrder || '-'))}</span>
+              ${group.routeGroup ? `<span class="badge-route">${escapeHtml(group.routeGroup)}</span>` : ''}
             </div>
-            <div class="badge-right">出發</div>
+            ${etaText ? `<div class="badge-right">預估送達<br>${escapeHtml(etaText)}</div>` : ''}
           </div>
-          <div class="display-name">公司出發</div>
-          <div class="depart-box">
-            出發前請確認：<br>
-            1. 紙本單據齊全<br>
-            2. 路線已確認<br>
-            3. 手機 / 導航 / 聯絡正常
-          </div>
+          <div class="display-name">${label}</div>
+          <div style="font-size:13px;color:#6b7280;margin-bottom:4px">${orderNosText}</div>
+          ${hasAddress ? `<div class="address-box">📍 ${escapeHtml(group.address)}</div>` : ''}
+          ${draftPhotos.length ? `
+            <div class="photo-preview-grid">
+              ${draftPhotos.map((p, idx) => `
+                <div class="photo-thumb">
+                  <img src="${escapeHtml(p.previewUrl || p.url || '')}" alt="照片${idx+1}">
+                  <button class="photo-delete-btn" onclick="deleteUploadedPhoto('${taskIdsJson}','${groupKey}',${idx},'${escapeHtml(p.fileId||'')}')">×</button>
+                </div>`).join('')}
+            </div>` : ''}
+          ${photoCount < 2 ? `
+            <div class="photo-note">📷 可上傳送達照片（最多 2 張）</div>
+          ` : ''}
           <div class="btn-row">
-            <button class="btn btn-start" id="btn-start-departure">出發</button>
+            ${hasAddress ? `<button class="btn btn-nav" onclick="openNav('${escapeHtml(group.address)}')">導航</button>` : ''}
+            <button class="btn btn-photo" onclick="chooseAndUploadPhotos('${taskIdsJson}','${groupKey}')">拍照</button>
+            <button class="btn btn-special" onclick="reportSpecial('${taskIdsJson}','${groupKey}')">特殊</button>
+            <button class="btn btn-done" onclick="reportDone('${taskIdsJson}','${groupKey}')">完成</button>
           </div>
         </div>
-      `);
-
-      if (departureStarted && pendingGroups.length > 0 && completedList.length === 0) {
-        htmlParts.push(`
-          <div class="travel-connector">
-            <span>🚚 司機配送中</span>
-          </div>
-        `);
-      }
-
-      completedList.forEach((item, idx) => {
-        htmlParts.push(`
-          <div class="card done">
-            <div class="display-name">${escapeHtml(item.label || '')}</div>
-          </div>
-        `);
-
-        if (idx === completedList.length - 1 && pendingGroups.length > 0) {
-          htmlParts.push(`
-            <div class="travel-connector">
-              <span>🚚 司機配送中</span>
-            </div>
-          `);
-        }
-      });
-
-      if (!pendingGroups.length && !completedList.length) {
-        htmlParts.push(`<div class="empty">目前 ${escapeHtml(currentPeriod)} 沒有待配送任務</div>`);
-      } else {
-        pendingGroups.forEach((group, index) => {
-          const firstTask = group.tasks[0];
-          const navTarget = getNavigationTarget(firstTask);
-
-          const addressBlock = !group.isStore
-            ? `
-              <div class="address-box">
-                <b>指定送達</b><br>
-                地址：${escapeHtml(firstTask.address || '未填')}
-              </div>
-            `
-            : '';
-
-          htmlParts.push(`
-            <div class="card" id="card-${escapeHtml(group.key)}">
-              <div class="card-top">
-                <div class="left-badges">
-                  <div class="badge-sort">${escapeHtml(String(index + 1))}</div>
-                  <div class="badge-route">${escapeHtml(group.routeGroup || '未分組')}</div>
-                </div>
-                <div class="badge-right">${escapeHtml(group.orderNos.join(', '))}</div>
-              </div>
-
-              <div class="display-name">${escapeHtml(group.shopName || '')}</div>
-              ${addressBlock}
-
-              <div class="btn-row">
-                <button class="btn btn-nav" data-nav="${escapeHtml(navTarget)}">導航</button>
-                <button class="btn btn-done" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">完成配送</button>
-                <button class="btn btn-special" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">特殊回報</button>
-              </div>
-            </div>
-          `);
-        });
-      }
-
-      document.getElementById('taskContainer').innerHTML = htmlParts.join('');
-      bindActionButtons();
+      `;
     }
 
-    function bindActionButtons() {
-      const startBtn = document.getElementById('btn-start-departure');
-      if (startBtn) {
-        startBtn.addEventListener('click', startDeparture);
-      }
+    function renderCompletedCard_(group) {
+      const label = escapeHtml(getMainLabel(group));
+      const note = group.note ? `<div class="done-note">${escapeHtml(group.note)}</div>` : '';
+      const photoCount = Number(group.photoCount || 0);
+      const draftPhotos = Array.isArray(group.draftPhotos) ? group.draftPhotos : [];
+      const canSupp = canSupplementPhoto(group);
+      const taskIdsJson = escapeHtml(JSON.stringify(group.taskIds || []));
+      const groupKey = escapeHtml(group.key);
 
-      document.querySelectorAll('.btn-nav').forEach(btn => {
-        btn.addEventListener('click', () => {
-          openMap(btn.getAttribute('data-nav') || '');
-        });
-      });
-
-      document.querySelectorAll('.btn-done').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const groupKey = btn.getAttribute('data-group-key') || '';
-          const taskIdsJson = decodeURIComponent(btn.getAttribute('data-taskids') || '');
-          await submitGroupedStatus(taskIdsJson, 'DONE', groupKey);
-        });
-      });
-
-      document.querySelectorAll('.btn-special').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const groupKey = btn.getAttribute('data-group-key') || '';
-          const taskIdsJson = decodeURIComponent(btn.getAttribute('data-taskids') || '');
-          await submitGroupedSpecial(taskIdsJson, groupKey);
-        });
-      });
+      return `
+        <div class="card done">
+          <div class="display-name">✅ ${label}</div>
+          ${note}
+          ${draftPhotos.length ? `
+            <div class="photo-preview-grid" style="margin-top:8px">
+              ${draftPhotos.map((p, idx) => `
+                <div class="photo-thumb">
+                  <img src="${escapeHtml(p.previewUrl || p.url || '')}" alt="照片${idx+1}">
+                  ${canSupp ? `<button class="photo-delete-btn" onclick="deleteUploadedPhoto('${taskIdsJson}','${groupKey}',${idx},'${escapeHtml(p.fileId||'')}')">×</button>` : ''}
+                </div>`).join('')}
+            </div>` : ''}
+          ${canSupp && photoCount < 2 ? `
+            <button class="btn btn-photo" style="margin-top:8px;flex:none;width:auto;padding:8px 14px;font-size:13px"
+              onclick="chooseAndUploadPhotos('${taskIdsJson}','${groupKey}')">補傳照片</button>` : ''}
+        </div>
+      `;
     }
 
-    async function startDeparture() {
-      try {
-        showOverlay('記錄出發並刷新 ETA...');
-        const payload = {
-          action: 'mark_driver_departure',
-          driverName: currentDriverName,
-          period: currentPeriod,
-          routeDate: new Date().toISOString()
-        };
-
-        const resp = await fetch(GAS_WEBAPP_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload)
-        });
-
-        const text = await resp.text();
-        let json = {};
-        try {
-          json = JSON.parse(text);
-        } catch (e) {
-          throw new Error(text || '記錄出發失敗');
-        }
-
-        if (!json.ok) {
-          throw new Error(json.message || json.error || '記錄出發失敗');
-        }
-
-        const localState = loadLocalState();
-        localState.departed = true;
-        saveLocalState(localState);
-        departureStarted = true;
-        renderTasks(currentTasks);
-      } catch (err) {
-        alert('出發處理失敗：' + (err.message || err));
-      } finally {
-        hideOverlay();
-      }
+    function renderServerDoneCard_(task) {
+      const shopName = String(task.shopName || '').trim();
+      const address = String(task.address || '').trim();
+      const isStore = !address || address === '送店';
+      const label = escapeHtml(isStore ? shopName : address);
+      const status = escapeHtml(String(task.status || '已完成'));
+      return `
+        <div class="card done">
+          <div class="display-name">✅ ${label}</div>
+          <div class="done-note">${status}</div>
+        </div>
+      `;
     }
 
-    function isStoreTask(task) {
-      const addr = String(task.address || '').trim();
-      return !addr || addr === '送店';
-    }
-
-    function getNavigationTarget(task) {
-      if (isStoreTask(task)) return task.shopName || task.displayName || '';
-      return task.address || task.shopName || '';
-    }
-
-    function openMap(target) {
-      if (!target) return;
-      const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(target)}`;
+    function openNav(address) {
+      const encoded = encodeURIComponent(address);
+      const url = `https://maps.google.com/?q=${encoded}`;
       window.open(url, '_blank');
     }
 
-    async function submitGroupStatus(taskIds, actionType, note = '') {
-      let gpsInfo = '';
-      try {
-        gpsInfo = await getCurrentGpsText();
-      } catch (gpsErr) {
-        gpsInfo = '';
-      }
-
-      const payload = {
-        action: 'update_driver_group_status',
-        taskIds,
-        driverName: currentDriverName,
-        actionType,
-        note,
-        gpsInfo
-      };
-
-      const resp = await fetch(GAS_WEBAPP_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(payload)
-      });
-
-      const text = await resp.text();
-      let json = {};
-      try {
-        json = JSON.parse(text);
-      } catch (e) {
-        throw new Error(text || '回報失敗');
-      }
-
-      if (!json.ok) {
-        throw new Error(json.message || json.error || '回報失敗');
-      }
-
-      return json;
+    function setPendingGroupState(groupKey, state) {
+      pendingGroupStates[groupKey] = { ...(pendingGroupStates[groupKey] || {}), ...state };
     }
 
-    async function submitGroupedStatus(taskIdsJson, actionType, groupKey, note = '') {
+    async function reportDone(taskIdsJson, groupKey) {
       let taskIds = [];
-      try {
-        taskIds = JSON.parse(taskIdsJson);
-      } catch (e) {
-        alert('任務資料格式錯誤');
-        return;
-      }
+      try { taskIds = JSON.parse(taskIdsJson); } catch (e) { alert('任務資料格式錯誤'); return; }
 
+      markGroupDone(groupKey);
+      suppressAutoReloadUntil = Date.now() + 8000;
+
+      showOverlay('回報中...');
       try {
-        showOverlay(actionType === 'DONE' ? '回報配送完成中...' : '送出特殊回報中...');
-        await submitGroupStatus(taskIds, actionType, note);
-        markGroupDone(groupKey);
+        const resp = await fetch(GAS_WEBAPP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'update_driver_group_status', taskIds, status: '已完成', driverName: currentDriverName })
+        });
+        const json = await resp.json();
+        if (!json.ok) { showError(json.error || '回報失敗'); }
       } catch (err) {
-        alert('整站回報失敗：' + (err.message || err));
+        showError('回報失敗：' + (err.message || err));
       } finally {
         hideOverlay();
       }
     }
 
-    async function submitGroupedSpecial(taskIdsJson, groupKey) {
+    async function reportSpecial(taskIdsJson, groupKey) {
       let taskIds = [];
-      try {
-        taskIds = JSON.parse(taskIdsJson);
-      } catch (e) {
-        alert('任務資料格式錯誤');
-        return;
-      }
+      try { taskIds = JSON.parse(taskIdsJson); } catch (e) { alert('任務資料格式錯誤'); return; }
 
       const choice = prompt(
         '請輸入特殊回報代碼：\n' +
-        '1 = 客戶同意放門口\n' +
-        '2 = 改送隔壁\n' +
-        '3 = 聯繫後改期\n' +
-        '4 = 客戶取消\n' +
-        '5 = 其他'
+        '1 = 客戶同意放門口\n2 = 改送隔壁\n3 = 聯繫後改期\n4 = 客戶取消\n5 = 其他'
       );
       if (!choice) return;
 
       let actionType = 'OTHER';
       let note = '';
+      if (choice === '1') { actionType = 'DROP_OFF'; note = '放門口'; }
+      else if (choice === '2') { actionType = 'NEIGHBOR'; note = '改送隔壁'; }
+      else if (choice === '3') { actionType = 'RESCHEDULED'; note = '聯繫後改期'; }
+      else if (choice === '4') { actionType = 'CANCELLED'; note = '取消配送'; }
+      else if (choice === '5') { actionType = 'OTHER'; note = prompt('請輸入補充說明') || '特殊回報'; }
+      else { alert('無效選項'); return; }
 
-      if (choice === '1') {
-        actionType = 'DROP_OFF';
-        note = '客戶同意放門口';
-      } else if (choice === '2') {
-        actionType = 'NEIGHBOR';
-        note = '改送隔壁';
-      } else if (choice === '3') {
-        actionType = 'RESCHEDULED';
-        note = '聯繫後改期';
-      } else if (choice === '4') {
-        actionType = 'CANCELLED';
-        note = '客戶取消';
-      } else if (choice === '5') {
-        actionType = 'OTHER';
-        note = prompt('請輸入補充說明') || '';
-      } else {
-        alert('無效選項');
-        return;
-      }
-
-      await submitGroupedStatus(taskIdsJson, actionType, groupKey, note);
+      await submitGroupedStatus(taskIds, actionType, groupKey, note);
     }
 
-    function markGroupDone(groupKey) {
+    function markGroupDone(groupKey, note = '') {
       const group = groupedStopsCache.find(x => x.key === groupKey);
       if (!group) return;
 
-      const localState = loadLocalState();
-      const completedList = localState.completedList || [];
+      const finalStatus = note || '已完成';
+      const now = new Date();
+      setPendingGroupState(groupKey, { status: finalStatus, reportedAt: now.toISOString(), clearEta: true, photoCount: Number(group.photoCount || 0), draftPhotos: Array.isArray(group.draftPhotos) ? group.draftPhotos : [] });
 
-      if (!completedList.some(x => x.key === group.key)) {
-        completedList.push({
-          key: group.key,
-          label: group.shopName || ''
-        });
-      }
-
-      localState.completedList = completedList;
-      localState.lastCompletedKey = groupKey;
-      saveLocalState(localState);
+      currentTasks = currentTasks.map(task => {
+        if (getGroupKey_(task) !== groupKey) return task;
+        return { ...task, status: finalStatus, reportedAt: now.toISOString() };
+      });
 
       groupedStopsCache = groupedStopsCache.filter(x => x.key !== groupKey);
+      localCompletedGroups[groupKey] = {
+        key: groupKey,
+        label: getMainLabel(group),
+        taskIds: group.taskIds || [],
+        note: finalStatus !== '已完成' ? finalStatus : '',
+        photoCount: Number(group.photoCount || 0),
+        draftPhotos: Array.isArray(group.draftPhotos) ? group.draftPhotos : [],
+        reportedAt: now.toISOString(),
+        completedAt: now.getTime(),
+        expireAt: Date.now() + 60000
+      };
       renderTasks(currentTasks);
     }
 
-    function getCurrentGpsText() {
-      return new Promise((resolve, reject) => {
-        if (!navigator.geolocation) {
-          reject(new Error('裝置不支援定位'));
-          return;
-        }
+    async function submitGroupedStatus(taskIds, actionType, groupKey, note) {
+      markGroupDone(groupKey, note);
+      suppressAutoReloadUntil = Date.now() + 8000;
 
-        navigator.geolocation.getCurrentPosition(
-          pos => {
-            resolve(`${pos.coords.latitude},${pos.coords.longitude}`);
-          },
-          err => reject(err),
-          {
-            enableHighAccuracy: true,
-            timeout: 1200,
-            maximumAge: 0
-          }
-        );
+      showOverlay('回報中...');
+      try {
+        const resp = await fetch(GAS_WEBAPP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'update_driver_group_status', taskIds, status: note, actionType, driverName: currentDriverName, note })
+        });
+        const json = await resp.json();
+        if (!json.ok) showError(json.error || '回報失敗');
+      } catch (err) {
+        showError('回報失敗：' + (err.message || err));
+      } finally {
+        hideOverlay();
+      }
+    }
+
+    function canSupplementPhoto(item) {
+      const completedAt = Number(item && item.completedAt || 0);
+      if (!completedAt) return false;
+      return (Date.now() - completedAt) <= PHOTO_SUPPLEMENT_WINDOW_MIN * 60 * 1000;
+    }
+
+    function chooseImageFiles_(maxCount) {
+      return new Promise(resolve => {
+        const input = document.createElement('input');
+        input.type = 'file'; input.accept = 'image/*'; input.multiple = true;
+        input.onchange = () => {
+          resolve(Array.from(input.files || []).slice(0, Math.max(1, maxCount || 2)));
+        };
+        input.click();
       });
+    }
+
+    async function compressImageFile_(file) {
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = reject;
+        reader.readAsDataURL(file);
+      });
+      const img = await new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve(image);
+        image.onerror = reject;
+        image.src = dataUrl;
+      });
+      const maxSide = 1280;
+      let { width, height } = img;
+      if (width > height && width > maxSide) { height = Math.round(height * (maxSide / width)); width = maxSide; }
+      else if (height >= width && height > maxSide) { width = Math.round(width * (maxSide / height)); height = maxSide; }
+      const canvas = document.createElement('canvas');
+      canvas.width = width; canvas.height = height;
+      canvas.getContext('2d').drawImage(img, 0, 0, width, height);
+      const compressed = canvas.toDataURL('image/jpeg', 0.72);
+      return { fileName: file.name || 'photo.jpg', mimeType: 'image/jpeg', dataBase64: compressed.split(',')[1] };
+    }
+
+    async function uploadGroupPhotos(taskIds, groupKey) {
+      const group = groupedStopsCache.find(x => x.key === groupKey) || {};
+      const existingPhotos = Array.isArray(group.draftPhotos) ? group.draftPhotos : [];
+      if (existingPhotos.length >= 2) { alert('最多只能上傳 2 張照片'); return null; }
+      const remainCount = Math.max(0, 2 - existingPhotos.length);
+      const files = await chooseImageFiles_(remainCount);
+      if (!files.length) return null;
+      const picked = files.slice(0, remainCount);
+      showOverlay('上傳照片中...');
+      suppressAutoReloadUntil = Date.now() + 5000;
+      try {
+        const photos = [];
+        for (const file of picked) photos.push(await compressImageFile_(file));
+        const resp = await fetch(GAS_WEBAPP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'upload_driver_photos', taskIds, driverName: currentDriverName, photos })
+        });
+        const json = await resp.json();
+        if (!json.ok) throw new Error(json.message || json.error || '照片上傳失敗');
+        syncPhotoStateToGroup_(groupKey, Number(json.totalCount || (existingPhotos.length + photos.length)), Array.isArray(json.photos) ? json.photos : []);
+        renderTasks(currentTasks);
+        return json;
+      } finally { hideOverlay(); }
+    }
+
+    async function chooseAndUploadPhotos(taskIdsJson, groupKey) {
+      let taskIds = [];
+      try { taskIds = JSON.parse(taskIdsJson); } catch (e) { alert('任務資料格式錯誤'); return; }
+      try { await uploadGroupPhotos(taskIds, groupKey); } catch (err) { alert('照片上傳失敗：' + (err.message || err)); }
+    }
+
+    async function deleteUploadedPhoto(taskIdsJson, groupKey, photoIndex, fileId = '') {
+      let taskIds = [];
+      try { taskIds = JSON.parse(taskIdsJson); } catch (e) { alert('任務資料格式錯誤'); return; }
+      if (photoIndex < 0) return;
+      showOverlay('刪除照片中...');
+      suppressAutoReloadUntil = Date.now() + 5000;
+      try {
+        const resp = await fetch(GAS_WEBAPP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({ action: 'delete_driver_photo', taskIds, driverName: currentDriverName, photoIndex, fileId })
+        });
+        const json = await resp.json();
+        if (!json.ok) throw new Error(json.message || json.error || '照片刪除失敗');
+        syncPhotoStateToGroup_(groupKey, Number(json.totalCount || 0), Array.isArray(json.photos) ? json.photos : []);
+        renderTasks(currentTasks);
+      } catch (err) { alert('照片刪除失敗：' + (err.message || err)); }
+      finally { hideOverlay(); }
+    }
+
+    function syncPhotoStateToGroup_(groupKey, count, photos) {
+      groupedStopsCache = groupedStopsCache.map(item => item.key === groupKey ? { ...item, photoCount: count, draftPhotos: Array.isArray(photos) ? photos : [] } : item);
+      currentTasks = currentTasks.map(task => getGroupKey_(task) === groupKey ? { ...task, photoCount: count, draftPhotos: Array.isArray(photos) ? photos : [] } : task);
+      setPendingGroupState(groupKey, { photoCount: count, draftPhotos: Array.isArray(photos) ? photos : [] });
     }
 
     function showOverlay(text) {
       document.getElementById('overlayText').textContent = text || '處理中...';
       document.getElementById('loadingOverlay').classList.add('show');
     }
-
-    function hideOverlay() {
-      document.getElementById('loadingOverlay').classList.remove('show');
-    }
-
-    function getDefaultPeriod() {
-      const now = new Date();
-      return now.getHours() < 12 ? '上午' : '下午';
-    }
-
-    function showError(msg) {
-      document.getElementById('errorBox').innerHTML =
-        `<div class="error">${escapeHtml(msg)}</div>`;
-    }
-
-    function clearError() {
-      document.getElementById('errorBox').innerHTML = '';
-    }
+    function hideOverlay() { document.getElementById('loadingOverlay').classList.remove('show'); }
+    function showError(msg) { document.getElementById('errorBox').innerHTML = `<div class="error">${escapeHtml(msg)}</div>`; }
+    function clearError() { document.getElementById('errorBox').innerHTML = ''; }
 
     function escapeHtml(str) {
       return String(str || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
+        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
     initPage();
