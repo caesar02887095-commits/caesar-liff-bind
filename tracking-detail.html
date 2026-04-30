@@ -98,14 +98,9 @@
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
     const UID_CACHE_KEY = 'caesar_uid';
 
-
-    function warmPing_() {
-      try {
-        fetch(`${GAS_WEBAPP_URL}?action=ping&_ts=${Date.now()}`, { cache: 'no-store' }).catch(() => {});
-      } catch (e) {}
-    }
-
     let currentUid = '';
+    const PROFILE_CACHE_KEY = 'caesar_liff_profile_cache';
+    let warmupPromise = null;
     let currentOrderNo = '';
 
     function getQueryParam(name) {
@@ -117,6 +112,36 @@
       cache: 'no-store',
       signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined
     }).catch(() => {});
+
+
+    function warmupGas_() {
+      return fetch(`${GAS_WEBAPP_URL}?action=ping&_ts=${Date.now()}`, { cache: 'no-store' }).catch(() => null);
+    }
+
+    function readProfileCache_() {
+      try {
+        const raw = sessionStorage.getItem(PROFILE_CACHE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !parsed.userId) return null;
+        return parsed;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    async function getCachedLiffProfile_() {
+      const cached = readProfileCache_();
+      if (cached) return cached;
+      const profile = await liff.getProfile();
+      try {
+        sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({
+          userId: profile.userId || '',
+          displayName: profile.displayName || ''
+        }));
+      } catch (e) {}
+      return profile;
+    }
 
     let autoRefreshTimer = null;
 
@@ -146,7 +171,6 @@
 
         // ── [優化] LIFF init 和暖機並行，有 UID 快取則跳過 getProfile ──
         const cachedUid = sessionStorage.getItem(UID_CACHE_KEY) || '';
-        warmPing_();
         await liff.init({ liffId: LIFF_ID });
 
         if (!liff.isLoggedIn()) {
@@ -162,7 +186,7 @@
             sessionStorage.setItem(UID_CACHE_KEY, p.userId || cachedUid);
           }).catch(() => {});
         } else {
-          const profile = await liff.getProfile();
+          const profile = await getCachedLiffProfile_();
           currentUid = profile.userId || '';
           sessionStorage.setItem(UID_CACHE_KEY, currentUid);
         }
