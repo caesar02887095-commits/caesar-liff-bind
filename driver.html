@@ -115,13 +115,6 @@
     const UID_CACHE_KEY = 'caesar_uid';
     const PHOTO_SUPPLEMENT_WINDOW_MIN = 10;
 
-
-    function warmPing_() {
-      try {
-        fetch(`${GAS_WEBAPP_URL}?action=ping&_ts=${Date.now()}`, { cache: 'no-store' }).catch(() => {});
-      } catch (e) {}
-    }
-
     let currentDriverName = '';
     let currentPeriod = '';
     let currentTasks = [];
@@ -240,6 +233,36 @@
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) loadTasks(true);
     });
+
+
+    function warmupGas_() {
+      return fetch(`${GAS_WEBAPP_URL}?action=ping&_ts=${Date.now()}`, { cache: 'no-store' }).catch(() => null);
+    }
+
+    function readProfileCache_() {
+      try {
+        const raw = sessionStorage.getItem(PROFILE_CACHE_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw);
+        if (!parsed || !parsed.userId) return null;
+        return parsed;
+      } catch (e) {
+        return null;
+      }
+    }
+
+    async function getCachedLiffProfile_() {
+      const cached = readProfileCache_();
+      if (cached) return cached;
+      const profile = await liff.getProfile();
+      try {
+        sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({
+          userId: profile.userId || '',
+          displayName: profile.displayName || ''
+        }));
+      } catch (e) {}
+      return profile;
+    }
 
     function setTabs() {
       document.getElementById('tabAM').classList.toggle('active', currentPeriod === '上午');
