@@ -179,13 +179,8 @@
     const LOCAL_KEY_PREFIX = 'caesar_dispatch_board_snapshot_';
     const RETURN_URL_KEY = 'caesar_return_url';
     const RETURN_RESTORED_KEY = 'caesar_return_restored';
-
-
-    function warmPing_() {
-      try {
-        fetch(`${GAS_WEBAPP_URL}?action=ping&_ts=${Date.now()}`, { cache: 'no-store' }).catch(() => {});
-      } catch (e) {}
-    }
+    let warmupPromise = null;
+    let prefetchedDispatchBoardPromise = null;
 
     let currentPeriod = '上午';
     let currentBatchId = '';
@@ -237,7 +232,7 @@
         if (earlyData && earlyData.ok) {
           applyDispatchData(earlyData);
         } else {
-          await loadDispatchBoard(preloadBoardPromise);
+          await loadDispatchBoard();
         }
       } catch (err) {
         alert('排車頁載入失敗：' + (err.message || err));
