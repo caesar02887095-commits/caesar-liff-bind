@@ -4,16 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>凱撒衛浴查詢入口</title>
-  <!--
-  ========================================================
-  【優化說明 - query.html】
-  1. [並行化] LIFF init 和 GAS 暖機請求同時發出，不再串行等待
-  2. [Skeleton] 載入時顯示灰色骨架，用戶不會看到空白畫面
-  3. [GAS 暖機] 頁面一開啟就發出 ping 請求，讓 GAS 實例預熱
-  4. [快取 UID] 將 UID 存入 sessionStorage，同 session 內重整不需再打 getProfile
-  5. 功能邏輯完全不變，只改載入流程
-  ========================================================
-  -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     body {
@@ -158,11 +148,31 @@
       font-weight: bold;
       line-height: 1.6;
     }
-    .status-banner.done { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
-    .status-banner.active { background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
-    .status-banner.preparing { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
-    .status-banner.warn { background: #ffedd5; color: #9a3412; border: 1px solid #fdba74; }
-    .status-banner.cancel { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
+    .status-banner.done {
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #86efac;
+    }
+    .status-banner.active {
+      background: #dbeafe;
+      color: #1d4ed8;
+      border: 1px solid #93c5fd;
+    }
+    .status-banner.preparing {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fcd34d;
+    }
+    .status-banner.warn {
+      background: #ffedd5;
+      color: #9a3412;
+      border: 1px solid #fdba74;
+    }
+    .status-banner.cancel {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
     .eta-box {
       background: #eff6ff;
       border: 1px solid #bfdbfe;
@@ -172,40 +182,25 @@
       margin-top: 8px;
       margin-bottom: 10px;
     }
-    .eta-title { font-size: 13px; font-weight: bold; margin-bottom: 4px; }
-    .eta-time { font-size: 20px; font-weight: bold; line-height: 1.2; }
+    .eta-title {
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 4px;
+    }
+    .eta-time {
+      font-size: 20px;
+      font-weight: bold;
+      line-height: 1.2;
+    }
+    .loading {
+      text-align: center;
+      color: #666;
+      padding: 28px 12px;
+      font-size: 15px;
+    }
     .ok { color: #166534; }
     .warn { color: #9a3412; }
     .bad { color: #991b1b; }
-
-    /* ── [新增] Skeleton 骨架動畫 ── */
-    @keyframes shimmer {
-      0% { background-position: -400px 0; }
-      100% { background-position: 400px 0; }
-    }
-    .skeleton {
-      background: linear-gradient(90deg, #e8eaf0 25%, #f5f6f8 50%, #e8eaf0 75%);
-      background-size: 800px 100%;
-      animation: shimmer 1.4s infinite;
-      border-radius: 8px;
-    }
-    .skeleton-line {
-      height: 16px;
-      margin-bottom: 10px;
-    }
-    .skeleton-line.short { width: 55%; }
-    .skeleton-line.medium { width: 78%; }
-    .skeleton-line.full { width: 100%; }
-    .skeleton-title {
-      height: 20px;
-      width: 65%;
-      margin-bottom: 14px;
-    }
-    .skeleton-block {
-      height: 80px;
-      margin-top: 14px;
-      border-radius: 12px;
-    }
   </style>
 </head>
 <body>
@@ -216,13 +211,8 @@
     </div>
 
     <div id="app">
-      <!-- [新增] Skeleton 骨架佔位，讓用戶看到頁面有內容在載入 -->
       <div class="card">
-        <div class="skeleton skeleton-title"></div>
-        <div class="skeleton skeleton-line medium"></div>
-        <div class="skeleton skeleton-line short"></div>
-        <div class="skeleton skeleton-block"></div>
-        <div class="skeleton skeleton-block"></div>
+        <div class="loading">系統載入中...</div>
       </div>
     </div>
   </div>
@@ -233,92 +223,15 @@
 
     const RETURN_URL_KEY = 'caesar_return_url';
     const RETURN_RESTORED_KEY = 'caesar_return_restored';
-    const PROFILE_CACHE_KEY = 'caesar_liff_profile_cache';
-    let warmupPromise = null;
-    const UID_CACHE_KEY = 'caesar_uid';
-    const DNAME_CACHE_KEY = 'caesar_dname';
 
     let currentUid = '';
     let currentDisplayName = '';
-
-    // ── [新增] 步驟1：GAS 暖機 - 頁面一開啟就發出，不等 LIFF ──
-    // GAS 冷啟動需要 2-4 秒，提早發出可以讓這段時間和 LIFF init 重疊
-    let gasWarmupPromise = null;
-    function warmupGas_() {
-      if (gasWarmupPromise) return gasWarmupPromise;
-      gasWarmupPromise = fetch(GAS_WEBAPP_URL + '?action=ping&_ts=' + Date.now(), {
-        cache: 'no-store',
-        signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined
-      }).catch(() => {}); // 暖機失敗不影響後續流程
-      return gasWarmupPromise;
-    }
-    warmupGas_(); // 立即執行，不等任何東西
-
-
-    function warmupGas_() {
-      return fetch(`${GAS_WEBAPP_URL}?action=ping&_ts=${Date.now()}`, { cache: 'no-store' }).catch(() => null);
-    }
-
-    function readProfileCache_() {
-      try {
-        const raw = sessionStorage.getItem(PROFILE_CACHE_KEY);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        if (!parsed || !parsed.userId) return null;
-        return parsed;
-      } catch (e) {
-        return null;
-      }
-    }
-
-    async function getCachedLiffProfile_() {
-      const cached = readProfileCache_();
-      if (cached) return cached;
-      const profile = await liff.getProfile();
-      try {
-        sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({
-          userId: profile.userId || '',
-          displayName: profile.displayName || ''
-        }));
-      } catch (e) {}
-      return profile;
-    }
-
-    let autoRefreshTimer = null;
-
-    function startAutoRefresh() {
-      stopAutoRefresh();
-      autoRefreshTimer = setInterval(() => {
-        if (document.hidden) return;
-        loadPortal({ silent: true });
-      }, 30000);
-    }
-
-    function stopAutoRefresh() {
-      if (autoRefreshTimer) {
-        clearInterval(autoRefreshTimer);
-        autoRefreshTimer = null;
-      }
-    }
-
-    document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) loadPortal({ silent: true });
-    });
 
     async function initPage() {
       try {
         saveCurrentPageState_();
 
-        // ── [新增] 步驟2：快取 UID - 同 session 內不需再呼叫 getProfile ──
-        const cachedUid = sessionStorage.getItem(UID_CACHE_KEY) || '';
-        const cachedDname = sessionStorage.getItem(DNAME_CACHE_KEY) || '';
-
-        // ── [優化] 步驟3：LIFF init 和暖機並行 ──
-        // 原本：liff.init → getProfile → fetch API（完全串行，最慢）
-        // 現在：liff.init 和暖機同時進行，節省 GAS 冷啟動等待時間
-        const liffInitPromise = liff.init({ liffId: LIFF_ID });
-
-        await liffInitPromise;
+        await liff.init({ liffId: LIFF_ID });
 
         if (!liff.isLoggedIn()) {
           prepareLoginRedirect_();
@@ -326,31 +239,18 @@
           return;
         }
 
-        if (restoreReturnPageIfNeeded_()) return;
+        if (restoreReturnPageIfNeeded_()) {
+          return;
+        }
+
         cleanupAuthNoise_();
 
-        // ── [優化] 步驟4：有 UID 快取就跳過 getProfile，直接查詢 ──
-        if (cachedUid) {
-          currentUid = cachedUid;
-          currentDisplayName = cachedDname;
-          document.getElementById('userInfo').innerHTML =
-            `LINE 使用者：<b>${escapeHtml(currentDisplayName || '未辨識')}</b>`;
-          // getProfile 和 loadPortal 並行
-          liff.getProfile().then(p => {
-            currentDisplayName = p.displayName || currentDisplayName;
-            sessionStorage.setItem(DNAME_CACHE_KEY, currentDisplayName);
-            document.getElementById('userInfo').innerHTML =
-              `LINE 使用者：<b>${escapeHtml(currentDisplayName || '未辨識')}</b>`;
-          }).catch(() => {});
-        } else {
-          const profile = await getCachedLiffProfile_();
-          currentUid = profile.userId || '';
-          currentDisplayName = profile.displayName || '';
-          sessionStorage.setItem(UID_CACHE_KEY, currentUid);
-          sessionStorage.setItem(DNAME_CACHE_KEY, currentDisplayName);
-          document.getElementById('userInfo').innerHTML =
-            `LINE 使用者：<b>${escapeHtml(currentDisplayName || '未辨識')}</b>`;
-        }
+        const profile = await liff.getProfile();
+        currentUid = profile.userId || '';
+        currentDisplayName = profile.displayName || '';
+
+        document.getElementById('userInfo').innerHTML =
+          `LINE 使用者：<b>${escapeHtml(currentDisplayName || '未辨識')}</b>`;
 
         await loadPortal();
         startAutoRefresh();
@@ -361,59 +261,124 @@
 
     function saveCurrentPageState_() {
       try {
-        if (window.location.search.includes('liff.state=') || window.location.search.includes('code=')) return;
+        if (window.location.search.includes('liff.state=') || window.location.search.includes('code=')) {
+          return;
+        }
         sessionStorage.setItem(RETURN_URL_KEY, window.location.href);
       } catch (e) {}
     }
 
     function prepareLoginRedirect_() {
-      try { sessionStorage.setItem(RETURN_RESTORED_KEY, '0'); } catch (e) {}
+      try {
+        sessionStorage.setItem(RETURN_URL_KEY, window.location.href);
+        sessionStorage.removeItem(RETURN_RESTORED_KEY);
+      } catch (e) {}
     }
 
     function restoreReturnPageIfNeeded_() {
       try {
-        const params = new URLSearchParams(window.location.search);
-        if (!params.has('code') && !params.has('liff.state')) return false;
-        const restored = sessionStorage.getItem(RETURN_RESTORED_KEY);
-        if (restored === '1') return false;
-        const returnUrl = sessionStorage.getItem(RETURN_URL_KEY);
-        if (!returnUrl) return false;
-        sessionStorage.setItem(RETURN_RESTORED_KEY, '1');
-        window.location.replace(returnUrl);
-        return true;
-      } catch (e) { return false; }
+        const savedUrl = sessionStorage.getItem(RETURN_URL_KEY) || '';
+        const restored = sessionStorage.getItem(RETURN_RESTORED_KEY) || '';
+
+        if (!savedUrl) return false;
+
+        const currentUrl = window.location.href;
+        const savedClean = normalizeUrlForCompare_(savedUrl);
+        const currentClean = normalizeUrlForCompare_(currentUrl);
+
+        if (savedClean && currentClean && savedClean !== currentClean && restored !== '1') {
+          sessionStorage.setItem(RETURN_RESTORED_KEY, '1');
+          window.location.replace(savedUrl);
+          return true;
+        }
+
+        sessionStorage.removeItem(RETURN_RESTORED_KEY);
+        sessionStorage.removeItem(RETURN_URL_KEY);
+        return false;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    function normalizeUrlForCompare_(url) {
+      try {
+        const u = new URL(url);
+        const params = new URLSearchParams(u.search);
+        params.delete('code');
+        params.delete('state');
+        params.delete('friendship_status_changed');
+        params.delete('liffClientId');
+        params.delete('liffRedirectUri');
+        params.delete('access_token');
+        params.delete('id_token');
+        params.delete('expires_in');
+        params.delete('token_type');
+
+        const search = params.toString();
+        return u.origin + u.pathname + (search ? '?' + search : '') + (u.hash || '');
+      } catch (e) {
+        return url;
+      }
     }
 
     function cleanupAuthNoise_() {
       try {
         const url = new URL(window.location.href);
-        if (url.searchParams.has('code') || url.searchParams.has('liff.state')) {
-          url.searchParams.delete('code');
-          url.searchParams.delete('state');
-          url.searchParams.delete('liff.state');
-          window.history.replaceState({}, '', url.toString());
+        const params = url.searchParams;
+
+        const noisyKeys = [
+          'code',
+          'state',
+          'friendship_status_changed',
+          'liffClientId',
+          'liffRedirectUri',
+          'access_token',
+          'id_token',
+          'expires_in',
+          'token_type'
+        ];
+
+        let changed = false;
+        noisyKeys.forEach(key => {
+          if (params.has(key)) {
+            params.delete(key);
+            changed = true;
+          }
+        });
+
+        if (changed) {
+          const newUrl = url.origin + url.pathname + (params.toString() ? '?' + params.toString() : '') + (url.hash || '');
+          window.history.replaceState({}, '', newUrl);
         }
       } catch (e) {}
     }
 
-    async function loadPortal(options = {}) {
-      if (!options.silent) {
-        // silent 模式不重置 skeleton，避免閃爍
-        document.getElementById('app').innerHTML = `
-          <div class="card">
-            <div class="skeleton skeleton-title"></div>
-            <div class="skeleton skeleton-line medium"></div>
-            <div class="skeleton skeleton-line short"></div>
-            <div class="skeleton skeleton-block"></div>
-            <div class="skeleton skeleton-block"></div>
-          </div>`;
+    let autoRefreshTimer = null;
+
+    function startAutoRefresh() {
+      stopAutoRefresh();
+      autoRefreshTimer = setInterval(() => {
+        if (document.hidden) return;
+        loadPortal({ silent: true });
+      }, 20000);
+    }
+
+    function stopAutoRefresh() {
+      if (autoRefreshTimer) {
+        clearInterval(autoRefreshTimer);
+        autoRefreshTimer = null;
       }
+    }
 
-      const url =
-        `${GAS_WEBAPP_URL}?action=get_customer_portal` +
-        `&uid=${encodeURIComponent(currentUid)}` +
-        `&_ts=${Date.now()}`;
+    document.addEventListener('visibilitychange', () => {
+      if (!document.hidden) {
+        loadPortal({ silent: true });
+      }
+    });
 
+    async function loadPortal(options = {}) {
+      const silent = !!options.silent;
+      const url = `${GAS_WEBAPP_URL}?action=get_customer_portal&uid=${encodeURIComponent(currentUid)}&_ts=${Date.now()}`;
       const resp = await fetch(url, { cache: 'no-store' });
       const json = await resp.json();
 
@@ -422,24 +387,28 @@
         return;
       }
 
-      renderPortal(json.data || {});
-    }
+      const data = json.data || {};
+      const status = data.accessStatus || '';
 
-    function renderPortal(data) {
-      const accessStatus = data.accessStatus || '';
-      if (accessStatus === 'NEW' || accessStatus === 'NOT_APPROVED') {
-        renderRequestForm();
+      if (status === 'APPROVED') {
+        renderApproved(data);
         return;
       }
-      if (accessStatus === 'PENDING') {
+
+      if (status === 'PENDING') {
         renderPending(data.requestCode || '');
         return;
       }
-      if (accessStatus === 'REJECTED') {
+
+      if (status === 'REJECTED') {
         renderRejected();
         return;
       }
 
+      renderRequestForm();
+    }
+
+    function renderApproved(data) {
       const orders = Array.isArray(data.orders) ? data.orders : [];
       const customerName = data.customerName || '';
 
@@ -518,14 +487,10 @@
                 <div class="eta-time">${escapeHtml(etaText)}</div>
               </div>
             ` : ''}
-            ${canTrack ? `<button class="btn btn-secondary" style="margin-top:10px" onclick="goToTracking('${escapeHtml(order.orderNo || '')}')">查看送貨進度</button>` : ''}
             ${photos.length ? `
               <div class="photo-wrap">
                 ${photos.map((photo, idx) => `
-                  <a class="photo-item" href="${escapeHtml(photo.url || '')}" target="_blank">
-                    <img src="${escapeHtml(photo.previewUrl || photo.url || '')}" alt="送達照片${idx + 1}">
-                    <span class="photo-badge">照片${idx + 1}</span>
-                  </a>
+                  <a class="photo-item" href="${escapeHtml(photo.url || '')}" target="_blank"><img src="${escapeHtml(photo.previewUrl || photo.url || '')}" alt="送達照片${idx + 1}"><span class="photo-badge">照片${idx + 1}</span></a>
                 `).join('')}
               </div>
             ` : ''}
@@ -534,12 +499,10 @@
       `;
     }
 
-    function goToTracking(orderNo) {
-      location.href = 'tracking-detail.html?orderNo=' + encodeURIComponent(orderNo);
-    }
-
     function getStatusInfo(order) {
-      if (!order.hasTracking) return { text: '尚未排車', className: 'warn' };
+      if (!order.hasTracking) {
+        return { text: '尚未排車', className: 'warn' };
+      }
 
       const taskStatus = String(order.taskStatus || '').trim();
       const taskStatusText = String(order.taskStatusText || '').trim();
@@ -548,21 +511,36 @@
       const driverSuffix = driverName ? `｜司機 ${driverName}` : '';
       const timeSuffix = formatStatusTimeLabel(order);
 
-      if (taskStatus === '已完成') return { text: taskStatusText || `送貨已完成${driverSuffix}${timeSuffix}`, className: 'done' };
-      if (['放門口','改送隔壁','聯繫後改期','取消配送','特殊回報'].includes(taskStatus)) {
-        return { text: taskStatusText || taskStatus, className: taskStatus === '取消配送' ? 'cancel' : 'warn' };
+      if (taskStatus === '已完成') {
+        return { text: taskStatusText || `送貨已完成${driverSuffix}${timeSuffix}`, className: 'done' };
       }
-      if (etaText) return { text: `司機配送中${driverSuffix}`, className: 'active' };
+      if (taskStatus === '放門口' || taskStatus === '改送隔壁' || taskStatus === '聯繫後改期' || taskStatus === '取消配送' || taskStatus === '特殊回報') {
+        return {
+          text: taskStatusText || taskStatus,
+          className: taskStatus === '取消配送' ? 'cancel' : 'warn'
+        };
+      }
+      if (etaText) {
+        return { text: `司機配送中${driverSuffix}`, className: 'active' };
+      }
       return { text: `理貨中${driverSuffix}`, className: 'preparing' };
     }
 
+
     function formatStatusTimeLabel(order) {
-      if (String(order.taskStatus || '').trim() !== '已完成') return '';
-      const dt = new Date(String(order.updatedAt || '').trim());
+      const taskStatus = String(order.taskStatus || '').trim();
+      if (taskStatus !== '已完成') return '';
+
+      const raw = String(order.updatedAt || '').trim();
+      if (!raw) return '';
+
+      const dt = new Date(raw);
       if (isNaN(dt.getTime())) return '';
+
       const hh = String(dt.getHours()).padStart(2, '0');
       const mm = String(dt.getMinutes()).padStart(2, '0');
-      const periodLabel = order.deliveryTime ? `${order.deliveryTime} ` : '';
+      const periodText = String(order.deliveryTime || '').trim();
+      const periodLabel = periodText ? `${periodText} ` : '';
       return `｜${periodLabel}${hh}:${mm}`;
     }
 
@@ -620,7 +598,10 @@
       if (!input) return;
 
       let code = String(input.value || '').replace(/[^\d]/g, '');
-      if (!code) { alert('請輸入客戶代號'); return; }
+      if (!code) {
+        alert('請輸入客戶代號');
+        return;
+      }
       code = code.padStart(4, '0').slice(-4);
 
       const payload = {
@@ -635,10 +616,21 @@
         headers: { 'Content-Type': 'text/plain;charset=utf-8' },
         body: JSON.stringify(payload)
       });
+
       const text = await resp.text();
       let json = {};
-      try { json = JSON.parse(text); } catch (e) { alert(text || '送出申請失敗'); return; }
-      if (!json.ok) { alert(json.message || json.error || '送出申請失敗'); return; }
+      try {
+        json = JSON.parse(text);
+      } catch (e) {
+        alert(text || '送出申請失敗');
+        return;
+      }
+
+      if (!json.ok) {
+        alert(json.message || json.error || '送出申請失敗');
+        return;
+      }
+
       renderPending(code);
     }
 
@@ -650,14 +642,34 @@
 
     function formatDateOnly(value) {
       if (!value) return '';
+
+      if (value instanceof Date && !isNaN(value.getTime())) {
+        return formatDateObj(value);
+      }
+
       const text = String(value).trim();
+
       const m = text.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/);
-      if (m) return `${m[1]}/${String(m[2]).padStart(2,'0')}/${String(m[3]).padStart(2,'0')}`;
+      if (m) {
+        const y = m[1];
+        const mm = String(m[2]).padStart(2, '0');
+        const dd = String(m[3]).padStart(2, '0');
+        return `${y}/${mm}/${dd}`;
+      }
+
       const d = new Date(text);
       if (!isNaN(d.getTime())) {
-        return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+        return formatDateObj(d);
       }
+
       return text;
+    }
+
+    function formatDateObj(d) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}/${m}/${day}`;
     }
 
     function escapeHtml(str) {
