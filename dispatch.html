@@ -4,79 +4,278 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CAESAR 排車頁</title>
-  <!--
-  ========================================================
-  【優化說明 - dispatch.html】
-  1. [並行化] LIFF init 和 GAS 暖機同時發出（最關鍵優化）
-  2. [Skeleton] 載入時各群組顯示骨架，不再空白等待
-  3. [loadDispatchBoard 加 cache:no-store] 明確不使用瀏覽器快取
-  4. [dispatch 頁不需要 UID] 排車頁不讀個人資料，不需要等 getProfile
-     → liff.init 確認登入後直接載入資料，省掉 getProfile 的時間
-  5. 全部功能邏輯（Sortable、local snapshot、儲存）完全不變
-  ========================================================
-  -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <style>
-    body { margin: 0; font-family: Arial, "Microsoft JhengHei", sans-serif; background: #f5f6f8; color: #222; }
-    .wrap { max-width: 760px; margin: 0 auto; padding: 12px; }
-    .topbar { background: #2c3e50; color: #fff; border-radius: 14px; padding: 14px; margin-bottom: 12px; }
-    .title { font-size: 20px; font-weight: bold; margin-bottom: 6px; }
-    .sub { font-size: 14px; line-height: 1.6; opacity: 0.95; }
-    .tabs { display: flex; gap: 8px; margin: 12px 0; }
-    .tab-btn { flex: 1; border: none; border-radius: 10px; padding: 12px; font-size: 15px; font-weight: bold; cursor: pointer; background: #d9dde3; color: #333; }
-    .tab-btn.active { background: #EBA13A; color: #fff; }
-    .route-panel, .toolbar { background: #fff; border-radius: 12px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-    .route-title { font-size: 15px; font-weight: bold; color: #334155; margin-bottom: 10px; }
-    .route-btns { display: flex; gap: 8px; flex-wrap: wrap; }
-    .route-btn { border: none; border-radius: 10px; padding: 10px 14px; font-size: 14px; font-weight: bold; cursor: pointer; background: #dbeafe; color: #1d4ed8; }
-    .toolbar { display: flex; gap: 8px; justify-content: space-between; align-items: center; flex-wrap: wrap; }
-    .toolbar-right { display: flex; gap: 8px; flex-wrap: wrap; }
-    .btn { border: none; border-radius: 10px; padding: 10px 14px; font-size: 14px; font-weight: bold; cursor: pointer; }
-    .btn-save { background: #16a34a; color: #fff; }
-    .btn-refresh { background: #d9dde3; color: #333; }
-    .btn-sort { background: #c7d2fe; color: #3730a3; }
-    .btn-cancel { background: #e5e7eb; color: #374151; }
-    .btn:disabled { opacity: 0.6; cursor: not-allowed; }
-    .group-block { margin-bottom: 14px; }
-    .group-head { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-bottom: 8px; flex-wrap: wrap; }
-    .group-title { font-size: 16px; font-weight: bold; color: #334155; }
-    .group-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-    .group-count { font-size: 12px; color: #64748b; }
-    .group-driver { border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px; font-size: 13px; min-width: 110px; background: #fff; }
-    .group-list { min-height: 60px; background: #eef2f7; border-radius: 12px; padding: 8px; }
-    .row { background: #fff; border-radius: 12px; padding: 10px 12px; margin-bottom: 8px; display: flex; gap: 10px; align-items: center; justify-content: space-between; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
-    .row-left { flex: 1; min-width: 0; display: flex; align-items: center; gap: 10px; }
-    .type-box { width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; font-size: 14px; font-weight: 800; line-height: 1; background: #e5e7eb; color: #334155; }
-    .type-box.alert { background: #fee2e2; color: #dc2626; font-size: 15px; }
-    .row-title { flex: 1; min-width: 0; font-size: 16px; font-weight: bold; line-height: 1.35; word-break: break-word; color: #111827; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .order-count { color: #6b7280; font-weight: 600; margin-left: 4px; }
-    .row-right { flex-shrink: 0; display: flex; align-items: center; gap: 6px; margin-left: 8px; }
-    .drag-handle { font-size: 18px; color: #94a3b8; padding: 0 4px; flex-shrink: 0; cursor: grab; user-select: none; touch-action: none; }
-    .drag-handle.disabled { opacity: 0.35; cursor: default; }
-    .empty { color: #64748b; font-size: 13px; padding: 8px; }
-    .sortable-ghost { opacity: 0.35; }
-    .sortable-chosen { background: #eff6ff; border: 1px dashed #60a5fa; }
-
-    /* ── [新增] Skeleton ── */
-    @keyframes shimmer {
-      0% { background-position: -600px 0; }
-      100% { background-position: 600px 0; }
+    body {
+      margin: 0;
+      font-family: Arial, "Microsoft JhengHei", sans-serif;
+      background: #f5f6f8;
+      color: #222;
     }
-    .skeleton {
-      background: linear-gradient(90deg, #e2e5ea 25%, #eef2f7 50%, #e2e5ea 75%);
-      background-size: 1200px 100%;
-      animation: shimmer 1.5s infinite;
+    .wrap {
+      max-width: 760px;
+      margin: 0 auto;
+      padding: 12px;
+    }
+    .topbar {
+      background: #2c3e50;
+      color: #fff;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+    .title {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+    .sub {
+      font-size: 14px;
+      line-height: 1.6;
+      opacity: 0.95;
+    }
+    .tabs {
+      display: flex;
+      gap: 8px;
+      margin: 12px 0;
+    }
+    .tab-btn {
+      flex: 1;
+      border: none;
       border-radius: 10px;
+      padding: 12px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      background: #d9dde3;
+      color: #333;
     }
-    .skeleton-row { height: 52px; margin-bottom: 8px; }
-    .skeleton-row-sm { height: 44px; margin-bottom: 8px; }
+    .tab-btn.active {
+      background: #EBA13A;
+      color: #fff;
+    }
+    .route-panel, .toolbar {
+      background: #fff;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .route-title {
+      font-size: 15px;
+      font-weight: bold;
+      color: #334155;
+      margin-bottom: 10px;
+    }
+    .route-btns {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .route-btn {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      background: #dbeafe;
+      color: #1d4ed8;
+    }
+    .toolbar {
+      display: flex;
+      gap: 8px;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .toolbar-right {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .btn {
+      border: none;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    .btn-save {
+      background: #16a34a;
+      color: #fff;
+    }
+    .btn-refresh {
+      background: #d9dde3;
+      color: #333;
+    }
+    .btn-sort {
+      background: #c7d2fe;
+      color: #3730a3;
+    }
+    .btn-cancel {
+      background: #e5e7eb;
+      color: #374151;
+    }
+    .btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .group-block {
+      margin-bottom: 14px;
+    }
+    .group-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+    .group-title {
+      font-size: 16px;
+      font-weight: bold;
+      color: #334155;
+    }
+    .group-meta {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .group-count {
+      font-size: 12px;
+      color: #64748b;
+    }
+    .group-driver {
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 8px;
+      font-size: 13px;
+      min-width: 110px;
+      background: #fff;
+    }
+    .group-list {
+      min-height: 60px;
+      background: #eef2f7;
+      border-radius: 12px;
+      padding: 8px;
+    }
+    .row {
+      background: #fff;
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      justify-content: space-between;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .row-left {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .type-box {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      font-size: 14px;
+      font-weight: 800;
+      line-height: 1;
+      background: #e5e7eb;
+      color: #334155;
+    }
+    .type-box.alert {
+      background: #fee2e2;
+      color: #dc2626;
+      font-size: 15px;
+    }
+    .row-title {
+      flex: 1;
+      min-width: 0;
+      font-size: 16px;
+      font-weight: bold;
+      line-height: 1.35;
+      word-break: break-word;
+      color: #111827;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .order-count {
+      color: #6b7280;
+      font-weight: 600;
+      margin-left: 4px;
+    }
+    .row-right {
+      flex-shrink: 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-left: 8px;
+    }
+    .drag-handle {
+      font-size: 18px;
+      color: #94a3b8;
+      padding: 0 4px;
+      flex-shrink: 0;
+      cursor: grab;
+      user-select: none;
+      touch-action: none;
+    }
+    .drag-handle.disabled {
+      opacity: 0.35;
+      cursor: default;
+    }
+    .empty {
+      color: #64748b;
+      font-size: 13px;
+      padding: 8px;
+    }
+    .sortable-ghost {
+      opacity: 0.35;
+    }
+    .sortable-chosen {
+      background: #eff6ff;
+      border: 1px dashed #60a5fa;
+    }
 
     @media (max-width: 640px) {
-      .row { padding: 9px 10px; gap: 8px; }
-      .row-left { gap: 8px; }
-      .type-box { width: 26px; height: 26px; font-size: 13px; }
-      .row-title { font-size: 15px; }
+      .row {
+        padding: 9px 10px;
+        gap: 8px;
+      }
+      .row-left {
+        gap: 8px;
+      }
+      .type-box {
+        width: 26px;
+        height: 26px;
+        font-size: 13px;
+      }
+      .type-box.alert {
+        font-size: 14px;
+      }
+      .row-title {
+        font-size: 15px;
+      }
+      .order-count {
+        font-size: 13px;
+      }
+      .row-right {
+        gap: 4px;
+        margin-left: 6px;
+      }
     }
   </style>
 </head>
@@ -113,61 +312,48 @@
       </div>
     </div>
 
-    <!-- 四個群組，預設顯示 Skeleton -->
     <div class="group-block">
       <div class="group-head">
         <div class="group-title">調度</div>
         <div class="group-meta">
-          <div class="group-count" id="count-調度">讀取中...</div>
+          <div class="group-count" id="count-調度">0 站 / 0 張單</div>
           <select class="group-driver" id="driver-調度"></select>
         </div>
       </div>
-      <div class="group-list" id="group-調度">
-        <div class="skeleton skeleton-row"></div>
-        <div class="skeleton skeleton-row-sm"></div>
-      </div>
+      <div class="group-list" id="group-調度"></div>
     </div>
 
     <div class="group-block">
       <div class="group-head">
         <div class="group-title">市區</div>
         <div class="group-meta">
-          <div class="group-count" id="count-市區">讀取中...</div>
+          <div class="group-count" id="count-市區">0 站 / 0 張單</div>
           <select class="group-driver" id="driver-市區"></select>
         </div>
       </div>
-      <div class="group-list" id="group-市區">
-        <div class="skeleton skeleton-row"></div>
-        <div class="skeleton skeleton-row-sm"></div>
-        <div class="skeleton skeleton-row-sm"></div>
-      </div>
+      <div class="group-list" id="group-市區"></div>
     </div>
 
     <div class="group-block">
       <div class="group-head">
         <div class="group-title">竹東</div>
         <div class="group-meta">
-          <div class="group-count" id="count-竹東">讀取中...</div>
+          <div class="group-count" id="count-竹東">0 站 / 0 張單</div>
           <select class="group-driver" id="driver-竹東"></select>
         </div>
       </div>
-      <div class="group-list" id="group-竹東">
-        <div class="skeleton skeleton-row"></div>
-        <div class="skeleton skeleton-row-sm"></div>
-      </div>
+      <div class="group-list" id="group-竹東"></div>
     </div>
 
     <div class="group-block">
       <div class="group-head">
         <div class="group-title">湖口</div>
         <div class="group-meta">
-          <div class="group-count" id="count-湖口">讀取中...</div>
+          <div class="group-count" id="count-湖口">0 站 / 0 張單</div>
           <select class="group-driver" id="driver-湖口"></select>
         </div>
       </div>
-      <div class="group-list" id="group-湖口">
-        <div class="skeleton skeleton-row"></div>
-      </div>
+      <div class="group-list" id="group-湖口"></div>
     </div>
   </div>
 
@@ -179,8 +365,6 @@
     const LOCAL_KEY_PREFIX = 'caesar_dispatch_board_snapshot_';
     const RETURN_URL_KEY = 'caesar_return_url';
     const RETURN_RESTORED_KEY = 'caesar_return_restored';
-    let warmupPromise = null;
-    let prefetchedDispatchBoardPromise = null;
 
     let currentPeriod = '上午';
     let currentBatchId = '';
@@ -189,70 +373,35 @@
     let sortMode = false;
     let isSaving = false;
 
-    // ── [新增] GAS 暖機：頁面一開啟立即送出，和 LIFF init 重疊執行 ──
-    const gasWarmupPromise = fetch(
-      GAS_WEBAPP_URL + '?action=ping&_ts=' + Date.now(),
-      { cache: 'no-store', signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined }
-    ).catch(() => {});
-
-    // ── [新增] 同時預先發出第一次真實 API 請求（若 LIFF 不需要 UID）──
-    // dispatch 頁不需要 UID，可以在 LIFF init 同時就開始拉資料
-    const defaultPeriod = (new Date().getHours() < 12) ? '上午' : '下午';
-    currentPeriod = defaultPeriod;
-
-    const earlyDataPromise = fetch(
-      `${GAS_WEBAPP_URL}?action=get_dispatch_board&period=${encodeURIComponent(defaultPeriod)}&_ts=${Date.now()}`,
-      { cache: 'no-store' }
-    ).then(r => r.json()).catch(() => null);
-
     async function initPage() {
       try {
         saveCurrentPageState_();
-        setTabs();
-        initDriverSelects();
 
-        // ── [優化] LIFF init 和資料請求並行 ──
-        // 原本：等 liff.init → 等 login → 才打 API（串行 3-6 秒）
-        // 現在：liff.init 和 earlyDataPromise 同時跑，資料更早到
-        const [, earlyData] = await Promise.all([
-          liff.init({ liffId: LIFF_ID }),
-          earlyDataPromise
-        ]);
-
+        await liff.init({ liffId: LIFF_ID });
         if (!liff.isLoggedIn()) {
           prepareLoginRedirect_();
           liff.login({ redirectUri: window.location.href });
           return;
         }
 
-        if (restoreReturnPageIfNeeded_()) return;
-        cleanupAuthNoise_();
-
-        // 如果 earlyData 已經有了就直接用，否則重新拉
-        if (earlyData && earlyData.ok) {
-          applyDispatchData(earlyData);
-        } else {
-          await loadDispatchBoard();
+        if (restoreReturnPageIfNeeded_()) {
+          return;
         }
+
+        cleanupAuthNoise_();
+        setTabs();
+        initDriverSelects();
+        await loadDispatchBoard();
       } catch (err) {
         alert('排車頁載入失敗：' + (err.message || err));
       }
     }
 
-    function applyDispatchData(json) {
-      dispatchBoard = json.data || { groups: {} };
-      currentBatchId = dispatchBoard.batchId || '';
-
-      const localSnapshot = getLocalSnapshot(currentPeriod);
-      if (localSnapshot) {
-        dispatchBoard = mergeBoardWithLocalSnapshot(dispatchBoard, localSnapshot);
-      }
-      renderDispatchBoard();
-    }
-
     function saveCurrentPageState_() {
       try {
-        if (window.location.search.includes('liff.state=') || window.location.search.includes('code=')) return;
+        if (window.location.search.includes('liff.state=') || window.location.search.includes('code=')) {
+          return;
+        }
         sessionStorage.setItem(RETURN_URL_KEY, window.location.href);
       } catch (e) {}
     }
@@ -268,37 +417,60 @@
       try {
         const savedUrl = sessionStorage.getItem(RETURN_URL_KEY) || '';
         const restored = sessionStorage.getItem(RETURN_RESTORED_KEY) || '';
+
         if (!savedUrl) return false;
+
+        const currentUrl = window.location.href;
         const savedClean = normalizeUrlForCompare_(savedUrl);
-        const currentClean = normalizeUrlForCompare_(window.location.href);
+        const currentClean = normalizeUrlForCompare_(currentUrl);
+
         if (savedClean && currentClean && savedClean !== currentClean && restored !== '1') {
           sessionStorage.setItem(RETURN_RESTORED_KEY, '1');
           window.location.replace(savedUrl);
           return true;
         }
+
         sessionStorage.removeItem(RETURN_RESTORED_KEY);
         sessionStorage.removeItem(RETURN_URL_KEY);
         return false;
-      } catch (e) { return false; }
+      } catch (e) {
+        return false;
+      }
     }
 
     function normalizeUrlForCompare_(url) {
       try {
         const u = new URL(url);
         const params = new URLSearchParams(u.search);
-        ['code','state','friendship_status_changed','liffClientId','liffRedirectUri','access_token','id_token','expires_in','token_type'].forEach(k => params.delete(k));
+        params.delete('code');
+        params.delete('state');
+        params.delete('friendship_status_changed');
+        params.delete('liffClientId');
+        params.delete('liffRedirectUri');
+        params.delete('access_token');
+        params.delete('id_token');
+        params.delete('expires_in');
+        params.delete('token_type');
+
         const search = params.toString();
         return u.origin + u.pathname + (search ? '?' + search : '') + (u.hash || '');
-      } catch (e) { return url; }
+      } catch (e) {
+        return url;
+      }
     }
 
     function cleanupAuthNoise_() {
       try {
         const url = new URL(window.location.href);
         const params = url.searchParams;
-        const noisy = ['code','state','friendship_status_changed','liffClientId','liffRedirectUri','access_token','id_token','expires_in','token_type'];
+        const noisyKeys = ['code','state','friendship_status_changed','liffClientId','liffRedirectUri','access_token','id_token','expires_in','token_type'];
         let changed = false;
-        noisy.forEach(k => { if (params.has(k)) { params.delete(k); changed = true; } });
+        noisyKeys.forEach(key => {
+          if (params.has(key)) {
+            params.delete(key);
+            changed = true;
+          }
+        });
         if (changed) {
           const newUrl = url.origin + url.pathname + (params.toString() ? '?' + params.toString() : '') + (url.hash || '');
           window.history.replaceState({}, '', newUrl);
@@ -325,18 +497,12 @@
     function switchPeriod(period) {
       currentPeriod = period;
       setTabs();
-      // 切換時顯示 skeleton
-      GROUP_NAMES.forEach(groupName => {
-        const box = document.getElementById(`group-${groupName}`);
-        if (box) box.innerHTML = '<div class="skeleton skeleton-row"></div><div class="skeleton skeleton-row-sm"></div>';
-        const countBox = document.getElementById(`count-${groupName}`);
-        if (countBox) countBox.textContent = '讀取中...';
-      });
-      document.getElementById('summaryText').textContent = '讀取中...';
       loadDispatchBoard();
     }
 
-    function getLocalSnapshotKey(period) { return `${LOCAL_KEY_PREFIX}${period}`; }
+    function getLocalSnapshotKey(period) {
+      return `${LOCAL_KEY_PREFIX}${period}`;
+    }
 
     function saveLocalSnapshot(snapshot) {
       try {
@@ -345,7 +511,9 @@
           batchId: currentBatchId || '',
           data: snapshot
         }));
-      } catch (e) { console.warn('saveLocalSnapshot failed', e); }
+      } catch (e) {
+        console.warn('saveLocalSnapshot failed', e);
+      }
     }
 
     function getLocalSnapshot(period) {
@@ -356,15 +524,31 @@
         if (!parsed || !parsed.data) return null;
         if ((parsed.batchId || '') !== (currentBatchId || '')) return null;
         return parsed.data;
-      } catch (e) { return null; }
+      } catch (e) {
+        console.warn('getLocalSnapshot failed', e);
+        return null;
+      }
     }
 
     async function loadDispatchBoard() {
-      const url = `${GAS_WEBAPP_URL}?action=get_dispatch_board&period=${encodeURIComponent(currentPeriod)}&_ts=${Date.now()}`;
-      const resp = await fetch(url, { cache: 'no-store' }); // [優化] 明確不快取
+      const url = `${GAS_WEBAPP_URL}?action=get_dispatch_board&period=${encodeURIComponent(currentPeriod)}`;
+      const resp = await fetch(url);
       const json = await resp.json();
-      if (!json.ok) { alert(json.error || '讀取排車頁失敗'); return; }
-      applyDispatchData(json);
+
+      if (!json.ok) {
+        alert(json.error || '讀取排車頁失敗');
+        return;
+      }
+
+      dispatchBoard = json.data || { groups: {} };
+      currentBatchId = dispatchBoard.batchId || '';
+
+      const localSnapshot = getLocalSnapshot(currentPeriod);
+      if (localSnapshot) {
+        dispatchBoard = mergeBoardWithLocalSnapshot(dispatchBoard, localSnapshot);
+      }
+
+      renderDispatchBoard();
     }
 
     function mergeBoardWithLocalSnapshot(serverBoard, localSnapshot) {
@@ -373,7 +557,10 @@
 
       GROUP_NAMES.forEach(groupName => {
         const serverList = Array.isArray(merged.groups[groupName]) ? merged.groups[groupName] : [];
-        const localGroup = (localSnapshot.groups && localSnapshot.groups[groupName]) || { driverName: '', items: [] };
+        const localGroup = localSnapshot.groups && localSnapshot.groups[groupName]
+          ? localSnapshot.groups[groupName]
+          : { driverName: '', items: [] };
+
         const localItems = Array.isArray(localGroup.items) ? localGroup.items : [];
         const serverMap = new Map(serverList.map(item => [String(item.stopKey || ''), item]));
         const reordered = [];
@@ -382,13 +569,21 @@
           const key = String(localItem.stopKey || '');
           if (serverMap.has(key)) {
             const serverItem = serverMap.get(key);
-            reordered.push({ ...serverItem, driverName: localGroup.driverName || serverItem.driverName || '' });
+            reordered.push({
+              ...serverItem,
+              driverName: localGroup.driverName || serverItem.driverName || ''
+            });
             serverMap.delete(key);
           }
         });
+
         serverMap.forEach(serverItem => {
-          reordered.push({ ...serverItem, driverName: localGroup.driverName || serverItem.driverName || '' });
+          reordered.push({
+            ...serverItem,
+            driverName: localGroup.driverName || serverItem.driverName || ''
+          });
         });
+
         merged.groups[groupName] = reordered;
       });
 
@@ -413,10 +608,14 @@
         const driverSelect = document.getElementById(`driver-${groupName}`);
 
         const groupOrderCount = list.reduce((sum, item) => sum + getOrderCount(item), 0);
-        if (countBox) countBox.textContent = `${list.length} 站 / ${groupOrderCount} 張單`;
+        if (countBox) {
+          countBox.textContent = `${list.length} 站 / ${groupOrderCount} 張單`;
+        }
 
         const groupDriverName = list.length > 0 ? (list[0].driverName || '') : '';
-        if (driverSelect) driverSelect.value = groupDriverName;
+        if (driverSelect) {
+          driverSelect.value = groupDriverName;
+        }
 
         if (!list.length) {
           box.innerHTML = '<div class="empty">目前無資料</div>';
@@ -462,7 +661,9 @@
           draggable: '.row',
           handle: '.drag-handle',
           disabled: !sortMode,
-          onEnd: () => syncLocalBoardFromDOM()
+          onEnd: function () {
+            syncLocalBoardFromDOM();
+          }
         });
         sortableRefs.push(sortable);
       });
@@ -491,24 +692,32 @@
     }
 
     function syncLocalBoardFromDOM() {
-      saveLocalSnapshot(buildSnapshotFromDOM());
+      const snapshot = buildSnapshotFromDOM();
+      saveLocalSnapshot(snapshot);
     }
 
     function buildSnapshotFromDOM() {
       const groups = {};
+
       GROUP_NAMES.forEach(groupName => {
         const box = document.getElementById(`group-${groupName}`);
         const rows = Array.from(box.querySelectorAll('.row'));
         const driverSelect = document.getElementById(`driver-${groupName}`);
+        const driverName = driverSelect ? driverSelect.value : '';
+
         groups[groupName] = {
-          driverName: driverSelect ? driverSelect.value : '',
+          driverName: driverName,
           items: rows.map(row => ({
             stopKey: row.getAttribute('data-stop-key') || '',
             taskIds: JSON.parse(decodeURIComponent(row.getAttribute('data-taskids') || '[]'))
           }))
         };
       });
-      return { period: currentPeriod, groups };
+
+      return {
+        period: currentPeriod,
+        groups: groups
+      };
     }
 
     async function saveDispatchBoard() {
@@ -521,7 +730,12 @@
         '湖口': collectGroup('湖口')
       };
 
-      const payload = { action: 'save_dispatch_board', period: currentPeriod, groups };
+      const payload = {
+        action: 'save_dispatch_board',
+        period: currentPeriod,
+        groups: groups
+      };
+
       saveLocalSnapshot(buildSnapshotFromDOM());
 
       isSaving = true;
@@ -533,16 +747,27 @@
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
           body: JSON.stringify(payload)
         });
+
         const text = await resp.text();
         let json = {};
-        try { json = JSON.parse(text); } catch (e) { alert(text || '儲存排車失敗'); return; }
-        if (!json.ok) { alert(json.message || json.error || '儲存排車失敗'); return; }
+        try {
+          json = JSON.parse(text);
+        } catch (e) {
+          alert(text || '儲存排車失敗');
+          return;
+        }
+
+        if (!json.ok) {
+          alert(json.message || json.error || '儲存排車失敗');
+          return;
+        }
 
         sortMode = false;
         document.getElementById('sortToggleBtn').style.display = 'inline-block';
         document.getElementById('cancelSortBtn').style.display = 'none';
         document.querySelectorAll('.drag-handle').forEach(el => el.classList.add('disabled'));
         initSortables();
+
         document.getElementById('summaryText').textContent = json.message || '排車已儲存';
         alert(json.message || '排車看板已儲存');
       } catch (err) {
@@ -555,13 +780,18 @@
     }
 
     function setSavingState(saving) {
-      const ids = ['saveBtn','refreshBtn','sortToggleBtn','cancelSortBtn'];
-      ids.forEach(id => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        el.disabled = saving;
-        if (id === 'saveBtn') el.textContent = saving ? '儲存中...' : '儲存排車';
-      });
+      const saveBtn = document.getElementById('saveBtn');
+      const refreshBtn = document.getElementById('refreshBtn');
+      const sortBtn = document.getElementById('sortToggleBtn');
+      const cancelBtn = document.getElementById('cancelSortBtn');
+
+      if (saveBtn) {
+        saveBtn.disabled = saving;
+        saveBtn.textContent = saving ? '儲存中...' : '儲存排車';
+      }
+      if (refreshBtn) refreshBtn.disabled = saving;
+      if (sortBtn) sortBtn.disabled = saving;
+      if (cancelBtn) cancelBtn.disabled = saving;
     }
 
     function collectGroup(groupName) {
@@ -570,12 +800,15 @@
       const driverSelect = document.getElementById(`driver-${groupName}`);
       const driverName = driverSelect ? driverSelect.value : '';
 
-      return rows.map((row, index) => ({
-        stopKey: row.getAttribute('data-stop-key') || '',
-        taskIds: JSON.parse(decodeURIComponent(row.getAttribute('data-taskids') || '[]')),
-        driverName,
-        displayOrder: index + 1
-      }));
+      return rows.map((row, index) => {
+        const taskIds = JSON.parse(decodeURIComponent(row.getAttribute('data-taskids') || '[]'));
+        return {
+          stopKey: row.getAttribute('data-stop-key') || '',
+          taskIds: taskIds,
+          driverName: driverName,
+          displayOrder: index + 1
+        };
+      });
     }
 
     function getOrderCount(item) {
@@ -584,8 +817,18 @@
       return 1;
     }
 
-    function isStoreStop(item) {
-      const deliveryType = String(item.deliveryType || '').trim();
+
+    function getRouteShortName(groupName) {
+      switch (String(groupName || '').trim()) {
+        case '調度': return '調';
+        case '市區': return '市';
+        case '竹東': return '東';
+        case '湖口': return '湖';
+        default: return String(groupName || '').trim();
+      }
+    }
+
+    function isStoreStop(item) {      const deliveryType = String(item.deliveryType || '').trim();
       if (deliveryType === '送店') return true;
       const address = String(item.address || '').trim();
       return !address || address === '送店';
@@ -598,18 +841,25 @@
     }
 
     function openDriverRoute(driverName) {
-      window.open(`driver.html?driver=${encodeURIComponent(driverName || '')}&period=${encodeURIComponent(currentPeriod)}`, '_blank');
+      const finalDriver = driverName || '';
+      const target = `driver.html?driver=${encodeURIComponent(finalDriver)}&period=${encodeURIComponent(currentPeriod)}`;
+      window.open(target, '_blank');
     }
 
     function escapeHtml(str) {
       return String(str || '')
-        .replace(/&/g, '&amp;').replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
     }
 
     document.addEventListener('change', function(e) {
       const targetId = e.target && e.target.id ? e.target.id : '';
-      if (GROUP_NAMES.some(name => targetId === `driver-${name}`)) syncLocalBoardFromDOM();
+      if (GROUP_NAMES.some(name => targetId === `driver-${name}`)) {
+        syncLocalBoardFromDOM();
+      }
     });
 
     initPage();
