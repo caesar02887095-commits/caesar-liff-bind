@@ -4,16 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>送貨進度</title>
-  <!--
-  ========================================================
-  【優化說明 - tracking-detail.html】
-  1. [並行化] LIFF init 和 GAS 暖機同時發出，不串行等待
-  2. [Skeleton] 載入時顯示骨架，用戶不會看到空白
-  3. [快取 UID] 從 sessionStorage 讀 UID，跳過 getProfile 的延遲
-  4. [自動刷新] 靜默刷新不閃爍（silent 模式）
-  功能邏輯與原版完全相同
-  ========================================================
-  -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     body {
@@ -22,56 +12,129 @@
       background: #f5f6f8;
       color: #222;
     }
-    .wrap { max-width: 520px; margin: 0 auto; padding: 12px; }
-    .topbar {
-      background: #2c3e50; color: #fff;
-      border-radius: 14px; padding: 16px; margin-bottom: 12px;
+    .wrap {
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 12px;
     }
-    .title { font-size: 20px; font-weight: bold; margin-bottom: 6px; }
-    .sub { font-size: 14px; line-height: 1.6; opacity: 0.95; }
+    .topbar {
+      background: #2c3e50;
+      color: #fff;
+      border-radius: 14px;
+      padding: 16px;
+      margin-bottom: 12px;
+    }
+    .title {
+      font-size: 20px;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+    .sub {
+      font-size: 14px;
+      line-height: 1.6;
+      opacity: 0.95;
+    }
     .card {
-      background: #fff; border-radius: 14px;
-      padding: 14px; margin-bottom: 12px;
+      background: #fff;
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
-    .status { font-size: 16px; font-weight: bold; margin-bottom: 10px; }
-    .row { font-size: 14px; line-height: 1.8; margin-bottom: 4px; }
+    .status {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 10px;
+    }
+    .row {
+      font-size: 14px;
+      line-height: 1.8;
+      margin-bottom: 4px;
+    }
     .photo-wrap { margin-top: 12px; display:flex; gap:8px; flex-wrap:wrap; }
     .photo-item { width: calc(50% - 4px); border-radius: 10px; overflow: hidden; border: 1px solid #dbe4ef; background:#fff; }
     .photo-item img { width:100%; display:block; aspect-ratio:4 / 3; object-fit:cover; }
     .photo-link { display:block; padding:6px 8px; font-size:12px; color:#1d4ed8; text-align:center; text-decoration:none; }
-    .items { margin-top: 8px; padding-top: 8px; border-top: 1px dashed #d1d5db; font-size: 14px; line-height: 1.7; }
-    .btn { width: 100%; border: none; border-radius: 10px; padding: 12px; font-size: 15px; font-weight: bold; cursor: pointer; background: #d9dde3; color: #333; }
+    .items {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px dashed #d1d5db;
+      font-size: 14px;
+      line-height: 1.7;
+    }
+    .btn {
+      width: 100%;
+      border: none;
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      background: #d9dde3;
+      color: #333;
+    }
+    .loading {
+      text-align: center;
+      color: #666;
+      padding: 28px 12px;
+      font-size: 15px;
+    }
     .ok { color: #166534; }
     .warn { color: #9a3412; }
     .bad { color: #991b1b; }
-    .eta-box { background: #eff6ff; border: 1px solid #bfdbfe; color: #1d4ed8; border-radius: 12px; padding: 12px; margin-top: 8px; }
-    .eta-title { font-size: 13px; font-weight: bold; margin-bottom: 4px; }
-    .eta-time { font-size: 20px; font-weight: bold; line-height: 1.2; }
-    .status-banner { margin-top: 10px; border-radius: 12px; padding: 12px 14px; font-size: 15px; font-weight: bold; line-height: 1.6; }
-    .status-banner.done { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
-    .status-banner.active { background: #dbeafe; color: #1d4ed8; border: 1px solid #93c5fd; }
-    .status-banner.preparing { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
-    .status-banner.warn { background: #ffedd5; color: #9a3412; border: 1px solid #fdba74; }
-    .status-banner.cancel { background: #fee2e2; color: #991b1b; border: 1px solid #fca5a5; }
 
-    /* ── [新增] Skeleton ── */
-    @keyframes shimmer {
-      0% { background-position: -400px 0; }
-      100% { background-position: 400px 0; }
+    .eta-box {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1d4ed8;
+      border-radius: 12px;
+      padding: 12px;
+      margin-top: 8px;
     }
-    .skeleton {
-      background: linear-gradient(90deg, #e8eaf0 25%, #f5f6f8 50%, #e8eaf0 75%);
-      background-size: 800px 100%;
-      animation: shimmer 1.4s infinite;
-      border-radius: 8px;
+    .eta-title {
+      font-size: 13px;
+      font-weight: bold;
+      margin-bottom: 4px;
     }
-    .skeleton-line { height: 16px; margin-bottom: 10px; }
-    .skeleton-line.short { width: 55%; }
-    .skeleton-line.medium { width: 78%; }
-    .skeleton-line.full { width: 100%; }
-    .skeleton-title { height: 20px; width: 60%; margin-bottom: 14px; }
-    .skeleton-block { height: 60px; margin-top: 12px; border-radius: 12px; }
+    .eta-time {
+      font-size: 20px;
+      font-weight: bold;
+      line-height: 1.2;
+    }
+
+    .status-banner {
+      margin-top: 10px;
+      border-radius: 12px;
+      padding: 12px 14px;
+      font-size: 15px;
+      font-weight: bold;
+      line-height: 1.6;
+    }
+    .status-banner.done {
+      background: #dcfce7;
+      color: #166534;
+      border: 1px solid #86efac;
+    }
+    .status-banner.active {
+      background: #dbeafe;
+      color: #1d4ed8;
+      border: 1px solid #93c5fd;
+    }
+    .status-banner.preparing {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fcd34d;
+    }
+    .status-banner.warn {
+      background: #ffedd5;
+      color: #9a3412;
+      border: 1px solid #fdba74;
+    }
+    .status-banner.cancel {
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
   </style>
 </head>
 <body>
@@ -82,13 +145,8 @@
     </div>
 
     <div id="app">
-      <!-- [新增] Skeleton 骨架 -->
       <div class="card">
-        <div class="skeleton skeleton-title"></div>
-        <div class="skeleton skeleton-line medium"></div>
-        <div class="skeleton skeleton-line short"></div>
-        <div class="skeleton skeleton-line full"></div>
-        <div class="skeleton skeleton-block"></div>
+        <div class="loading">系統載入中...</div>
       </div>
     </div>
   </div>
@@ -96,51 +154,12 @@
   <script>
     const LIFF_ID = '2009380550-ow9SlJK4';
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
-    const UID_CACHE_KEY = 'caesar_uid';
-
     let currentUid = '';
-    const PROFILE_CACHE_KEY = 'caesar_liff_profile_cache';
-    let warmupPromise = null;
     let currentOrderNo = '';
 
     function getQueryParam(name) {
-      return new URL(window.location.href).searchParams.get(name) || '';
-    }
-
-    // ── [新增] GAS 暖機，頁面一開啟就送出 ──
-    fetch(GAS_WEBAPP_URL + '?action=ping&_ts=' + Date.now(), {
-      cache: 'no-store',
-      signal: AbortSignal.timeout ? AbortSignal.timeout(8000) : undefined
-    }).catch(() => {});
-
-
-    function warmupGas_() {
-      return fetch(`${GAS_WEBAPP_URL}?action=ping&_ts=${Date.now()}`, { cache: 'no-store' }).catch(() => null);
-    }
-
-    function readProfileCache_() {
-      try {
-        const raw = sessionStorage.getItem(PROFILE_CACHE_KEY);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        if (!parsed || !parsed.userId) return null;
-        return parsed;
-      } catch (e) {
-        return null;
-      }
-    }
-
-    async function getCachedLiffProfile_() {
-      const cached = readProfileCache_();
-      if (cached) return cached;
-      const profile = await liff.getProfile();
-      try {
-        sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({
-          userId: profile.userId || '',
-          displayName: profile.displayName || ''
-        }));
-      } catch (e) {}
-      return profile;
+      const url = new URL(window.location.href);
+      return url.searchParams.get(name) || '';
     }
 
     let autoRefreshTimer = null;
@@ -154,23 +173,20 @@
     }
 
     function stopAutoRefresh() {
-      if (autoRefreshTimer) { clearInterval(autoRefreshTimer); autoRefreshTimer = null; }
+      if (autoRefreshTimer) {
+        clearInterval(autoRefreshTimer);
+        autoRefreshTimer = null;
+      }
     }
 
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) loadDetail({ silent: true });
+      if (!document.hidden) {
+        loadDetail({ silent: true });
+      }
     });
 
     async function initPage() {
       try {
-        const orderNo = getQueryParam('orderNo');
-        currentOrderNo = orderNo;
-
-        document.getElementById('topInfo').innerHTML =
-          `查詢單號：<b>${escapeHtml(orderNo || '')}</b>`;
-
-        // ── [優化] LIFF init 和暖機並行，有 UID 快取則跳過 getProfile ──
-        const cachedUid = sessionStorage.getItem(UID_CACHE_KEY) || '';
         await liff.init({ liffId: LIFF_ID });
 
         if (!liff.isLoggedIn()) {
@@ -178,19 +194,15 @@
           return;
         }
 
-        if (cachedUid) {
-          // 直接用快取，不等 getProfile
-          currentUid = cachedUid;
-          // 背景更新快取，不影響主流程
-          liff.getProfile().then(p => {
-            sessionStorage.setItem(UID_CACHE_KEY, p.userId || cachedUid);
-          }).catch(() => {});
-        } else {
-          const profile = await getCachedLiffProfile_();
-          currentUid = profile.userId || '';
-          sessionStorage.setItem(UID_CACHE_KEY, currentUid);
-        }
+        const profile = await liff.getProfile();
+        const uid = profile.userId || '';
+        const orderNo = getQueryParam('orderNo');
 
+        document.getElementById('topInfo').innerHTML =
+          `查詢單號：<b>${escapeHtml(orderNo || '')}</b>`;
+
+        currentUid = uid;
+        currentOrderNo = orderNo;
         await loadDetail();
         startAutoRefresh();
       } catch (err) {
@@ -256,12 +268,7 @@
             </div>
           ` : ''}
 
-          ${photos.length ? `<div class="photo-wrap">${photos.map((photo, idx) => `
-            <a class="photo-item" href="${escapeHtml(photo.url || '')}" target="_blank">
-              <img src="${escapeHtml(photo.previewUrl || photo.url || '')}" alt="送達照片${idx+1}">
-              <span class="photo-link">照片${idx+1}</span>
-            </a>`).join('')}</div>` : ''}
-
+          ${photos.length ? `<div class="photo-wrap">${photos.map((photo, idx) => `<a class="photo-item" href="${escapeHtml(photo.url || '')}" target="_blank"><img src="${escapeHtml(photo.previewUrl || photo.url || '')}" alt="送達照片${idx + 1}"><span class="photo-badge">照片${idx + 1}</span></a>`).join('')}</div>` : ''}
           <div class="items">
             ${items.map(item => `• ${escapeHtml(item.model || '')} x${escapeHtml(item.qty || '')}`).join('<br>')}
           </div>
@@ -283,24 +290,37 @@
       if (step === 'DONE' || text === '送貨已完成' || text === '已完成') {
         return { text: text || `送貨已完成${driverSuffix}${timeSuffix}`, className: 'done' };
       }
-      if (step === 'CANCEL') return { text: text || '配送已取消', className: 'cancel' };
-      if (step === 'DELAY') return { text: text || '聯繫後改期', className: 'warn' };
-      if (['放門口','改送隔壁','特殊回報'].some(k => text === k || text.includes('已'+k.replace('放','').replace('改','')))) {
+      if (step === 'CANCEL') {
+        return { text: text || '配送已取消', className: 'cancel' };
+      }
+      if (step === 'DELAY') {
+        return { text: text || '聯繫後改期', className: 'warn' };
+      }
+      if (text === '放門口' || text === '改送隔壁' || text === '特殊回報' || text.includes('已放門口') || text.includes('已改送隔壁') || text.includes('已改期')) {
         return { text: text, className: 'warn' };
       }
-      if (etaText) return { text: `司機配送中${driverSuffix}`, className: 'active' };
+      if (etaText) {
+        return { text: `司機配送中${driverSuffix}`, className: 'active' };
+      }
       return { text: `理貨中${driverSuffix}`, className: 'preparing' };
     }
+
 
     function formatDetailStatusTimeLabel(data) {
       const step = String(data.progressStep || '').trim();
       const text = String(data.progressText || '').trim();
       if (!(step === 'DONE' || text === '送貨已完成' || text === '已完成')) return '';
-      const dt = new Date(String(data.updatedAt || '').trim());
+
+      const raw = String(data.updatedAt || '').trim();
+      if (!raw) return '';
+
+      const dt = new Date(raw);
       if (isNaN(dt.getTime())) return '';
+
       const hh = String(dt.getHours()).padStart(2, '0');
       const mm = String(dt.getMinutes()).padStart(2, '0');
-      const periodLabel = data.deliveryTime ? `${data.deliveryTime} ` : '';
+      const periodText = String(data.deliveryTime || '').trim();
+      const periodLabel = periodText ? `${periodText} ` : '';
       return `｜${periodLabel}${hh}:${mm}`;
     }
 
@@ -310,18 +330,31 @@
     }
 
     function formatDeliveryDisplay(dateText, periodText) {
-      return [formatDateOnly(dateText), String(periodText || '').trim()].filter(Boolean).join(' ');
+      const datePart = formatDateOnly(dateText);
+      const periodPart = String(periodText || '').trim();
+      return [datePart, periodPart].filter(Boolean).join(' ');
     }
 
     function formatDateOnly(value) {
       if (!value) return '';
+
       const text = String(value).trim();
-      const m = text.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);
-      if (m) return `${m[1]}/${String(m[2]).padStart(2,'0')}/${String(m[3]).padStart(2,'0')}`;
+      const m1 = text.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})$/);
+      if (m1) {
+        const y = m1[1];
+        const m = m1[2].padStart(2, '0');
+        const d = m1[3].padStart(2, '0');
+        return `${y}/${m}/${d}`;
+      }
+
       const d = new Date(value);
       if (!isNaN(d.getTime())) {
-        return `${d.getFullYear()}/${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')}`;
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}/${m}/${day}`;
       }
+
       return text;
     }
 
@@ -333,7 +366,9 @@
       `;
     }
 
-    function goBack() { location.href = 'query.html'; }
+    function goBack() {
+      location.href = 'query.html';
+    }
 
     function escapeHtml(str) {
       return String(str || '')
