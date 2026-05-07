@@ -332,8 +332,8 @@
       <div class="share-sheet-title">分享送貨進度</div>
       <div class="share-sheet-desc" id="shareSheetDesc">產生分享連結中...</div>
       <button class="share-option primary" onclick="shareViaLine()">LINE 分享卡片</button>
-      <button class="share-option orange" onclick="shareViaSystem()">系統分享 / 複製文字</button>
-      <button class="share-option" onclick="copyShareLink()">複製連結</button>
+      <button class="share-option orange" onclick="shareViaSystem()">系統分享</button>
+      <button class="share-option" onclick="copyShareText()">複製分享文字</button>
       <button class="share-option" onclick="hideShareSheet()">取消</button>
     </div>
   </div>
@@ -852,9 +852,19 @@
     async function shareViaLine() {
       if (!currentSharePayload) return;
 
-      if (!(typeof liff !== 'undefined' && liff.isApiAvailable && liff.isApiAvailable('shareTargetPicker'))) {
-        alert('目前環境無法開啟 LINE 分享卡片，將改用系統分享 / 複製文字。');
-        await shareViaSystem();
+      const hasLiff = typeof liff !== 'undefined';
+      const isInLineClient = hasLiff && liff.isInClient && liff.isInClient();
+      const apiAvailable = hasLiff && liff.isApiAvailable && liff.isApiAvailable('shareTargetPicker');
+
+      if (!apiAvailable) {
+        alert(
+          '目前環境不支援 LINE 分享卡片。\n\n' +
+          '請確認：\n' +
+          '1. 查詢頁是在 LINE App 內開啟。\n' +
+          '2. LIFF 後台已啟用 share target picker。\n' +
+          '3. 目前 LIFF 狀態允許分享。\n\n' +
+          '偵測結果：' + (isInLineClient ? 'LINE App 內' : '非 LINE App 內或無法判斷')
+        );
         return;
       }
 
@@ -865,10 +875,12 @@
         return;
       } catch (e) {
         console.warn('LINE share failed', e);
-        alert('LINE 分享卡片開啟失敗，將改用系統分享 / 複製文字。');
+        alert(
+          'LINE 分享卡片開啟失敗。\n\n' +
+          '這代表 shareTargetPicker 有被偵測到，但實際送出時被 LINE 擋下或取消。\n' +
+          '你可以改用「系統分享」或「複製分享文字」。'
+        );
       }
-
-      await shareViaSystem();
     }
 
     function buildLineShareMessage(payload) {
@@ -931,6 +943,13 @@
         if (e && e.name === 'AbortError') return;
       }
       await copyShareLink();
+    }
+
+    async function copyShareText() {
+      if (!currentSharePayload) return;
+      const ok = await copyText(currentSharePayload.text || currentSharePayload.url || '');
+      alert(ok ? '已複製分享文字' : '複製失敗，請手動複製文字');
+      if (ok) hideShareSheet();
     }
 
     async function copyShareLink() {
