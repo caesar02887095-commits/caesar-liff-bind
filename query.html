@@ -327,17 +327,6 @@
   </div>
 
 
-  <div class="share-sheet-backdrop" id="shareSheetBackdrop" onclick="handleShareBackdropClick(event)">
-    <div class="share-sheet">
-      <div class="share-sheet-title">分享送貨進度</div>
-      <div class="share-sheet-desc" id="shareSheetDesc">產生分享連結中...</div>
-      <button class="share-option primary" onclick="shareViaLine()">LINE 分享卡片</button>
-      <button class="share-option orange" onclick="shareViaSystem()">系統分享</button>
-      <button class="share-option" onclick="copyShareText()">複製分享文字</button>
-      <button class="share-option" onclick="hideShareSheet()">取消</button>
-    </div>
-  </div>
-
   <script>
     const LIFF_ID = '2009380550-ow9SlJK4';
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
@@ -773,7 +762,7 @@
           etaText: detail.etaText || '',
           text: buildShareText(detail.storeName || '', detail.orderNo || normalizedOrderNo, detail.address || '', shareUrl)
         };
-        showShareSheet();
+        await sharePreparedProgress();
       } catch (err) {
         alert(err.message || err || '產生分享連結失敗');
       }
@@ -804,31 +793,24 @@
 
     async function sharePreparedProgress() {
       if (!currentSharePayload) return;
-      try {
-        if (typeof liff !== 'undefined' && liff.isApiAvailable && liff.isApiAvailable('shareTargetPicker')) {
-          const msg = buildLineShareMessage(currentSharePayload);
-          await liff.shareTargetPicker([msg]);
-          return;
-        }
-      } catch (e) {
-        console.warn('LINE share failed', e);
-      }
+
+      const shareText = currentSharePayload.text || currentSharePayload.url || '';
 
       try {
         if (navigator.share) {
           await navigator.share({
             title: '凱撒衛浴配送進度',
-            text: currentSharePayload.text || '',
-            url: currentSharePayload.url || ''
+            text: shareText
           });
           return;
         }
       } catch (e) {
         if (e && e.name === 'AbortError') return;
+        console.warn('system share failed', e);
       }
 
-      const ok = await copyText(currentSharePayload.text || currentSharePayload.url || '');
-      alert(ok ? '已複製分享內容' : '分享功能無法開啟，請手動複製連結');
+      const ok = await copyText(shareText);
+      alert(ok ? '已複製分享內容，可直接貼到 LINE 傳送。' : '分享功能無法開啟，請手動複製連結');
     }
 
     function showShareSheet() {
@@ -928,35 +910,19 @@
     }
 
     async function shareViaSystem() {
-      if (!currentSharePayload) return;
-      try {
-        if (navigator.share) {
-          await navigator.share({
-            title: '凱撒衛浴配送進度',
-            text: currentSharePayload.text || '',
-            url: currentSharePayload.url || ''
-          });
-          hideShareSheet();
-          return;
-        }
-      } catch (e) {
-        if (e && e.name === 'AbortError') return;
-      }
-      await copyShareLink();
+      return sharePreparedProgress();
     }
 
     async function copyShareText() {
       if (!currentSharePayload) return;
       const ok = await copyText(currentSharePayload.text || currentSharePayload.url || '');
       alert(ok ? '已複製分享文字' : '複製失敗，請手動複製文字');
-      if (ok) hideShareSheet();
     }
 
     async function copyShareLink() {
       if (!currentSharePayload) return;
       const ok = await copyText(currentSharePayload.text || currentSharePayload.url || '');
       alert(ok ? '已複製分享內容' : '複製失敗，請手動複製連結');
-      if (ok) hideShareSheet();
     }
 
     function renderRequestForm() {
