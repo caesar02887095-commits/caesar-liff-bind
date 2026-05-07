@@ -201,6 +201,115 @@
     .ok { color: #166534; }
     .warn { color: #9a3412; }
     .bad { color: #991b1b; }
+
+    .announcement-card {
+      background: #fff7ed;
+      border: 1px solid #fdba74;
+      color: #9a3412;
+    }
+    .announcement-title {
+      font-size: 15px;
+      font-weight: bold;
+      margin-bottom: 6px;
+    }
+    .announcement-content {
+      font-size: 14px;
+      line-height: 1.7;
+      white-space: pre-line;
+      word-break: break-word;
+    }
+    .order-title-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .mini-btn {
+      border: none;
+      border-radius: 999px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      background: #e5e7eb;
+      color: #374151;
+      white-space: nowrap;
+    }
+    .share-row {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    .share-btn {
+      flex: 1;
+      min-width: 120px;
+      border: none;
+      border-radius: 10px;
+      padding: 10px 12px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      background: #EBA13A;
+      color: #fff;
+    }
+    .share-sheet-backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(17, 24, 39, 0.45);
+      display: none;
+      align-items: flex-end;
+      justify-content: center;
+      z-index: 9999;
+      padding: 12px;
+      box-sizing: border-box;
+    }
+    .share-sheet-backdrop.show {
+      display: flex;
+    }
+    .share-sheet {
+      width: 100%;
+      max-width: 520px;
+      background: #fff;
+      border-radius: 18px;
+      padding: 14px;
+      box-shadow: 0 8px 30px rgba(0,0,0,0.18);
+      box-sizing: border-box;
+    }
+    .share-sheet-title {
+      font-size: 16px;
+      font-weight: bold;
+      margin-bottom: 6px;
+      color: #111827;
+    }
+    .share-sheet-desc {
+      font-size: 13px;
+      color: #6b7280;
+      line-height: 1.6;
+      margin-bottom: 12px;
+      word-break: break-word;
+    }
+    .share-option {
+      width: 100%;
+      border: none;
+      border-radius: 12px;
+      padding: 12px;
+      margin-top: 8px;
+      font-size: 15px;
+      font-weight: bold;
+      cursor: pointer;
+      background: #f3f4f6;
+      color: #111827;
+    }
+    .share-option.primary {
+      background: #06c755;
+      color: #fff;
+    }
+    .share-option.orange {
+      background: #EBA13A;
+      color: #fff;
+    }
   </style>
 </head>
 <body>
@@ -217,6 +326,18 @@
     </div>
   </div>
 
+
+  <div class="share-sheet-backdrop" id="shareSheetBackdrop" onclick="handleShareBackdropClick(event)">
+    <div class="share-sheet">
+      <div class="share-sheet-title">分享送貨進度</div>
+      <div class="share-sheet-desc" id="shareSheetDesc">產生分享連結中...</div>
+      <button class="share-option primary" onclick="shareViaLine()">LINE 分享</button>
+      <button class="share-option orange" onclick="shareViaSystem()">系統分享</button>
+      <button class="share-option" onclick="copyShareLink()">複製連結</button>
+      <button class="share-option" onclick="hideShareSheet()">取消</button>
+    </div>
+  </div>
+
   <script>
     const LIFF_ID = '2009380550-ow9SlJK4';
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
@@ -226,6 +347,7 @@
 
     let currentUid = '';
     let currentDisplayName = '';
+    let currentSharePayload = null;
 
     async function initPage() {
       try {
@@ -419,6 +541,7 @@
             店家名稱：<b>${escapeHtml(customerName || '')}</b>
           </div>
         </div>
+        ${renderAnnouncement(data.announcement || '')}
       `;
 
       if (!orders.length) {
@@ -455,10 +578,14 @@
       const etaText = order.etaText || '';
       const statusInfo = getStatusInfo(order);
       const photos = Array.isArray(order.photos) ? order.photos : [];
+      const canShareProgress = canTrack && isSpecifiedDelivery(order.address || '');
 
       return `
         <div class="order-card">
-          <div class="order-title">配送批次單號：${escapeHtml(order.orderNo || '')}</div>
+          <div class="order-title order-title-line">
+            <span>配送批次單號：${escapeHtml(order.orderNo || '')}</span>
+            <button class="mini-btn" onclick="copyOrderNo('${escapeJs(order.orderNo || '')}')">複製單號</button>
+          </div>
 
           ${mergedCount > 1 ? `
             <div class="merge-box">
@@ -495,6 +622,12 @@
               </div>
             ` : ''}
           </div>
+
+          ${canShareProgress ? `
+            <div class="share-row">
+              <button class="share-btn" onclick="openShareProgress('${escapeJs(order.orderNo || '')}')">分享送貨進度</button>
+            </div>
+          ` : ''}
         </div>
       `;
     }
@@ -542,6 +675,229 @@
       const periodText = String(order.deliveryTime || '').trim();
       const periodLabel = periodText ? `${periodText} ` : '';
       return `｜${periodLabel}${hh}:${mm}`;
+    }
+
+
+    function renderAnnouncement(text) {
+      const content = String(text || '').trim();
+      if (!content) return '';
+      return `
+        <div class="card announcement-card">
+          <div class="announcement-title">公告</div>
+          <div class="announcement-content">${escapeHtml(content)}</div>
+        </div>
+      `;
+    }
+
+    function isSpecifiedDelivery(address) {
+      const text = String(address || '').trim();
+      return !!text && text !== '送店';
+    }
+
+    function escapeJs(str) {
+      return String(str || '')
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '');
+    }
+
+    async function copyOrderNo(orderNo) {
+      const text = String(orderNo || '').trim();
+      if (!text) return;
+      const ok = await copyText(text);
+      alert(ok ? '已複製單號：' + text : '複製失敗，請手動選取單號');
+    }
+
+    async function copyText(text) {
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        }
+      } catch (e) {}
+
+      try {
+        const textarea = document.createElement('textarea');
+        textarea.value = text;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'fixed';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(textarea);
+        return ok;
+      } catch (e) {
+        return false;
+      }
+    }
+
+    async function openShareProgress(orderNo) {
+      const normalizedOrderNo = String(orderNo || '').trim();
+      if (!normalizedOrderNo) return;
+
+      try {
+        const payload = {
+          action: 'create_delivery_share_token',
+          uid: currentUid,
+          orderNo: normalizedOrderNo
+        };
+
+        const resp = await fetch(GAS_WEBAPP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+
+        const text = await resp.text();
+        let json = {};
+        try {
+          json = JSON.parse(text);
+        } catch (e) {
+          throw new Error(text || '產生分享連結失敗');
+        }
+
+        if (!json.ok) {
+          throw new Error(json.message || json.error || '產生分享連結失敗');
+        }
+
+        const detail = json.detail || {};
+        const shareUrl = buildShareUrl(json.token || '');
+        currentSharePayload = {
+          token: json.token || '',
+          url: shareUrl,
+          orderNo: detail.orderNo || normalizedOrderNo,
+          address: detail.address || '',
+          etaText: detail.etaText || '',
+          text: buildShareText(detail.orderNo || normalizedOrderNo, detail.address || '', detail.etaText || '', shareUrl)
+        };
+        showShareSheet();
+      } catch (err) {
+        alert(err.message || err || '產生分享連結失敗');
+      }
+    }
+
+    function buildShareUrl(token) {
+      const url = new URL('tracking-detail.html', window.location.href);
+      url.search = '';
+      url.hash = '';
+      url.searchParams.set('shareToken', token || '');
+      return url.toString();
+    }
+
+    function buildShareText(orderNo, address, etaText, shareUrl) {
+      const etaLine = etaText ? `預估送達：${etaText}（實際時間請看連結）` : '預估送達：請查看連結';
+      return [
+        '凱撒衛浴配送進度',
+        '',
+        `單號：${orderNo || ''}（訂單追蹤）`,
+        `送達地址：${address || ''}`,
+        etaLine,
+        '',
+        shareUrl || ''
+      ].join('\n');
+    }
+
+    function showShareSheet() {
+      const backdrop = document.getElementById('shareSheetBackdrop');
+      const desc = document.getElementById('shareSheetDesc');
+      if (desc && currentSharePayload) {
+        desc.textContent = `單號 ${currentSharePayload.orderNo || ''}｜${currentSharePayload.address || ''}`;
+      }
+      if (backdrop) backdrop.classList.add('show');
+    }
+
+    function hideShareSheet() {
+      const backdrop = document.getElementById('shareSheetBackdrop');
+      if (backdrop) backdrop.classList.remove('show');
+    }
+
+    function handleShareBackdropClick(event) {
+      if (event.target && event.target.id === 'shareSheetBackdrop') hideShareSheet();
+    }
+
+    async function shareViaLine() {
+      if (!currentSharePayload) return;
+      try {
+        if (typeof liff !== 'undefined' && liff.isApiAvailable && liff.isApiAvailable('shareTargetPicker')) {
+          const msg = buildLineShareMessage(currentSharePayload);
+          await liff.shareTargetPicker([msg]);
+          hideShareSheet();
+          return;
+        }
+      } catch (e) {
+        console.warn('LINE share failed', e);
+      }
+      await shareViaSystem();
+    }
+
+    function buildLineShareMessage(payload) {
+      const etaText = payload.etaText ? `${payload.etaText}（實際時間請看連結）` : '請查看連結';
+      return {
+        type: 'flex',
+        altText: '凱撒衛浴配送進度 ' + (payload.orderNo || ''),
+        contents: {
+          type: 'bubble',
+          size: 'mega',
+          header: {
+            type: 'box',
+            layout: 'vertical',
+            backgroundColor: '#EBA13A',
+            paddingAll: '16px',
+            contents: [
+              { type: 'text', text: '凱撒衛浴配送進度', color: '#FFFFFF', weight: 'bold', size: 'lg' }
+            ]
+          },
+          body: {
+            type: 'box',
+            layout: 'vertical',
+            spacing: 'sm',
+            contents: [
+              { type: 'text', text: '單號：' + (payload.orderNo || ''), weight: 'bold', size: 'md', wrap: true },
+              { type: 'text', text: '送達地址：' + (payload.address || ''), size: 'sm', wrap: true, color: '#374151' },
+              { type: 'text', text: '預估送達：' + etaText, size: 'sm', wrap: true, color: '#374151' }
+            ]
+          },
+          footer: {
+            type: 'box',
+            layout: 'vertical',
+            contents: [
+              {
+                type: 'button',
+                style: 'primary',
+                color: '#2c3e50',
+                action: { type: 'uri', label: '查看訂單追蹤', uri: payload.url || '' }
+              }
+            ]
+          }
+        }
+      };
+    }
+
+    async function shareViaSystem() {
+      if (!currentSharePayload) return;
+      try {
+        if (navigator.share) {
+          await navigator.share({
+            title: '凱撒衛浴配送進度',
+            text: currentSharePayload.text || '',
+            url: currentSharePayload.url || ''
+          });
+          hideShareSheet();
+          return;
+        }
+      } catch (e) {
+        if (e && e.name === 'AbortError') return;
+      }
+      await copyShareLink();
+    }
+
+    async function copyShareLink() {
+      if (!currentSharePayload) return;
+      const ok = await copyText(currentSharePayload.text || currentSharePayload.url || '');
+      alert(ok ? '已複製分享內容' : '複製失敗，請手動複製連結');
+      if (ok) hideShareSheet();
     }
 
     function renderRequestForm() {
