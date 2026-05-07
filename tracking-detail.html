@@ -156,6 +156,8 @@
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
     let currentUid = '';
     let currentOrderNo = '';
+    let currentShareToken = '';
+    let isShareMode = false;
 
     function getQueryParam(name) {
       const url = new URL(window.location.href);
@@ -187,6 +189,16 @@
 
     async function initPage() {
       try {
+        const shareToken = getQueryParam('shareToken');
+        if (shareToken) {
+          isShareMode = true;
+          currentShareToken = shareToken;
+          document.getElementById('topInfo').innerHTML = '指定送貨進度查詢';
+          await loadDetail();
+          startAutoRefresh();
+          return;
+        }
+
         await liff.init({ liffId: LIFF_ID });
 
         if (!liff.isLoggedIn()) {
@@ -211,11 +223,14 @@
     }
 
     async function loadDetail(options = {}) {
-      const url =
-        `${GAS_WEBAPP_URL}?action=get_customer_tracking_detail` +
-        `&uid=${encodeURIComponent(currentUid)}` +
-        `&orderNo=${encodeURIComponent(currentOrderNo)}` +
-        `&_ts=${Date.now()}`;
+      const url = isShareMode
+        ? `${GAS_WEBAPP_URL}?action=get_customer_tracking_detail_by_token` +
+          `&shareToken=${encodeURIComponent(currentShareToken)}` +
+          `&_ts=${Date.now()}`
+        : `${GAS_WEBAPP_URL}?action=get_customer_tracking_detail` +
+          `&uid=${encodeURIComponent(currentUid)}` +
+          `&orderNo=${encodeURIComponent(currentOrderNo)}` +
+          `&_ts=${Date.now()}`;
 
       const resp = await fetch(url, { cache: 'no-store' });
       const json = await resp.json();
@@ -229,6 +244,11 @@
     }
 
     function renderDetail(data) {
+      if (data.shareMode) {
+        renderShareDetail(data);
+        return;
+      }
+
       if (!data.found) {
         document.getElementById('app').innerHTML = `
           <div class="card">
@@ -275,6 +295,43 @@
         </div>
         <div class="card">
           <button class="btn" onclick="goBack()">返回查詢頁</button>
+        </div>
+      `;
+    }
+
+
+    function renderShareDetail(data) {
+      if (!data.found) {
+        const expiredText = data.expired ? '此分享連結已過期。' : '此分享連結不存在或已失效。';
+        document.getElementById('app').innerHTML = `
+          <div class="card">
+            <div class="status warn">目前無法查看送貨進度</div>
+            <div class="row">${escapeHtml(expiredText)}</div>
+          </div>
+        `;
+        return;
+      }
+
+      const statusInfo = getDetailStatusInfo(data);
+      const etaText = data.etaText || '尚未產生 ETA';
+      const phoneLast3 = data.phoneLast3 || '';
+
+      document.getElementById('topInfo').innerHTML = `單號：<b>${escapeHtml(data.orderNo || '')}</b>`;
+      document.getElementById('app').innerHTML = `
+        <div class="card">
+          <div class="status ${statusInfo.className}">凱撒衛浴配送進度</div>
+          <div class="status-banner ${statusInfo.className}">${escapeHtml(statusInfo.text)}</div>
+          <div class="eta-box">
+            <div class="eta-title">預估送達時間</div>
+            <div class="eta-time">${escapeHtml(etaText)}</div>
+          </div>
+          <div class="row">指定送達地址：${escapeHtml(data.address || '')}</div>
+          ${phoneLast3 ? `<div class="row">聯絡電話末三碼：${escapeHtml(phoneLast3)}</div>` : ''}
+          <div class="row">單號：${escapeHtml(data.orderNo || '')}</div>
+        </div>
+        <div class="card">
+          <div class="row">※ 本頁僅供指定收件人查看配送進度。</div>
+          <div class="row">※ 預估時間會依司機回報與路況變動。</div>
         </div>
       `;
     }
