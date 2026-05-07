@@ -393,8 +393,7 @@
     let departureStarted = false;
     let groupedStopsCache = [];
     const PHOTO_SUPPLEMENT_WINDOW_MIN = 10;
-    const TASK_POLL_MS = 4000;
-    let taskPollTimer = null;
+    // 已關閉固定時間輪詢：司機頁只在開頁、手動重新整理、切回頁面、操作後重新讀取。
     let suppressAutoReloadUntil = 0;
 
     function getQueryParam(name) {
@@ -419,7 +418,6 @@
 
         setTabs();
         await loadTasks();
-        startTaskPolling();
       } catch (err) {
         showError('初始化失敗：' + (err.message || err));
       }
@@ -437,14 +435,6 @@
     }
 
 
-    function startTaskPolling() {
-      if (taskPollTimer) clearInterval(taskPollTimer);
-      taskPollTimer = setInterval(() => {
-        if (document.hidden) return;
-        if (Date.now() < suppressAutoReloadUntil) return;
-        loadTasks(true);
-      }, TASK_POLL_MS);
-    }
 
     function setPendingGroupState(groupKey, payload) {
       pendingGroupStates[groupKey] = {
