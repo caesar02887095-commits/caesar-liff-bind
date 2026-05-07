@@ -331,8 +331,8 @@
     <div class="share-sheet">
       <div class="share-sheet-title">分享送貨進度</div>
       <div class="share-sheet-desc" id="shareSheetDesc">產生分享連結中...</div>
-      <button class="share-option primary" onclick="shareViaLine()">LINE 分享卡片</button>
-      <button class="share-option orange" onclick="shareViaSystem()">系統分享 / 複製文字</button>
+      <button class="share-option primary" onclick="shareViaLine()">LINE 分享</button>
+      <button class="share-option orange" onclick="shareViaSystem()">系統分享</button>
       <button class="share-option" onclick="copyShareLink()">複製連結</button>
       <button class="share-option" onclick="hideShareSheet()">取消</button>
     </div>
@@ -773,7 +773,7 @@
           etaText: detail.etaText || '',
           text: buildShareText(detail.storeName || '', detail.orderNo || normalizedOrderNo, detail.address || '', shareUrl)
         };
-        showShareSheet();
+        await sharePreparedProgress();
       } catch (err) {
         alert(err.message || err || '產生分享連結失敗');
       }
@@ -851,23 +851,16 @@
 
     async function shareViaLine() {
       if (!currentSharePayload) return;
-
-      if (!(typeof liff !== 'undefined' && liff.isApiAvailable && liff.isApiAvailable('shareTargetPicker'))) {
-        alert('目前環境無法開啟 LINE 分享卡片，將改用系統分享 / 複製文字。');
-        await shareViaSystem();
-        return;
-      }
-
       try {
-        const msg = buildLineShareMessage(currentSharePayload);
-        await liff.shareTargetPicker([msg]);
-        hideShareSheet();
-        return;
+        if (typeof liff !== 'undefined' && liff.isApiAvailable && liff.isApiAvailable('shareTargetPicker')) {
+          const msg = buildLineShareMessage(currentSharePayload);
+          await liff.shareTargetPicker([msg]);
+          hideShareSheet();
+          return;
+        }
       } catch (e) {
         console.warn('LINE share failed', e);
-        alert('LINE 分享卡片開啟失敗，將改用系統分享 / 複製文字。');
       }
-
       await shareViaSystem();
     }
 
