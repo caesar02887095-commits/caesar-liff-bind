@@ -798,13 +798,9 @@
     function buildShareText(storeName, orderNo, address, shareUrl) {
       return [
         '凱撒衛浴配送進度',
-        '',
         `店家名稱：${storeName || ''}`,
         `單號：${orderNo || ''}（訂單追蹤）`,
-        '',
         `送達地址：${address || ''}`,
-        '預估送達：請查看連結',
-        '',
         '網址：',
         shareUrl || ''
       ].join('\n');
@@ -879,7 +875,6 @@
     }
 
     function buildLineShareMessage(payload) {
-      const etaText = '請查看連結';
       return {
         type: 'flex',
         altText: '凱撒衛浴配送進度 ' + (payload.orderNo || ''),
@@ -902,8 +897,7 @@
             contents: [
               { type: 'text', text: '店家名稱：' + (payload.storeName || ''), size: 'sm', wrap: true, color: '#374151' },
               { type: 'text', text: '單號：' + (payload.orderNo || ''), weight: 'bold', size: 'md', wrap: true },
-              { type: 'text', text: '送達地址：' + (payload.address || ''), size: 'sm', wrap: true, color: '#374151' },
-              { type: 'text', text: '預估送達：' + etaText, size: 'sm', wrap: true, color: '#374151' }
+              { type: 'text', text: '送達地址：' + (payload.address || ''), size: 'sm', wrap: true, color: '#374151' }
             ]
           },
           footer: {
