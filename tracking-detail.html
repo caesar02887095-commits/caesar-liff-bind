@@ -162,6 +162,7 @@
     const MANUAL_REFRESH_COOLDOWN_MS = 60000;
     let manualRefreshCooldownUntil = 0;
     let manualRefreshTimer = null;
+    let manualRefreshInFlight = false;
 
     function getQueryParam(name) {
       const url = new URL(window.location.href);
@@ -337,18 +338,23 @@
 
     async function refreshDetailManually() {
       const now = Date.now();
+      if (manualRefreshInFlight) return;
       if (now < manualRefreshCooldownUntil) {
         updateManualRefreshButton();
         return;
       }
 
-      manualRefreshCooldownUntil = now + MANUAL_REFRESH_COOLDOWN_MS;
+      manualRefreshInFlight = true;
       updateManualRefreshButton();
 
       try {
         await loadDetail({ silent: true, manual: true });
+        manualRefreshCooldownUntil = Date.now() + MANUAL_REFRESH_COOLDOWN_MS;
       } catch (e) {
         alert((e && e.message) ? e.message : '更新失敗，請稍後再試');
+      } finally {
+        manualRefreshInFlight = false;
+        updateManualRefreshButton();
       }
     }
 
@@ -360,6 +366,12 @@
 
       const btn = document.getElementById('manualRefreshBtn');
       if (!btn) return;
+
+      if (manualRefreshInFlight) {
+        btn.disabled = true;
+        btn.textContent = '更新中...';
+        return;
+      }
 
       const remainMs = manualRefreshCooldownUntil - Date.now();
       if (remainMs > 0) {
