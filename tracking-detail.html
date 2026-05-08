@@ -158,27 +158,14 @@
     let currentOrderNo = '';
     let currentShareToken = '';
     let isShareMode = false;
+    let lastDetailUpdatedAt = null;
+    const MANUAL_REFRESH_COOLDOWN_MS = 60000;
+    let manualRefreshCooldownUntil = 0;
+    let manualRefreshTimer = null;
 
     function getQueryParam(name) {
       const url = new URL(window.location.href);
       return url.searchParams.get(name) || '';
-    }
-
-    let autoRefreshTimer = null;
-
-    function startAutoRefresh() {
-      stopAutoRefresh();
-      autoRefreshTimer = setInterval(() => {
-        if (document.hidden) return;
-        loadDetail({ silent: true });
-      }, 60000);
-    }
-
-    function stopAutoRefresh() {
-      if (autoRefreshTimer) {
-        clearInterval(autoRefreshTimer);
-        autoRefreshTimer = null;
-      }
     }
 
     document.addEventListener('visibilitychange', () => {
@@ -195,7 +182,6 @@
           currentShareToken = shareToken;
           document.getElementById('topInfo').innerHTML = '指定送貨進度查詢';
           await loadDetail();
-          startAutoRefresh();
           return;
         }
 
@@ -216,7 +202,6 @@
         currentUid = uid;
         currentOrderNo = orderNo;
         await loadDetail();
-        startAutoRefresh();
       } catch (err) {
         renderMessage('讀取失敗：' + (err.message || err), 'bad');
       }
@@ -240,7 +225,9 @@
         return;
       }
 
+      lastDetailUpdatedAt = new Date();
       renderDetail(json.data || {});
+      updateManualRefreshButton();
     }
 
     function renderDetail(data) {
@@ -292,6 +279,7 @@
           <div class="items">
             ${items.map(item => `• ${escapeHtml(item.model || '')} x${escapeHtml(item.qty || '')}`).join('<br>')}
           </div>
+          ${renderManualRefreshBlock()}
         </div>
         <div class="card">
           <button class="btn" onclick="goBack()">返回查詢頁</button>
@@ -329,12 +317,67 @@
           <div class="row">指定送達地址：${escapeHtml(data.address || '')}</div>
           ${phoneLast3 ? `<div class="row">聯絡電話末三碼：${escapeHtml(phoneLast3)}</div>` : ''}
           <div class="row">單號：${escapeHtml(data.orderNo || '')}</div>
+          ${renderManualRefreshBlock()}
         </div>
         <div class="card">
           <div class="row">※ 本頁僅供指定收件人查看配送進度。</div>
           <div class="row">※ 預估時間會依司機回報與路況變動。</div>
         </div>
       `;
+    }
+
+    function renderManualRefreshBlock() {
+      return `
+        <div style="margin-top:12px;">
+          <button class="btn" id="manualRefreshBtn" onclick="refreshDetailManually()">更新配送進度</button>
+          <div class="row" style="text-align:center;color:#666;margin-top:8px;">最後更新：${escapeHtml(formatLastUpdateTime())}</div>
+        </div>
+      `;
+    }
+
+    async function refreshDetailManually() {
+      const now = Date.now();
+      if (now < manualRefreshCooldownUntil) {
+        updateManualRefreshButton();
+        return;
+      }
+
+      manualRefreshCooldownUntil = now + MANUAL_REFRESH_COOLDOWN_MS;
+      updateManualRefreshButton();
+
+      try {
+        await loadDetail({ silent: true, manual: true });
+      } catch (e) {
+        alert((e && e.message) ? e.message : '更新失敗，請稍後再試');
+      }
+    }
+
+    function updateManualRefreshButton() {
+      if (manualRefreshTimer) {
+        clearTimeout(manualRefreshTimer);
+        manualRefreshTimer = null;
+      }
+
+      const btn = document.getElementById('manualRefreshBtn');
+      if (!btn) return;
+
+      const remainMs = manualRefreshCooldownUntil - Date.now();
+      if (remainMs > 0) {
+        const remainSec = Math.ceil(remainMs / 1000);
+        btn.disabled = true;
+        btn.textContent = `更新配送進度（${remainSec} 秒後可再次更新）`;
+        manualRefreshTimer = setTimeout(updateManualRefreshButton, 1000);
+      } else {
+        btn.disabled = false;
+        btn.textContent = '更新配送進度';
+      }
+    }
+
+    function formatLastUpdateTime() {
+      if (!lastDetailUpdatedAt) return '尚未更新';
+      const hh = String(lastDetailUpdatedAt.getHours()).padStart(2, '0');
+      const mm = String(lastDetailUpdatedAt.getMinutes()).padStart(2, '0');
+      return `${hh}:${mm}`;
     }
 
     function getDetailStatusInfo(data) {
