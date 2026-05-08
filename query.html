@@ -281,6 +281,10 @@
     let currentUid = '';
     let currentDisplayName = '';
     let currentSharePayload = null;
+    let lastPortalUpdatedAt = null;
+    const MANUAL_REFRESH_COOLDOWN_MS = 60000;
+    let manualRefreshCooldownUntil = 0;
+    let manualRefreshTimer = null;
 
     async function initPage() {
       try {
@@ -308,7 +312,6 @@
           `LINE 使用者：<b>${escapeHtml(currentDisplayName || '未辨識')}</b>`;
 
         await loadPortal();
-        startAutoRefresh();
       } catch (err) {
         renderMessage('載入失敗：' + (err.message || err), 'bad');
       }
@@ -408,23 +411,6 @@
       } catch (e) {}
     }
 
-    let autoRefreshTimer = null;
-
-    function startAutoRefresh() {
-      stopAutoRefresh();
-      autoRefreshTimer = setInterval(() => {
-        if (document.hidden) return;
-        loadPortal({ silent: true });
-      }, 60000);
-    }
-
-    function stopAutoRefresh() {
-      if (autoRefreshTimer) {
-        clearInterval(autoRefreshTimer);
-        autoRefreshTimer = null;
-      }
-    }
-
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) {
         loadPortal({ silent: true });
@@ -441,6 +427,8 @@
         renderMessage(json.error || '讀取失敗', 'bad');
         return;
       }
+
+      lastPortalUpdatedAt = new Date();
 
       const data = json.data || {};
       const status = data.accessStatus || '';
@@ -471,7 +459,8 @@
         <div class="card">
           <div class="status ok">已開通查詢權限</div>
           <div class="muted">
-            店家名稱：<b>${escapeHtml(customerName || '')}</b>
+            店家名稱：<b>${escapeHtml(customerName || '')}</b><br>
+            最後更新：<b>${escapeHtml(formatLastUpdateTime())}</b>
           </div>
         </div>
         ${renderAnnouncement(data.announcement || '')}
@@ -493,13 +482,64 @@
         `;
       }
 
-      html += `
-        <div class="card">
-          <button class="btn btn-secondary" onclick="loadPortal()">重新整理</button>
-        </div>
-      `;
+      html += renderManualRefreshCard();
 
       document.getElementById('app').innerHTML = html;
+      updateManualRefreshButton();
+    }
+
+    function renderManualRefreshCard() {
+      return `
+        <div class="card">
+          <button class="btn btn-secondary" id="manualRefreshBtn" onclick="refreshPortalManually()">更新配送進度</button>
+          <div class="muted" style="margin-top:8px;text-align:center;">最後更新：${escapeHtml(formatLastUpdateTime())}</div>
+        </div>
+      `;
+    }
+
+    async function refreshPortalManually() {
+      const now = Date.now();
+      if (now < manualRefreshCooldownUntil) {
+        updateManualRefreshButton();
+        return;
+      }
+
+      manualRefreshCooldownUntil = now + MANUAL_REFRESH_COOLDOWN_MS;
+      updateManualRefreshButton();
+
+      try {
+        await loadPortal({ silent: true, manual: true });
+      } catch (e) {
+        alert((e && e.message) ? e.message : '更新失敗，請稍後再試');
+      }
+    }
+
+    function updateManualRefreshButton() {
+      if (manualRefreshTimer) {
+        clearTimeout(manualRefreshTimer);
+        manualRefreshTimer = null;
+      }
+
+      const btn = document.getElementById('manualRefreshBtn');
+      if (!btn) return;
+
+      const remainMs = manualRefreshCooldownUntil - Date.now();
+      if (remainMs > 0) {
+        const remainSec = Math.ceil(remainMs / 1000);
+        btn.disabled = true;
+        btn.textContent = `更新配送進度（${remainSec} 秒後可再次更新）`;
+        manualRefreshTimer = setTimeout(updateManualRefreshButton, 1000);
+      } else {
+        btn.disabled = false;
+        btn.textContent = '更新配送進度';
+      }
+    }
+
+    function formatLastUpdateTime() {
+      if (!lastPortalUpdatedAt) return '尚未更新';
+      const hh = String(lastPortalUpdatedAt.getHours()).padStart(2, '0');
+      const mm = String(lastPortalUpdatedAt.getMinutes()).padStart(2, '0');
+      return `${hh}:${mm}`;
     }
 
     function renderOrderCard(order) {
