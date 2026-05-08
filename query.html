@@ -285,6 +285,7 @@
     const MANUAL_REFRESH_COOLDOWN_MS = 60000;
     let manualRefreshCooldownUntil = 0;
     let manualRefreshTimer = null;
+    let manualRefreshInFlight = false;
 
     async function initPage() {
       try {
@@ -499,18 +500,23 @@
 
     async function refreshPortalManually() {
       const now = Date.now();
+      if (manualRefreshInFlight) return;
       if (now < manualRefreshCooldownUntil) {
         updateManualRefreshButton();
         return;
       }
 
-      manualRefreshCooldownUntil = now + MANUAL_REFRESH_COOLDOWN_MS;
+      manualRefreshInFlight = true;
       updateManualRefreshButton();
 
       try {
         await loadPortal({ silent: true, manual: true });
+        manualRefreshCooldownUntil = Date.now() + MANUAL_REFRESH_COOLDOWN_MS;
       } catch (e) {
         alert((e && e.message) ? e.message : '更新失敗，請稍後再試');
+      } finally {
+        manualRefreshInFlight = false;
+        updateManualRefreshButton();
       }
     }
 
@@ -522,6 +528,12 @@
 
       const btn = document.getElementById('manualRefreshBtn');
       if (!btn) return;
+
+      if (manualRefreshInFlight) {
+        btn.disabled = true;
+        btn.textContent = '更新中...';
+        return;
+      }
 
       const remainMs = manualRefreshCooldownUntil - Date.now();
       if (remainMs > 0) {
@@ -779,8 +791,18 @@
       ].join('\n');
     }
 
+    function isLikelyMobileDevice() {
+      return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+    }
+
     async function shareViaSystem() {
       if (!currentSharePayload) return;
+
+      if (!isLikelyMobileDevice()) {
+        await copyShareLink('網頁版已複製分享內容');
+        return;
+      }
+
       try {
         if (navigator.share) {
           await navigator.share({
@@ -792,13 +814,13 @@
       } catch (e) {
         if (e && e.name === 'AbortError') return;
       }
-      await copyShareLink();
+      await copyShareLink('已複製分享內容');
     }
 
-    async function copyShareLink() {
+    async function copyShareLink(successText) {
       if (!currentSharePayload) return;
       const ok = await copyText(currentSharePayload.text || currentSharePayload.url || '');
-      alert(ok ? '已複製分享內容' : '複製失敗，請手動複製連結');
+      alert(ok ? (successText || '已複製分享內容') : '複製失敗，請手動複製連結');
     }
 
     function renderRequestForm() {
