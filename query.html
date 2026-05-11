@@ -254,6 +254,13 @@
       background: #EBA13A;
       color: #fff;
     }
+
+    .btn:disabled,
+    .share-btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
@@ -286,6 +293,7 @@
     let manualRefreshCooldownUntil = 0;
     let manualRefreshTimer = null;
     let manualRefreshInFlight = false;
+    let shareProgressInFlight = false;
 
     async function initPage() {
       try {
@@ -500,18 +508,17 @@
 
     async function refreshPortalManually() {
       const now = Date.now();
-      if (manualRefreshInFlight) return;
-      if (now < manualRefreshCooldownUntil) {
+      if (manualRefreshInFlight || now < manualRefreshCooldownUntil) {
         updateManualRefreshButton();
         return;
       }
 
       manualRefreshInFlight = true;
+      manualRefreshCooldownUntil = now + MANUAL_REFRESH_COOLDOWN_MS;
       updateManualRefreshButton();
 
       try {
         await loadPortal({ silent: true, manual: true });
-        manualRefreshCooldownUntil = Date.now() + MANUAL_REFRESH_COOLDOWN_MS;
       } catch (e) {
         alert((e && e.message) ? e.message : '更新失敗，請稍後再試');
       } finally {
@@ -529,14 +536,12 @@
       const btn = document.getElementById('manualRefreshBtn');
       if (!btn) return;
 
+      const remainMs = manualRefreshCooldownUntil - Date.now();
       if (manualRefreshInFlight) {
         btn.disabled = true;
-        btn.textContent = '更新中...';
-        return;
-      }
-
-      const remainMs = manualRefreshCooldownUntil - Date.now();
-      if (remainMs > 0) {
+        btn.textContent = '更新配送進度中...';
+        manualRefreshTimer = setTimeout(updateManualRefreshButton, 500);
+      } else if (remainMs > 0) {
         const remainSec = Math.ceil(remainMs / 1000);
         btn.disabled = true;
         btn.textContent = `更新配送進度（${remainSec} 秒後可再次更新）`;
@@ -727,8 +732,12 @@
     }
 
     async function openShareProgress(orderNo) {
+      if (shareProgressInFlight) return;
       const normalizedOrderNo = String(orderNo || '').trim();
       if (!normalizedOrderNo) return;
+
+      shareProgressInFlight = true;
+      updateShareProgressButtons(true);
 
       try {
         const payload = {
@@ -769,7 +778,17 @@
         await shareViaSystem();
       } catch (err) {
         alert(err.message || err || '產生分享連結失敗');
+      } finally {
+        shareProgressInFlight = false;
+        updateShareProgressButtons(false);
       }
+    }
+
+    function updateShareProgressButtons(disabled) {
+      document.querySelectorAll('.share-btn').forEach(btn => {
+        btn.disabled = !!disabled;
+        btn.textContent = disabled ? '產生分享內容中...' : '分享送貨進度';
+      });
     }
 
     function buildShareUrl(token) {
@@ -791,15 +810,17 @@
       ].join('\n');
     }
 
-    function isLikelyMobileDevice() {
-      return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent || '');
+    function isMobileShareEnvironment_() {
+      const ua = navigator.userAgent || '';
+      return /Android|iPhone|iPad|iPod/i.test(ua);
     }
 
     async function shareViaSystem() {
       if (!currentSharePayload) return;
 
-      if (!isLikelyMobileDevice()) {
-        await copyShareLink('網頁版已複製分享內容');
+      // 桌機版瀏覽器的系統分享支援度不穩，直接複製文字較可靠。
+      if (!isMobileShareEnvironment_()) {
+        await copyShareLink();
         return;
       }
 
@@ -814,13 +835,13 @@
       } catch (e) {
         if (e && e.name === 'AbortError') return;
       }
-      await copyShareLink('已複製分享內容');
+      await copyShareLink();
     }
 
-    async function copyShareLink(successText) {
+    async function copyShareLink() {
       if (!currentSharePayload) return;
       const ok = await copyText(currentSharePayload.text || currentSharePayload.url || '');
-      alert(ok ? (successText || '已複製分享內容') : '複製失敗，請手動複製連結');
+      alert(ok ? '已複製分享內容' : '複製失敗，請手動複製連結');
     }
 
     function renderRequestForm() {
