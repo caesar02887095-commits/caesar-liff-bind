@@ -639,13 +639,11 @@
 
     function escapeJs(str) {
       return String(str || '')
-        .replace(/\/g, '\\')
-        .replace(/'/g, "\'")
-        .replace(/"/g, '\"')
-        .replace(/
-/g, '\n')
-        .replace(/
-/g, '\r');
+        .replace(/\\/g, '\\\\')
+        .replace(/'/g, "\\'")
+        .replace(/"/g, '\\"')
+        .replace(/\n/g, '\\n')
+        .replace(/\r/g, '\\r');
     }
 
     function escapeHtml(str) {
