@@ -249,6 +249,69 @@
       background: #eff6ff;
       border: 1px dashed #60a5fa;
     }
+    .page-loading-panel {
+      display: none;
+      background: #fff;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      border: 1px solid #e5e7eb;
+    }
+    .page-loading-panel.show {
+      display: block;
+    }
+    .page-loading-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      font-size: 13px;
+      color: #475569;
+      font-weight: bold;
+    }
+    .page-loading-percent {
+      color: #94a3b8;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+    .page-loading-bar {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      overflow: hidden;
+    }
+    .page-loading-fill {
+      width: 8%;
+      height: 100%;
+      border-radius: 999px;
+      background: #EBA13A;
+      transition: width 0.25s ease;
+    }
+    .page-loading-note {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+    .page-loading-retry {
+      display: none;
+      margin-top: 10px;
+      border: none;
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      background: #d9dde3;
+      color: #333;
+    }
+    .page-loading-retry.show {
+      display: inline-block;
+    }
+
 
     @media (max-width: 640px) {
       .row {
@@ -306,6 +369,20 @@
         <button class="btn btn-cancel" id="cancelSortBtn" onclick="cancelSortMode()" style="display:none;">取消排序</button>
         <button class="btn btn-refresh" id="refreshBtn" onclick="loadDispatchBoard()">重新整理</button>
       </div>
+    </div>
+
+
+
+    <div class="page-loading-panel" id="pageLoadingPanel">
+      <div class="page-loading-row">
+        <div id="pageLoadingText">正在讀取排車資料...</div>
+        <div class="page-loading-percent" id="pageLoadingPercent">0%</div>
+      </div>
+      <div class="page-loading-bar">
+        <div class="page-loading-fill" id="pageLoadingFill"></div>
+      </div>
+      <div class="page-loading-note" id="pageLoadingNote">請稍候，系統正在整理路線資料。</div>
+      <button class="page-loading-retry" id="pageLoadingRetry" onclick="loadDispatchBoard()">重新讀取</button>
     </div>
 
     <div class="group-block">
@@ -369,6 +446,8 @@
     let sortMode = false;
     let isSaving = false;
     let driverOptions = [...DEFAULT_DRIVER_OPTIONS];
+    let pageLoadingTimer10 = null;
+    let pageLoadingTimer30 = null;
 
     async function initPage() {
       try {
@@ -387,11 +466,13 @@
 
         cleanupAuthNoise_();
         setTabs();
+        showPageProgress('正在初始化排車頁...', 10, '請稍候，系統正在準備排車畫面。');
         await loadDriverOptions();
         initDriverSelects();
         renderDriverRouteButtons();
         await loadDispatchBoard();
       } catch (err) {
+        updatePageProgress('排車頁載入失敗', 100, '請重新整理頁面，或稍後再試。');
         alert('排車頁載入失敗：' + (err.message || err));
       }
     }
@@ -479,6 +560,7 @@
 
     async function loadDriverOptions() {
       try {
+        updatePageProgress('正在讀取司機名單...', 25, '系統正在讀取 DRIVER_DB 司機資料。');
         const resp = await fetch(`${GAS_WEBAPP_URL}?action=get_driver_list&_=${Date.now()}`);
         const text = await resp.text();
         const json = JSON.parse(text);
@@ -489,9 +571,11 @@
           .filter(Boolean);
 
         driverOptions = names.length ? names : [...DEFAULT_DRIVER_OPTIONS];
+        updatePageProgress(names.length ? '司機名單讀取完成' : '司機名單使用預設資料', 38, names.length ? '已取得 DRIVER_DB 司機名單。' : '未取得 DRIVER_DB 名單，暫用預設司機名單。');
       } catch (err) {
         console.warn('loadDriverOptions failed, use default drivers', err);
         driverOptions = [...DEFAULT_DRIVER_OPTIONS];
+        updatePageProgress('司機名單讀取失敗，改用預設名單', 38, '排車頁仍可使用；請稍後檢查 DRIVER_DB 或 get_driver_list。');
       }
     }
 
@@ -569,24 +653,34 @@
     }
 
     async function loadDispatchBoard() {
-      const url = `${GAS_WEBAPP_URL}?action=get_dispatch_board&period=${encodeURIComponent(currentPeriod)}`;
-      const resp = await fetch(url);
-      const json = await resp.json();
+      showPageProgress('正在讀取排車資料...', 45, '系統正在讀取每日任務與目前排車資料。');
+      try {
+        const url = `${GAS_WEBAPP_URL}?action=get_dispatch_board&period=${encodeURIComponent(currentPeriod)}`;
+        const resp = await fetch(url, { cache: 'no-store' });
+        const json = await resp.json();
 
-      if (!json.ok) {
-        alert(json.error || '讀取排車頁失敗');
-        return;
+        if (!json.ok) {
+          alert(json.error || '讀取排車頁失敗');
+          updatePageProgress('排車資料讀取失敗', 100, json.error || '請稍後重新讀取。');
+          return;
+        }
+
+        updatePageProgress('正在整理路線順序...', 78, '系統正在整理路線群組、司機與站點順序。');
+        dispatchBoard = json.data || { groups: {} };
+        currentBatchId = dispatchBoard.batchId || '';
+
+        const localSnapshot = getLocalSnapshot(currentPeriod);
+        if (localSnapshot) {
+          dispatchBoard = mergeBoardWithLocalSnapshot(dispatchBoard, localSnapshot);
+        }
+
+        renderDispatchBoard();
+        completePageProgress('排車資料載入完成');
+      } catch (err) {
+        console.error(err);
+        updatePageProgress('排車資料讀取失敗', 100, '請確認網路狀態後重新讀取。');
+        alert('讀取排車頁失敗：' + (err.message || err));
       }
-
-      dispatchBoard = json.data || { groups: {} };
-      currentBatchId = dispatchBoard.batchId || '';
-
-      const localSnapshot = getLocalSnapshot(currentPeriod);
-      if (localSnapshot) {
-        dispatchBoard = mergeBoardWithLocalSnapshot(dispatchBoard, localSnapshot);
-      }
-
-      renderDispatchBoard();
     }
 
     function mergeBoardWithLocalSnapshot(serverBoard, localSnapshot) {
@@ -892,6 +986,54 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+    }
+
+    function showPageProgress(text, percent, note) {
+      const panel = document.getElementById('pageLoadingPanel');
+      if (!panel) return;
+      panel.classList.add('show');
+      updatePageProgress(text || '正在讀取資料...', percent || 8, note || '請稍候。');
+      clearPageProgressTimers();
+      pageLoadingTimer10 = setTimeout(() => {
+        updatePageProgress('資料較多，系統仍在整理中...', 88, '請不要關閉頁面，系統仍在讀取排車資料。');
+      }, 10000);
+      pageLoadingTimer30 = setTimeout(() => {
+        const retry = document.getElementById('pageLoadingRetry');
+        if (retry) retry.classList.add('show');
+        updatePageProgress('系統仍在讀取中', 92, '若等待過久，可按「重新讀取」。');
+      }, 30000);
+    }
+
+    function updatePageProgress(text, percent, note) {
+      const p = Math.max(0, Math.min(100, Number(percent || 0)));
+      const textEl = document.getElementById('pageLoadingText');
+      const percentEl = document.getElementById('pageLoadingPercent');
+      const fillEl = document.getElementById('pageLoadingFill');
+      const noteEl = document.getElementById('pageLoadingNote');
+      const retryEl = document.getElementById('pageLoadingRetry');
+      if (textEl) textEl.textContent = text || '正在讀取資料...';
+      if (percentEl) percentEl.textContent = `${Math.round(p)}%`;
+      if (fillEl) fillEl.style.width = `${p}%`;
+      if (noteEl) noteEl.textContent = note || '';
+      if (retryEl && p < 100) retryEl.classList.remove('show');
+    }
+
+    function completePageProgress(text) {
+      clearPageProgressTimers();
+      updatePageProgress(text || '載入完成', 100, '資料已更新。');
+      setTimeout(() => {
+        const panel = document.getElementById('pageLoadingPanel');
+        const retry = document.getElementById('pageLoadingRetry');
+        if (panel) panel.classList.remove('show');
+        if (retry) retry.classList.remove('show');
+      }, 450);
+    }
+
+    function clearPageProgressTimers() {
+      if (pageLoadingTimer10) clearTimeout(pageLoadingTimer10);
+      if (pageLoadingTimer30) clearTimeout(pageLoadingTimer30);
+      pageLoadingTimer10 = null;
+      pageLoadingTimer30 = null;
     }
 
     document.addEventListener('change', function(e) {
