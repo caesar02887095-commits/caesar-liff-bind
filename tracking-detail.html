@@ -135,6 +135,12 @@
       color: #991b1b;
       border: 1px solid #fca5a5;
     }
+
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
@@ -338,18 +344,17 @@
 
     async function refreshDetailManually() {
       const now = Date.now();
-      if (manualRefreshInFlight) return;
-      if (now < manualRefreshCooldownUntil) {
+      if (manualRefreshInFlight || now < manualRefreshCooldownUntil) {
         updateManualRefreshButton();
         return;
       }
 
       manualRefreshInFlight = true;
+      manualRefreshCooldownUntil = now + MANUAL_REFRESH_COOLDOWN_MS;
       updateManualRefreshButton();
 
       try {
         await loadDetail({ silent: true, manual: true });
-        manualRefreshCooldownUntil = Date.now() + MANUAL_REFRESH_COOLDOWN_MS;
       } catch (e) {
         alert((e && e.message) ? e.message : '更新失敗，請稍後再試');
       } finally {
@@ -367,14 +372,12 @@
       const btn = document.getElementById('manualRefreshBtn');
       if (!btn) return;
 
+      const remainMs = manualRefreshCooldownUntil - Date.now();
       if (manualRefreshInFlight) {
         btn.disabled = true;
-        btn.textContent = '更新中...';
-        return;
-      }
-
-      const remainMs = manualRefreshCooldownUntil - Date.now();
-      if (remainMs > 0) {
+        btn.textContent = '更新配送進度中...';
+        manualRefreshTimer = setTimeout(updateManualRefreshButton, 500);
+      } else if (remainMs > 0) {
         const remainSec = Math.ceil(remainMs / 1000);
         btn.disabled = true;
         btn.textContent = `更新配送進度（${remainSec} 秒後可再次更新）`;
