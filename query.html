@@ -198,6 +198,33 @@
       padding: 28px 12px;
       font-size: 15px;
     }
+    .loading-spinner {
+      width: 28px;
+      height: 28px;
+      border: 3px solid #e5e7eb;
+      border-top: 3px solid #EBA13A;
+      border-radius: 50%;
+      animation: spin 0.9s linear infinite;
+      margin: 0 auto 12px;
+    }
+    .loading-main {
+      font-weight: bold;
+      color: #374151;
+      line-height: 1.7;
+    }
+    .loading-hint {
+      margin-top: 8px;
+      color: #777;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+    .loading-retry {
+      margin-top: 14px;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
     .ok { color: #166534; }
     .warn { color: #9a3412; }
     .bad { color: #991b1b; }
@@ -272,7 +299,7 @@
 
     <div id="app">
       <div class="card">
-        <div class="loading">系統載入中...</div>
+        <div class="loading"><div class="loading-spinner"></div><div id="loadingText" class="loading-main">正在讀取配送資料...</div><div id="loadingHint" class="loading-hint"></div></div>
       </div>
     </div>
   </div>
@@ -294,9 +321,52 @@
     let manualRefreshTimer = null;
     let manualRefreshInFlight = false;
     let shareProgressInFlight = false;
+    let loadingTimers = [];
+
+    function startPortalLoadingSequence() {
+      renderLoadingState('正在讀取配送資料...', '');
+      scheduleLoadingMessage(2000, '正在確認查詢權限...', '');
+      scheduleLoadingMessage(5000, '資料較多，系統正在整理送貨進度，請稍候...', '');
+      scheduleLoadingMessage(10000, '系統仍在讀取中，請不要關閉頁面。', '系統仍在處理資料，通常再等一下就會完成。');
+      scheduleLoadingMessage(30000, '讀取時間較長，系統仍在處理中。', '若仍未完成，可按下方按鈕重新讀取配送資料。', true);
+    }
+
+    function renderLoadingState(mainText, hintText, showRetry) {
+      const app = document.getElementById('app');
+      if (!app) return;
+      app.innerHTML = `
+        <div class="card">
+          <div class="loading">
+            <div class="loading-spinner"></div>
+            <div id="loadingText" class="loading-main">${escapeHtml(mainText || '正在讀取配送資料...')}</div>
+            <div id="loadingHint" class="loading-hint">${escapeHtml(hintText || '')}</div>
+            ${showRetry ? `<button class="btn btn-secondary loading-retry" onclick="retryInitialPortalLoad()">重新讀取配送資料</button>` : ''}
+          </div>
+        </div>
+      `;
+    }
+
+    function scheduleLoadingMessage(ms, mainText, hintText, showRetry) {
+      const timer = setTimeout(() => {
+        renderLoadingState(mainText, hintText, showRetry);
+      }, ms);
+      loadingTimers.push(timer);
+    }
+
+    function stopLoadingSequence() {
+      loadingTimers.forEach(timer => clearTimeout(timer));
+      loadingTimers = [];
+    }
+
+    function retryInitialPortalLoad() {
+      stopLoadingSequence();
+      startPortalLoadingSequence();
+      loadPortal().catch(err => renderMessage('載入失敗：' + ((err && err.message) ? err.message : err), 'bad'));
+    }
 
     async function initPage() {
       try {
+        startPortalLoadingSequence();
         saveCurrentPageState_();
 
         await liff.init({ liffId: LIFF_ID });
@@ -438,6 +508,7 @@
       }
 
       lastPortalUpdatedAt = new Date();
+      stopLoadingSequence();
 
       const data = json.data || {};
       const status = data.accessStatus || '';
@@ -886,6 +957,7 @@
     }
 
     function renderMessage(msg, cls) {
+      stopLoadingSequence();
       document.getElementById('app').innerHTML = `
         <div class="card">
           <div class="status ${cls || ''}">${escapeHtml(msg || '')}</div>
