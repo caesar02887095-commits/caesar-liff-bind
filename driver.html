@@ -285,6 +285,69 @@
       color: #666;
       font-size: 15px;
     }
+    .page-loading-panel {
+      display: none;
+      background: #fff;
+      border-radius: 12px;
+      padding: 12px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      border: 1px solid #e5e7eb;
+    }
+    .page-loading-panel.show {
+      display: block;
+    }
+    .page-loading-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 8px;
+      font-size: 13px;
+      color: #475569;
+      font-weight: bold;
+    }
+    .page-loading-percent {
+      color: #94a3b8;
+      font-weight: bold;
+      flex-shrink: 0;
+    }
+    .page-loading-bar {
+      width: 100%;
+      height: 8px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      overflow: hidden;
+    }
+    .page-loading-fill {
+      width: 8%;
+      height: 100%;
+      border-radius: 999px;
+      background: #EBA13A;
+      transition: width 0.25s ease;
+    }
+    .page-loading-note {
+      margin-top: 8px;
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1.5;
+    }
+    .page-loading-retry {
+      display: none;
+      margin-top: 10px;
+      border: none;
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      background: #d9dde3;
+      color: #333;
+    }
+    .page-loading-retry.show {
+      display: inline-block;
+    }
+
     .error {
       background: #fee2e2;
       color: #991b1b;
@@ -362,6 +425,19 @@
       </div>
     </div>
 
+
+    <div class="page-loading-panel" id="pageLoadingPanel">
+      <div class="page-loading-row">
+        <div id="pageLoadingText">正在讀取司機任務...</div>
+        <div class="page-loading-percent" id="pageLoadingPercent">0%</div>
+      </div>
+      <div class="page-loading-bar">
+        <div class="page-loading-fill" id="pageLoadingFill"></div>
+      </div>
+      <div class="page-loading-note" id="pageLoadingNote">請稍候，系統正在整理今日路線。</div>
+      <button class="page-loading-retry" id="pageLoadingRetry" onclick="loadTasks()">重新整理</button>
+    </div>
+
     <div id="taskContainer">
       <div class="loading">任務載入中...</div>
     </div>
@@ -395,6 +471,8 @@
     const PHOTO_SUPPLEMENT_WINDOW_MIN = 10;
     // 已關閉固定時間輪詢：司機頁只在開頁、手動重新整理、切回頁面、操作後重新讀取。
     let suppressAutoReloadUntil = 0;
+    let pageLoadingTimer10 = null;
+    let pageLoadingTimer30 = null;
 
     function getQueryParam(name) {
       const url = new URL(window.location.href);
@@ -403,6 +481,7 @@
 
     async function initPage() {
       try {
+        showPageProgress('正在初始化司機頁...', 10, '請稍候，系統正在準備司機任務畫面。');
         await liff.init({ liffId: LIFF_ID });
         if (!liff.isLoggedIn()) {
           liff.login();
@@ -484,7 +563,10 @@
       try {
         if (silent && Date.now() < suppressAutoReloadUntil) return;
         clearError();
-        if (!silent) renderLoading();
+        if (!silent) {
+          showPageProgress('正在讀取司機任務...', 35, '系統正在確認今日路線與配送狀態。');
+          renderLoading();
+        }
 
         document.getElementById('driverInfo').innerHTML =
           `司機：<b>${escapeHtml(currentDriverName || '未辨識')}</b><br>目前查看：<b>${currentPeriod}</b>`;
@@ -502,6 +584,7 @@
           throw new Error(json.error || '讀取任務失敗');
         }
 
+        if (!silent) updatePageProgress('正在整理配送順序...', 78, '系統正在整理站點、配送狀態與照片資訊。');
         currentTasks = applyPendingStatesToTasks((json.data && json.data.tasks) ? json.data.tasks : []);
         currentBatchId = (json.data && json.data.batchId) ? json.data.batchId : '';
         cleanupLocalCompletedGroups();
@@ -518,8 +601,10 @@
         const serverHasDeparted = currentTasks.some(task => String(task.etaText || '').trim() || ['已完成','放門口','改送隔壁','聯繫後改期','取消配送','特殊回報'].includes(String(task.status || '').trim()));
         if (serverHasDeparted) pendingDeparture = false;
         renderTasks(currentTasks);
+        if (!silent) completePageProgress('司機任務載入完成');
       } catch (err) {
         if (!silent) {
+          updatePageProgress('司機任務讀取失敗', 100, '請確認網路狀態後重新整理。');
           showError('讀取任務失敗：' + (err.message || err));
           renderEmpty('目前無法讀取任務。');
         }
@@ -1183,6 +1268,54 @@
           }
         );
       });
+    }
+
+    function showPageProgress(text, percent, note) {
+      const panel = document.getElementById('pageLoadingPanel');
+      if (!panel) return;
+      panel.classList.add('show');
+      updatePageProgress(text || '正在讀取資料...', percent || 8, note || '請稍候。');
+      clearPageProgressTimers();
+      pageLoadingTimer10 = setTimeout(() => {
+        updatePageProgress('資料較多，系統仍在整理中...', 88, '請不要關閉頁面，系統仍在讀取司機任務。');
+      }, 10000);
+      pageLoadingTimer30 = setTimeout(() => {
+        const retry = document.getElementById('pageLoadingRetry');
+        if (retry) retry.classList.add('show');
+        updatePageProgress('系統仍在讀取中', 92, '若等待過久，可按「重新整理」。');
+      }, 30000);
+    }
+
+    function updatePageProgress(text, percent, note) {
+      const p = Math.max(0, Math.min(100, Number(percent || 0)));
+      const textEl = document.getElementById('pageLoadingText');
+      const percentEl = document.getElementById('pageLoadingPercent');
+      const fillEl = document.getElementById('pageLoadingFill');
+      const noteEl = document.getElementById('pageLoadingNote');
+      const retryEl = document.getElementById('pageLoadingRetry');
+      if (textEl) textEl.textContent = text || '正在讀取資料...';
+      if (percentEl) percentEl.textContent = `${Math.round(p)}%`;
+      if (fillEl) fillEl.style.width = `${p}%`;
+      if (noteEl) noteEl.textContent = note || '';
+      if (retryEl && p < 100) retryEl.classList.remove('show');
+    }
+
+    function completePageProgress(text) {
+      clearPageProgressTimers();
+      updatePageProgress(text || '載入完成', 100, '資料已更新。');
+      setTimeout(() => {
+        const panel = document.getElementById('pageLoadingPanel');
+        const retry = document.getElementById('pageLoadingRetry');
+        if (panel) panel.classList.remove('show');
+        if (retry) retry.classList.remove('show');
+      }, 450);
+    }
+
+    function clearPageProgressTimers() {
+      if (pageLoadingTimer10) clearTimeout(pageLoadingTimer10);
+      if (pageLoadingTimer30) clearTimeout(pageLoadingTimer30);
+      pageLoadingTimer10 = null;
+      pageLoadingTimer30 = null;
     }
 
     function showOverlay(text) {
