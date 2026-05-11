@@ -222,6 +222,7 @@
     let currentUid = '';
     let currentOrderNo = '';
     let currentShareToken = '';
+    let shareRepairRedirectCount = 0;
     let isShareMode = false;
     let lastDetailUpdatedAt = null;
     const MANUAL_REFRESH_COOLDOWN_MS = 60000;
@@ -334,10 +335,36 @@
         return;
       }
 
+      const data = json.data || {};
+
+      if (data.shareMode && data.repaired && data.redirectShareToken) {
+        if (shareRepairRedirectCount >= 1) {
+          stopLoadingSequence();
+          renderMessage('配送連結已更新，但目前無法自動開啟。請向店家重新索取最新連結。', 'warn');
+          return;
+        }
+
+        shareRepairRedirectCount++;
+        currentShareToken = data.redirectShareToken || '';
+        updateShareTokenInUrl_(currentShareToken);
+        renderLoadingState('配送連結已更新，正在重新開啟...', '請稍候，系統正在切換至最新追蹤連結。', false);
+        await loadDetail({ silent: true, repaired: true });
+        return;
+      }
+
       lastDetailUpdatedAt = new Date();
       stopLoadingSequence();
-      renderDetail(json.data || {});
+      renderDetail(data);
       updateManualRefreshButton();
+    }
+
+    function updateShareTokenInUrl_(token) {
+      if (!token) return;
+      try {
+        const url = new URL(window.location.href);
+        url.searchParams.set('shareToken', token);
+        window.history.replaceState({}, '', url.toString());
+      } catch (e) {}
     }
 
     function renderDetail(data) {
@@ -400,7 +427,9 @@
 
     function renderShareDetail(data) {
       if (!data.found) {
-        const expiredText = data.expired ? '此分享連結已過期。' : '此分享連結不存在或已失效。';
+        const expiredText = data.expired
+          ? '此配送連結已失效，請向店家重新索取。'
+          : (data.message || '此配送連結已更新或失效，請向店家重新索取。');
         document.getElementById('app').innerHTML = `
           <div class="card">
             <div class="status warn">目前無法查看送貨進度</div>
