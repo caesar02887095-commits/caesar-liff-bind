@@ -168,6 +168,38 @@
       cursor: not-allowed;
       pointer-events: none;
     }
+
+    .copy-order-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .copy-order-btn {
+      border: none;
+      border-radius: 8px;
+      padding: 5px 9px;
+      font-size: 12px;
+      font-weight: bold;
+      background: #e5e7eb;
+      color: #374151;
+      cursor: pointer;
+    }
+    .copy-order-btn:disabled {
+      opacity: 0.65;
+      cursor: default;
+    }
+    .copy-order-hint {
+      margin-top: 6px;
+      font-size: 13px;
+      line-height: 1.6;
+      color: #64748b;
+    }
+    .copy-order-status {
+      font-size: 12px;
+      color: #166534;
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -394,7 +426,11 @@
           <div class="row">店家名稱：${escapeHtml(data.storeName || '')}</div>
           <div class="row">指定送達地址：${escapeHtml(data.address || '')}</div>
           ${phoneLast3 ? `<div class="row">聯絡電話末三碼：${escapeHtml(phoneLast3)}</div>` : ''}
-          <div class="row">單號：${escapeHtml(data.orderNo || '')}</div>
+          <div class="row copy-order-row">
+            <span>單號：${escapeHtml(data.orderNo || '')}</span>
+            ${data.orderNo ? `<button class="copy-order-btn" onclick="copyShareOrderNo('${escapeJs(data.orderNo || '')}')">複製</button><span class="copy-order-status" id="copyOrderStatus"></span>` : ''}
+          </div>
+          <div class="copy-order-hint">如需詢問或更改配送資訊，請將本單號提供給店家，方便協助查詢。</div>
           ${renderManualRefreshBlock()}
         </div>
         <div class="card">
@@ -556,6 +592,60 @@
 
     function goBack() {
       location.href = 'query.html';
+    }
+
+    async function copyShareOrderNo(orderNo) {
+      const text = String(orderNo || '').trim();
+      if (!text) return;
+
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+        } else {
+          fallbackCopyText_(text);
+        }
+        showCopyOrderStatus_('已複製單號');
+      } catch (e) {
+        try {
+          fallbackCopyText_(text);
+          showCopyOrderStatus_('已複製單號');
+        } catch (err) {
+          alert('複製失敗，請手動長按單號複製');
+        }
+      }
+    }
+
+    function fallbackCopyText_(text) {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'fixed';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    }
+
+    function showCopyOrderStatus_(message) {
+      const el = document.getElementById('copyOrderStatus');
+      if (!el) return;
+      el.textContent = message || '';
+      setTimeout(() => {
+        const current = document.getElementById('copyOrderStatus');
+        if (current) current.textContent = '';
+      }, 1800);
+    }
+
+    function escapeJs(str) {
+      return String(str || '')
+        .replace(/\/g, '\\')
+        .replace(/'/g, "\'")
+        .replace(/"/g, '\"')
+        .replace(/
+/g, '\n')
+        .replace(/
+/g, '\r');
     }
 
     function escapeHtml(str) {
