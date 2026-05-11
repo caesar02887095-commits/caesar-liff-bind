@@ -293,12 +293,8 @@
 
     <div class="route-panel">
       <div class="route-title">查看司機路線</div>
-      <div class="route-btns">
-        <button class="route-btn" onclick="openDriverRoute('莊主任')">莊主任</button>
-        <button class="route-btn" onclick="openDriverRoute('王經理')">王經理</button>
-        <button class="route-btn" onclick="openDriverRoute('阿勇')">阿勇</button>
-        <button class="route-btn" onclick="openDriverRoute('阿凱')">阿凱</button>
-        <button class="route-btn" onclick="openDriverRoute('小老闆')">小老闆</button>
+      <div class="route-btns" id="driverRouteButtons">
+        <span style="color:#64748b;font-size:13px;">司機名單載入中...</span>
       </div>
     </div>
 
@@ -360,7 +356,7 @@
   <script>
     const LIFF_ID = '2009380550-ow9SlJK4';
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
-    const DRIVER_OPTIONS = ['莊主任','王經理','阿勇','阿凱','小老闆'];
+    const DEFAULT_DRIVER_OPTIONS = ['莊主任','王經理','阿勇','阿凱','小老闆'];
     const GROUP_NAMES = ['調度','市區','竹東','湖口'];
     const LOCAL_KEY_PREFIX = 'caesar_dispatch_board_snapshot_';
     const RETURN_URL_KEY = 'caesar_return_url';
@@ -372,6 +368,7 @@
     let sortableRefs = [];
     let sortMode = false;
     let isSaving = false;
+    let driverOptions = [...DEFAULT_DRIVER_OPTIONS];
 
     async function initPage() {
       try {
@@ -390,7 +387,9 @@
 
         cleanupAuthNoise_();
         setTabs();
+        await loadDriverOptions();
         initDriverSelects();
+        renderDriverRouteButtons();
         await loadDispatchBoard();
       } catch (err) {
         alert('排車頁載入失敗：' + (err.message || err));
@@ -478,15 +477,54 @@
       } catch (e) {}
     }
 
+    async function loadDriverOptions() {
+      try {
+        const resp = await fetch(`${GAS_WEBAPP_URL}?action=get_driver_list&_=${Date.now()}`);
+        const text = await resp.text();
+        const json = JSON.parse(text);
+        const drivers = json && json.data && Array.isArray(json.data.drivers) ? json.data.drivers : [];
+        const names = drivers
+          .map(item => typeof item === 'string' ? item : (item.name || ''))
+          .map(name => String(name || '').trim())
+          .filter(Boolean);
+
+        driverOptions = names.length ? names : [...DEFAULT_DRIVER_OPTIONS];
+      } catch (err) {
+        console.warn('loadDriverOptions failed, use default drivers', err);
+        driverOptions = [...DEFAULT_DRIVER_OPTIONS];
+      }
+    }
+
     function initDriverSelects() {
       GROUP_NAMES.forEach(groupName => {
         const select = document.getElementById(`driver-${groupName}`);
         if (!select) return;
         select.innerHTML = [
           '<option value="">未指派</option>',
-          ...DRIVER_OPTIONS.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)
+          ...driverOptions.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)
         ].join('');
       });
+    }
+
+    function renderDriverRouteButtons() {
+      const box = document.getElementById('driverRouteButtons');
+      if (!box) return;
+      const names = driverOptions && driverOptions.length ? driverOptions : DEFAULT_DRIVER_OPTIONS;
+      box.innerHTML = names.map(name => {
+        return `<button class="route-btn" data-driver="${escapeHtml(name)}" onclick="openDriverRoute(this.getAttribute('data-driver'))">${escapeHtml(name)}</button>`;
+      }).join('');
+    }
+
+    function ensureDriverOption(select, driverName) {
+      const name = String(driverName || '').trim();
+      if (!select || !name) return;
+      const exists = Array.from(select.options).some(opt => opt.value === name);
+      if (!exists) {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name + '（目前任務）';
+        select.appendChild(option);
+      }
     }
 
     function setTabs() {
@@ -614,6 +652,7 @@
 
         const groupDriverName = list.length > 0 ? (list[0].driverName || '') : '';
         if (driverSelect) {
+          ensureDriverOption(driverSelect, groupDriverName);
           driverSelect.value = groupDriverName;
         }
 
