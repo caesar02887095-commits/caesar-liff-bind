@@ -933,17 +933,20 @@
         return;
       }
 
+      // 手機版優先叫出原生分享選單；若 LINE 內建瀏覽器 / 系統分享失敗，立即退回複製分享文字。
       try {
         if (navigator.share) {
-          await navigator.share({
+          const shareData = {
             title: '凱撒衛浴配送進度',
             text: currentSharePayload.text || ''
-          });
+          };
+          await navigator.share(shareData);
           return;
         }
       } catch (e) {
-        if (e && e.name === 'AbortError') return;
+        console.warn('Native share failed, fallback to clipboard:', e);
       }
+
       await copyShareLink();
     }
 
