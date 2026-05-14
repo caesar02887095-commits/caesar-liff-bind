@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>凱撒衛浴配送系統入口</title>
+  <style>
+    :root {
+      --caesar-orange: #f28c28;
+      --caesar-gray: #3f3f46;
+      --bg: #f7f7f8;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .page {
+      width: min(960px, 100%);
+      margin: 0 auto;
+      padding: 18px 14px 28px;
+    }
+
+    .brand-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 16px 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .brand-title {
+      min-width: 0;
+    }
+
+    .brand-title h1 {
+      margin: 0;
+      font-size: 22px;
+      line-height: 1.2;
+      letter-spacing: 0.02em;
+    }
+
+    .brand-title p {
+      margin: 6px 0 0;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .logo {
+      width: 108px;
+      max-width: 32vw;
+      height: auto;
+      object-fit: contain;
+    }
+
+    .section {
+      margin-top: 16px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 14px;
+    }
+
+    .card {
+      display: flex;
+      flex-direction: column;
+      min-height: 156px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: var(--shadow);
+      text-decoration: none;
+      color: inherit;
+      transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-1px);
+      border-color: rgba(242, 140, 40, 0.45);
+      box-shadow: 0 10px 28px rgba(15, 23, 42, 0.11);
+    }
+
+    .card-tag {
+      display: inline-flex;
+      width: fit-content;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      background: rgba(242, 140, 40, 0.12);
+      color: #9a4f00;
+      font-size: 12px;
+      padding: 4px 9px;
+      margin-bottom: 14px;
+    }
+
+    .card h2 {
+      margin: 0;
+      font-size: 20px;
+      line-height: 1.25;
+    }
+
+    .card p {
+      margin: 10px 0 0;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.55;
+      flex: 1;
+    }
+
+    .card-action {
+      margin-top: 14px;
+      font-size: 14px;
+      color: var(--caesar-orange);
+      font-weight: 700;
+    }
+
+    .driver-panel {
+      margin-top: 14px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 16px 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .panel-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 12px;
+    }
+
+    .panel-head h2 {
+      margin: 0;
+      font-size: 17px;
+    }
+
+    .panel-head span {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .driver-buttons {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .driver-btn {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--text);
+      border-radius: 999px;
+      padding: 10px 14px;
+      font-size: 14px;
+      font-weight: 700;
+      text-decoration: none;
+      min-width: 86px;
+      text-align: center;
+    }
+
+    .driver-btn:hover {
+      border-color: var(--caesar-orange);
+      color: #a35200;
+    }
+
+    .note {
+      margin-top: 14px;
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: #fff7ed;
+      border: 1px solid #fed7aa;
+      color: #7c2d12;
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .footer {
+      margin-top: 20px;
+      color: var(--muted);
+      font-size: 12px;
+      text-align: center;
+      line-height: 1.7;
+    }
+
+    @media (max-width: 760px) {
+      .grid { grid-template-columns: 1fr; }
+      .brand-title h1 { font-size: 20px; }
+      .logo { width: 92px; }
+      .card { min-height: 130px; }
+    }
+  </style>
+</head>
+<body>
+  <main class="page">
+    <header class="brand-bar">
+      <div class="brand-title">
+        <h1>凱撒衛浴配送系統</h1>
+        <p>內部入口｜排車、司機任務、配送查詢</p>
+      </div>
+      <img class="logo" src="LOGO.png" alt="CAESAR" />
+    </header>
+
+    <section class="section grid">
+      <a class="card" href="dispatch.html?v=dispatch-v3">
+        <span class="card-tag">內部</span>
+        <h2>排車管理</h2>
+        <p>查看上午 / 下午任務，調整路線群組、司機與配送順序。</p>
+        <div class="card-action">進入排車頁 →</div>
+      </a>
+
+      <a class="card" href="driver.html?v=driver-auth">
+        <span class="card-tag">司機</span>
+        <h2>司機任務</h2>
+        <p>司機以 LINE_UID 驗證後，查看自己的配送任務、公司出發、完成配送與特殊回報。</p>
+        <div class="card-action">進入司機頁 →</div>
+      </a>
+
+      <a class="card" href="query.html?v=query-v14">
+        <span class="card-tag">客戶</span>
+        <h2>配送查詢</h2>
+        <p>已綁定 LINE 的店家可查詢配送狀態，並分享指定送貨進度。</p>
+        <div class="card-action">進入查詢頁 →</div>
+      </a>
+    </section>
+
+    <section class="driver-panel">
+      <div class="panel-head">
+        <h2>司機認證入口</h2>
+        <span id="driverSource">正在讀取 DRIVER_DB...</span>
+      </div>
+      <div class="driver-buttons" id="driverButtons"></div>
+      <div class="note">
+        查詢頁不會提供返回本入口的按鈕，避免店家或業主誤入內部總表。分享頁不列入入口，僅透過分享連結開啟。司機頁已啟用 LINE_UID 認證，需先於 DRIVER_DB 填入司機 LINE_UID。
+      </div>
+    </section>
+
+    <footer class="footer">
+      本頁由新竹凱撒總經銷配送系統提供<br />
+      新竹總經銷｜日生商行 / 正新衛浴有限公司
+    </footer>
+  </main>
+
+  <script>
+    const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
+    const DEFAULT_DRIVER_OPTIONS = ['莊主任','王經理','阿勇','阿凱','小老闆'];
+
+    function getDefaultPeriod() {
+      const h = new Date().getHours();
+      return h < 12 ? '上午' : '下午';
+    }
+
+    async function loadDrivers() {
+      const sourceEl = document.getElementById('driverSource');
+      try {
+        const resp = await fetch(`${GAS_WEBAPP_URL}?action=get_driver_list&_=${Date.now()}`, { cache: 'no-store' });
+        const json = await resp.json();
+        const drivers = json && json.data && Array.isArray(json.data.drivers) ? json.data.drivers : [];
+        const names = drivers.map(item => typeof item === 'string' ? item : item.name).filter(Boolean);
+        renderDriverButtons(names.length ? names : DEFAULT_DRIVER_OPTIONS);
+        sourceEl.textContent = names.length ? '來源：DRIVER_DB' : '來源：預設名單';
+      } catch (err) {
+        renderDriverButtons(DEFAULT_DRIVER_OPTIONS);
+        sourceEl.textContent = '來源：預設名單';
+      }
+    }
+
+    function renderDriverButtons(names) {
+      const box = document.getElementById('driverButtons');
+      const period = getDefaultPeriod();
+      box.innerHTML = names.map(name => {
+        const href = `driver.html?driver=${encodeURIComponent(name)}&period=${encodeURIComponent(period)}&v=driver-auth`;
+        return `<a class="driver-btn" href="${href}">${escapeHtml(name)}</a>`;
+      }).join('');
+    }
+
+    function escapeHtml(str) {
+      return String(str || '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    loadDrivers();
+  </script>
+</body>
+</html>
