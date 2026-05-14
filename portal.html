@@ -131,68 +131,6 @@
       font-weight: 700;
     }
 
-    .driver-panel {
-      margin-top: 14px;
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      padding: 16px 18px;
-      box-shadow: var(--shadow);
-    }
-
-    .panel-head {
-      display: flex;
-      align-items: baseline;
-      justify-content: space-between;
-      gap: 10px;
-      margin-bottom: 12px;
-    }
-
-    .panel-head h2 {
-      margin: 0;
-      font-size: 17px;
-    }
-
-    .panel-head span {
-      font-size: 12px;
-      color: var(--muted);
-    }
-
-    .driver-buttons {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-    }
-
-    .driver-btn {
-      border: 1px solid var(--line);
-      background: #fff;
-      color: var(--text);
-      border-radius: 999px;
-      padding: 10px 14px;
-      font-size: 14px;
-      font-weight: 700;
-      text-decoration: none;
-      min-width: 86px;
-      text-align: center;
-    }
-
-    .driver-btn:hover {
-      border-color: var(--caesar-orange);
-      color: #a35200;
-    }
-
-    .note {
-      margin-top: 14px;
-      padding: 12px 14px;
-      border-radius: 14px;
-      background: #fff7ed;
-      border: 1px solid #fed7aa;
-      color: #7c2d12;
-      font-size: 13px;
-      line-height: 1.55;
-    }
-
     .footer {
       margin-top: 20px;
       color: var(--muted);
@@ -230,7 +168,7 @@
       <a class="card" href="driver.html?v=driver-auth">
         <span class="card-tag">司機</span>
         <h2>司機任務</h2>
-        <p>司機以 LINE_UID 驗證後，查看自己的配送任務、公司出發、完成配送與特殊回報。</p>
+        <p>查看個人配送任務、公司出發、完成配送與特殊回報。</p>
         <div class="card-action">進入司機頁 →</div>
       </a>
 
@@ -242,66 +180,11 @@
       </a>
     </section>
 
-    <section class="driver-panel">
-      <div class="panel-head">
-        <h2>司機認證入口</h2>
-        <span id="driverSource">正在讀取 DRIVER_DB...</span>
-      </div>
-      <div class="driver-buttons" id="driverButtons"></div>
-      <div class="note">
-        查詢頁不會提供返回本入口的按鈕，避免店家或業主誤入內部總表。分享頁不列入入口，僅透過分享連結開啟。司機頁已啟用 LINE_UID 認證，需先於 DRIVER_DB 填入司機 LINE_UID。
-      </div>
-    </section>
-
     <footer class="footer">
       本頁由新竹凱撒總經銷配送系統提供<br />
       新竹總經銷｜日生商行 / 正新衛浴有限公司
     </footer>
   </main>
 
-  <script>
-    const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
-    const DEFAULT_DRIVER_OPTIONS = ['莊主任','王經理','阿勇','阿凱','小老闆'];
-
-    function getDefaultPeriod() {
-      const h = new Date().getHours();
-      return h < 12 ? '上午' : '下午';
-    }
-
-    async function loadDrivers() {
-      const sourceEl = document.getElementById('driverSource');
-      try {
-        const resp = await fetch(`${GAS_WEBAPP_URL}?action=get_driver_list&_=${Date.now()}`, { cache: 'no-store' });
-        const json = await resp.json();
-        const drivers = json && json.data && Array.isArray(json.data.drivers) ? json.data.drivers : [];
-        const names = drivers.map(item => typeof item === 'string' ? item : item.name).filter(Boolean);
-        renderDriverButtons(names.length ? names : DEFAULT_DRIVER_OPTIONS);
-        sourceEl.textContent = names.length ? '來源：DRIVER_DB' : '來源：預設名單';
-      } catch (err) {
-        renderDriverButtons(DEFAULT_DRIVER_OPTIONS);
-        sourceEl.textContent = '來源：預設名單';
-      }
-    }
-
-    function renderDriverButtons(names) {
-      const box = document.getElementById('driverButtons');
-      const period = getDefaultPeriod();
-      box.innerHTML = names.map(name => {
-        const href = `driver.html?driver=${encodeURIComponent(name)}&period=${encodeURIComponent(period)}&v=driver-auth`;
-        return `<a class="driver-btn" href="${href}">${escapeHtml(name)}</a>`;
-      }).join('');
-    }
-
-    function escapeHtml(str) {
-      return String(str || '')
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#39;');
-    }
-
-    loadDrivers();
-  </script>
 </body>
 </html>
