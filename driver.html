@@ -492,13 +492,18 @@
         const queryDriver = getQueryParam('driver');
         const queryPeriod = getQueryParam('period');
 
-        currentDriverName = queryDriver || profile.displayName || '';
         currentPeriod = queryPeriod || getDefaultPeriod();
+        updatePageProgress('正在驗證司機權限...', 24, '系統正在確認此 LINE 帳號是否已綁定司機。');
+        const auth = await verifyDriverAccess(profile.userId || '', queryDriver);
+        currentDriverName = auth.driverName || '';
 
         setTabs();
         await loadTasks();
       } catch (err) {
-        showError('初始化失敗：' + (err.message || err));
+        const msg = err.message || err;
+        showError('初始化失敗：' + msg);
+        renderAuthDenied(msg);
+        completePageProgress('司機權限驗證失敗');
       }
     }
 
@@ -514,6 +519,42 @@
     }
 
 
+
+    async function verifyDriverAccess(uid, requestedDriver) {
+      const url =
+        `${GAS_WEBAPP_URL}?action=get_driver_access` +
+        `&uid=${encodeURIComponent(uid || '')}` +
+        `&driver=${encodeURIComponent(requestedDriver || '')}` +
+        `&ts=${Date.now()}`;
+
+      const resp = await fetch(url, { cache: 'no-store' });
+      const json = await resp.json();
+      if (!json.ok) {
+        throw new Error(json.error || '司機權限驗證失敗');
+      }
+
+      const data = json.data || {};
+      if (!data.authorized) {
+        const code = data.code ? `（${data.code}）` : '';
+        const uidNote = uid ? `｜LINE_UID：${uid}` : '';
+        throw new Error((data.message || '此 LINE 帳號尚未綁定司機權限') + code + uidNote);
+      }
+      return data;
+    }
+
+    function renderAuthDenied(message) {
+      const list = document.getElementById('taskContainer');
+      if (!list) return;
+      document.getElementById('driverInfo').innerHTML =
+        `司機權限：<b>未通過</b><br>目前查看：<b>${escapeHtml(currentPeriod || '')}</b>`;
+      list.innerHTML = `
+        <div class="empty">
+          <b>無法開啟司機任務</b><br>
+          ${escapeHtml(message || '此 LINE 帳號尚未綁定司機權限。')}<br>
+          請確認 DRIVER_DB 已填入此司機的 LINE_UID，且啟用欄位為 Y。
+        </div>
+      `;
+    }
 
     function setPendingGroupState(groupKey, payload) {
       pendingGroupStates[groupKey] = {
@@ -569,7 +610,7 @@
         }
 
         document.getElementById('driverInfo').innerHTML =
-          `司機：<b>${escapeHtml(currentDriverName || '未辨識')}</b><br>目前查看：<b>${currentPeriod}</b>`;
+          `司機：<b>${escapeHtml(currentDriverName || '未辨識')}</b><br>司機權限：<b>已通過</b><br>目前查看：<b>${currentPeriod}</b>`;
 
         const url =
           `${GAS_WEBAPP_URL}?action=get_driver_tasks` +
