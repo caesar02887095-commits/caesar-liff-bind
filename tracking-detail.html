@@ -425,7 +425,7 @@
       }
 
       const items = Array.isArray(data.items) ? data.items : [];
-      const showEta = !!data.etaText;
+      const showEta = !!data.etaText && !isCompletedStatusData(data);
       const photos = Array.isArray(data.photos) ? data.photos : [];
       const statusInfo = getDetailStatusInfo(data);
       const placeText = isSpecifiedDelivery(data.address)
@@ -480,16 +480,19 @@
       const statusInfo = getDetailStatusInfo(data);
       const etaText = data.etaText || '尚未產生 ETA';
       const phoneLast3 = data.phoneLast3 || '';
+      const showEta = !!etaText && !isCompletedStatusData(data);
 
       document.getElementById('topInfo').innerHTML = `單號：<b>${escapeHtml(data.orderNo || '')}</b>`;
       document.getElementById('app').innerHTML = `
         <div class="card">
           <div class="status ${statusInfo.className}">凱撒衛浴配送進度</div>
           <div class="status-banner ${statusInfo.className}">${escapeHtml(statusInfo.text)}</div>
+          ${showEta ? `
           <div class="eta-box">
             <div class="eta-title">預估送達時間</div>
             <div class="eta-time">${escapeHtml(etaText)}</div>
           </div>
+          ` : ''}
           <div class="row">店家名稱：${escapeHtml(data.storeName || '')}</div>
           <div class="row">指定送達地址：${escapeHtml(data.address || '')}</div>
           ${phoneLast3 ? `<div class="row">聯絡電話末三碼：${escapeHtml(phoneLast3)}</div>` : ''}
@@ -562,6 +565,13 @@
       }
     }
 
+
+    function isCompletedStatusData(data) {
+      const step = String(data && data.progressStep || '').trim();
+      const text = String(data && data.progressText || '').trim();
+      return step === 'DONE' || text === '送貨已完成' || text === '已完成';
+    }
+
     function formatLastUpdateTime() {
       if (!lastDetailUpdatedAt) return '尚未更新';
       const hh = String(lastDetailUpdatedAt.getHours()).padStart(2, '0');
@@ -578,7 +588,7 @@
       const timeSuffix = formatDetailStatusTimeLabel(data);
 
       if (step === 'DONE' || text === '送貨已完成' || text === '已完成') {
-        return { text: text || `送貨已完成${driverSuffix}${timeSuffix}`, className: 'done' };
+        return { text: text || `送貨已完成${timeSuffix}`, className: 'done' };
       }
       if (step === 'CANCEL') {
         return { text: text || '配送已取消', className: 'cancel' };
