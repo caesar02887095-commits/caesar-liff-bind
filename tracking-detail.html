@@ -501,16 +501,19 @@
             ${data.orderNo ? `<button class="copy-order-btn" onclick="copyShareOrderNo('${escapeJs(data.orderNo || '')}')">複製</button><span class="copy-order-status" id="copyOrderStatus"></span>` : ''}
           </div>
           <div class="copy-order-hint">如需詢問或更改配送資訊，請將本單號提供給店家，方便協助查詢。</div>
-          ${renderManualRefreshBlock()}
+          ${renderManualRefreshBlock(data)}
         </div>
         <div class="card">
           <div class="row">※ 本頁僅供指定收件人查看配送進度。</div>
-          <div class="row">※ 預估時間會依司機回報與路況變動。</div>
+          ${isTerminalStatusData(data) ? '' : '<div class="row">※ 預估時間會依司機回報與路況變動。</div>'}
         </div>
       `;
     }
 
-    function renderManualRefreshBlock() {
+    function renderManualRefreshBlock(data) {
+      if (data && isTerminalStatusData(data)) {
+        return `<div class="row" style="text-align:center;color:#666;margin-top:8px;">最後更新：${escapeHtml(formatLastUpdateTime())}</div>`;
+      }
       return `
         <div style="margin-top:12px;">
           <button class="btn" id="manualRefreshBtn" onclick="refreshDetailManually()">更新配送進度</button>
@@ -569,7 +572,22 @@
     function isCompletedStatusData(data) {
       const step = String(data && data.progressStep || '').trim();
       const text = String(data && data.progressText || '').trim();
-      return step === 'DONE' || text === '送貨已完成' || text === '已完成';
+      return step === 'DONE' ||
+        text === '送貨已完成' ||
+        text === '已完成' ||
+        text.includes('已放門口') ||
+        text.includes('已改送隔壁') ||
+        text.includes('已改期');
+    }
+
+    function isTerminalStatusData(data) {
+      const step = String(data && data.progressStep || '').trim();
+      const text = String(data && data.progressText || '').trim();
+      return isCompletedStatusData(data) ||
+        step === 'CANCEL' ||
+        step === 'EXCEPTION' ||
+        text.includes('取消') ||
+        text.includes('特殊回報');
     }
 
     function formatLastUpdateTime() {
@@ -619,7 +637,7 @@
     function formatDetailStatusTimeLabel(data) {
       const step = String(data.progressStep || '').trim();
       const text = String(data.progressText || '').trim();
-      if (!(step === 'DONE' || text === '送貨已完成' || text === '已完成')) return '';
+      if (!isCompletedStatusData(data)) return '';
 
       const raw = String(data.updatedAt || '').trim();
       if (!raw) return '';
