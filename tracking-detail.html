@@ -478,7 +478,7 @@
       }
 
       const statusInfo = getDetailStatusInfo(data);
-      const etaText = data.etaText || '尚未產生 ETA';
+      const etaText = data.etaText || '';
       const phoneLast3 = data.phoneLast3 || '';
       const showEta = !!etaText && !isCompletedStatusData(data);
 
@@ -579,6 +579,15 @@
       return `${hh}:${mm}`;
     }
 
+    function stripDriverFromCompletedStatusText(text) {
+      return String(text || '')
+        .replace(/｜司機[^｜]*/g, '')
+        .replace(/\s*司機\s*[^｜\s]+/g, '')
+        .replace(/｜{2,}/g, '｜')
+        .replace(/^｜|｜$/g, '')
+        .trim();
+    }
+
     function getDetailStatusInfo(data) {
       const step = String(data.progressStep || '').trim();
       const text = String(data.progressText || '').trim();
@@ -587,8 +596,9 @@
       const driverSuffix = driverName ? `｜司機 ${driverName}` : '';
       const timeSuffix = formatDetailStatusTimeLabel(data);
 
-      if (step === 'DONE' || text === '送貨已完成' || text === '已完成') {
-        return { text: text || `送貨已完成${timeSuffix}`, className: 'done' };
+      if (step === 'DONE' || text === '送貨已完成' || text === '已完成' || text.includes('已放門口') || text.includes('已改送隔壁')) {
+        const cleanedText = stripDriverFromCompletedStatusText(text);
+        return { text: cleanedText || `送貨已完成${timeSuffix}`, className: 'done' };
       }
       if (step === 'CANCEL') {
         return { text: text || '配送已取消', className: 'cancel' };
