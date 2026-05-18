@@ -536,7 +536,8 @@
 
     async function loadPortal(options = {}) {
       const silent = !!options.silent;
-      const url = `${GAS_WEBAPP_URL}?action=get_customer_portal&uid=${encodeURIComponent(currentUid)}&_ts=${Date.now()}`;
+      const forceRefresh = !!options.forceRefresh || !!options.manual;
+      const url = `${GAS_WEBAPP_URL}?action=get_customer_portal&uid=${encodeURIComponent(currentUid)}${forceRefresh ? '&forceRefresh=1' : ''}&_ts=${Date.now()}`;
       const resp = await fetch(url, { cache: 'no-store' });
       const json = await resp.json();
 
