@@ -398,6 +398,23 @@
       color: #374151;
       font-weight: bold;
     }
+    .manual-add-notice {
+      display: none;
+      background: #fffbeb;
+      border: 1px solid #f59e0b;
+      color: #92400e;
+      border-radius: 12px;
+      padding: 10px 12px;
+      margin-bottom: 12px;
+      font-size: 13px;
+      font-weight: 800;
+      line-height: 1.5;
+    }
+
+    .manual-add-notice.show {
+      display: block;
+    }
+
     @keyframes spin {
       from { transform: rotate(0deg); }
       to { transform: rotate(360deg); }
@@ -425,6 +442,7 @@
       </div>
     </div>
 
+    <div class="manual-add-notice" id="manualAddNotice"></div>
 
     <div class="page-loading-panel" id="pageLoadingPanel">
       <div class="page-loading-row">
@@ -642,6 +660,7 @@
         const serverHasDeparted = currentTasks.some(task => String(task.etaText || '').trim() || ['已完成','放門口','改送隔壁','聯繫後改期','取消配送','特殊回報'].includes(String(task.status || '').trim()));
         if (serverHasDeparted) pendingDeparture = false;
         renderTasks(currentTasks);
+        loadManualAddNotice();
         if (!silent) completePageProgress('司機任務載入完成');
       } catch (err) {
         if (!silent) {
@@ -649,6 +668,27 @@
           showError('讀取任務失敗：' + (err.message || err));
           renderEmpty('目前無法讀取任務。');
         }
+      }
+    }
+
+
+    async function loadManualAddNotice() {
+      try {
+        const resp = await fetch(`${GAS_WEBAPP_URL}?action=get_manual_add_status&ts=${Date.now()}`, { cache: 'no-store' });
+        const json = await resp.json();
+        const data = json && json.data ? json.data : {};
+        const count = Number(data.pendingCount || 0);
+        const box = document.getElementById('manualAddNotice');
+        if (!box) return;
+        if (count > 0) {
+          box.classList.add('show');
+          box.textContent = `目前有加單尚未排車：${count} 筆，請等待調度安排。`;
+        } else {
+          box.classList.remove('show');
+          box.textContent = '';
+        }
+      } catch (err) {
+        console.warn('loadManualAddNotice failed', err);
       }
     }
 
@@ -1220,13 +1260,15 @@
         alert('最多只能上傳 2 張照片');
         return null;
       }
-      showOverlay('上傳照片中...');
+      showOverlay('正在準備照片...');
       suppressAutoReloadUntil = Date.now() + 5000;
       try {
         const photos = [];
-        for (const file of picked) {
-          photos.push(await compressImageFile_(file));
+        for (let i = 0; i < picked.length; i++) {
+          showOverlay(`正在壓縮照片 ${i + 1}/${picked.length}...`);
+          photos.push(await compressImageFile_(picked[i]));
         }
+        showOverlay('正在上傳照片...');
         const resp = await fetch(GAS_WEBAPP_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -1236,6 +1278,7 @@
         let json = {};
         try { json = JSON.parse(text); } catch (e) { throw new Error(text || '照片上傳失敗'); }
         if (!json.ok) throw new Error(json.message || json.error || '照片上傳失敗');
+        showOverlay('照片已上傳，正在更新畫面...');
         syncPhotoStateToGroup_(groupKey, Number(json.totalCount || (existingPhotos.length + photos.length)), Array.isArray(json.photos) ? json.photos : []);
         renderTasks(currentTasks);
         return json;
