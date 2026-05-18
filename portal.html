@@ -91,6 +91,23 @@
       transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease;
     }
 
+    .card.warning {
+      border-color: rgba(245, 158, 11, 0.85);
+      background: #fffbeb;
+    }
+
+    .card.warning .card-tag {
+      background: #f59e0b;
+      color: #fff;
+    }
+
+    .warning-text {
+      margin-top: 8px;
+      color: #92400e;
+      font-size: 13px;
+      font-weight: 800;
+    }
+
     .card:hover {
       transform: translateY(-1px);
       border-color: rgba(242, 140, 40, 0.45);
@@ -158,10 +175,11 @@
     </header>
 
     <section class="section grid">
-      <a class="card" href="dispatch.html?v=dispatch-v3">
-        <span class="card-tag">內部</span>
+      <a class="card" id="dispatchCard" href="dispatch.html?v=dispatch-v4">
+        <span class="card-tag" id="dispatchTag">內部</span>
         <h2>排車管理</h2>
         <p>查看上午 / 下午任務，調整路線群組、司機與配送順序。</p>
+        <div class="warning-text" id="manualAddStatus" style="display:none;"></div>
         <div class="card-action">進入排車頁 →</div>
       </a>
 
@@ -172,7 +190,7 @@
         <div class="card-action">進入司機頁 →</div>
       </a>
 
-      <a class="card" href="query.html?v=query-v14">
+      <a class="card" href="query.html?v=query-v15">
         <span class="card-tag">客戶</span>
         <h2>配送查詢</h2>
         <p>已綁定 LINE 的店家可查詢配送狀態，並分享指定送貨進度。</p>
@@ -185,6 +203,39 @@
       新竹總經銷｜日生商行 / 正新衛浴有限公司
     </footer>
   </main>
+
+
+  <script>
+    const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
+
+    async function loadManualAddStatus() {
+      try {
+        const resp = await fetch(`${GAS_WEBAPP_URL}?action=get_manual_add_status&ts=${Date.now()}`, { cache: 'no-store' });
+        const json = await resp.json();
+        const data = json && json.data ? json.data : {};
+        const count = Number(data.pendingCount || 0);
+        const card = document.getElementById('dispatchCard');
+        const tag = document.getElementById('dispatchTag');
+        const status = document.getElementById('manualAddStatus');
+        if (!card || !tag || !status) return;
+        if (count > 0) {
+          card.classList.add('warning');
+          tag.textContent = '待處理';
+          status.style.display = 'block';
+          status.textContent = `加單待排：${count}`;
+        } else {
+          card.classList.remove('warning');
+          tag.textContent = '內部';
+          status.style.display = 'none';
+          status.textContent = '';
+        }
+      } catch (err) {
+        console.warn('loadManualAddStatus failed', err);
+      }
+    }
+
+    loadManualAddStatus();
+  </script>
 
 </body>
 </html>
