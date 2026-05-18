@@ -398,6 +398,24 @@
       color: #374151;
       font-weight: bold;
     }
+    .overlay-preview {
+      display: none;
+      gap: 8px;
+      justify-content: center;
+      margin-top: 12px;
+      flex-wrap: wrap;
+    }
+    .overlay-preview.show {
+      display: flex;
+    }
+    .overlay-preview img {
+      width: 58px;
+      height: 58px;
+      object-fit: cover;
+      border-radius: 10px;
+      border: 1px solid #e5e7eb;
+      background: #f3f4f6;
+    }
     .manual-add-notice {
       display: none;
       background: #fffbeb;
@@ -470,6 +488,7 @@
     <div class="overlay-box">
       <div class="spinner"></div>
       <div class="overlay-text" id="overlayText">處理中...</div>
+      <div class="overlay-preview" id="overlayPreview"></div>
     </div>
   </div>
 
@@ -487,6 +506,7 @@
     let departureStarted = false;
     let groupedStopsCache = [];
     const PHOTO_SUPPLEMENT_WINDOW_MIN = 10;
+    let overlayPreviewUrls = [];
     // 已關閉固定時間輪詢：司機頁只在開頁、手動重新整理、切回頁面、操作後重新讀取。
     let suppressAutoReloadUntil = 0;
     let pageLoadingTimer10 = null;
@@ -1260,7 +1280,8 @@
         alert('最多只能上傳 2 張照片');
         return null;
       }
-      showOverlay('正在準備照片...');
+      const previewUrls = picked.map(file => URL.createObjectURL(file));
+      showOverlay('已選取照片，正在準備上傳...', previewUrls);
       suppressAutoReloadUntil = Date.now() + 5000;
       try {
         const photos = [];
@@ -1268,7 +1289,7 @@
           showOverlay(`正在壓縮照片 ${i + 1}/${picked.length}...`);
           photos.push(await compressImageFile_(picked[i]));
         }
-        showOverlay('正在上傳照片...');
+        showOverlay('正在上傳照片，請稍候...');
         const resp = await fetch(GAS_WEBAPP_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -1402,13 +1423,37 @@
       pageLoadingTimer30 = null;
     }
 
-    function showOverlay(text) {
+    function showOverlay(text, previewUrls) {
       document.getElementById('overlayText').textContent = text || '處理中...';
+
+      if (Array.isArray(previewUrls)) {
+        clearOverlayPreviewUrls_();
+        overlayPreviewUrls = previewUrls;
+        const previewEl = document.getElementById('overlayPreview');
+        if (previewEl) {
+          previewEl.innerHTML = previewUrls.map(url => `<img src="${escapeHtml(url)}" alt="upload-preview">`).join('');
+          previewEl.classList.toggle('show', previewUrls.length > 0);
+        }
+      }
+
       document.getElementById('loadingOverlay').classList.add('show');
+    }
+
+    function clearOverlayPreviewUrls_() {
+      overlayPreviewUrls.forEach(url => {
+        try { URL.revokeObjectURL(url); } catch (e) {}
+      });
+      overlayPreviewUrls = [];
+      const previewEl = document.getElementById('overlayPreview');
+      if (previewEl) {
+        previewEl.innerHTML = '';
+        previewEl.classList.remove('show');
+      }
     }
 
     function hideOverlay() {
       document.getElementById('loadingOverlay').classList.remove('show');
+      clearOverlayPreviewUrls_();
     }
 
     function getDefaultPeriod() {
