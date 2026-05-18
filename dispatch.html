@@ -217,6 +217,19 @@
       font-weight: 600;
       margin-left: 4px;
     }
+    .addon-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      margin-left: 6px;
+      padding: 2px 7px;
+      border-radius: 999px;
+      background: #fef3c7;
+      color: #92400e;
+      font-size: 12px;
+      font-weight: 800;
+      vertical-align: 1px;
+    }
     .row-right {
       flex-shrink: 0;
       display: flex;
@@ -652,6 +665,14 @@
       }
     }
 
+    function clearLocalSnapshot(period) {
+      try {
+        localStorage.removeItem(getLocalSnapshotKey(period));
+      } catch (e) {
+        console.warn('clearLocalSnapshot failed', e);
+      }
+    }
+
     async function loadDispatchBoard() {
       showPageProgress('正在讀取排車資料...', 45, '系統正在讀取每日任務與目前排車資料。');
       try {
@@ -669,10 +690,11 @@
         dispatchBoard = json.data || { groups: {} };
         currentBatchId = dispatchBoard.batchId || '';
 
-        const localSnapshot = getLocalSnapshot(currentPeriod);
-        if (localSnapshot) {
-          dispatchBoard = mergeBoardWithLocalSnapshot(dispatchBoard, localSnapshot);
-        }
+        // 2026-05-14 v3 修正：不再於開頁時套用 localStorage 排車快照。
+        // 原本快照機制會在「清空任務 / 重新產生任務」後，仍把舊的拖拉位置覆蓋回畫面，
+        // 造成後端已回到預設調度，但前端看起來還停在上一次人工排車位置。
+        // 目前排車頁以後端「每日任務看板」為唯一畫面來源；拖拉中的畫面狀態保留在當前 DOM 即可。
+        clearLocalSnapshot(currentPeriod);
 
         renderDispatchBoard();
         completePageProgress('排車資料載入完成');
@@ -760,6 +782,7 @@
           const deliveryTypeText = isStoreStop(item) ? '店' : '指';
           const deliveryTypeClass = isStoreStop(item) ? 'type-box' : 'type-box alert';
           const orderCount = getOrderCount(item);
+          const addonBadge = item.isManualAdd ? '<span class="addon-badge">加單</span>' : '';
 
           return `
             <div class="row"
@@ -767,7 +790,7 @@
                  data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(item.taskIds || [])))}">
               <div class="row-left">
                 <div class="${deliveryTypeClass}">${escapeHtml(deliveryTypeText)}</div>
-                <div class="row-title">${escapeHtml(mainLabel)}<span class="order-count">(${escapeHtml(String(orderCount))})</span></div>
+                <div class="row-title">${escapeHtml(mainLabel)}<span class="order-count">(${escapeHtml(String(orderCount))})</span>${addonBadge}</div>
               </div>
               <div class="row-right">
                 <div class="drag-handle ${sortMode ? '' : 'disabled'}">☰</div>
@@ -817,10 +840,8 @@
       initSortables();
       document.querySelectorAll('.drag-handle').forEach(el => el.classList.add('disabled'));
 
-      const localSnapshot = getLocalSnapshot(currentPeriod);
-      if (localSnapshot && dispatchBoard) {
-        dispatchBoard = mergeBoardWithLocalSnapshot(dispatchBoard, localSnapshot);
-      }
+      // 取消排序時回到目前從後端讀取的 dispatchBoard，不再套用 localStorage 舊快照。
+      clearLocalSnapshot(currentPeriod);
       renderDispatchBoard();
     }
 
@@ -869,7 +890,7 @@
         groups: groups
       };
 
-      saveLocalSnapshot(buildSnapshotFromDOM());
+      // v3 起不再依賴 localStorage 保存跨頁排車快照，避免清空 / 重產後畫面沿用舊位置。
 
       isSaving = true;
       setSavingState(true);
@@ -901,6 +922,7 @@
         document.querySelectorAll('.drag-handle').forEach(el => el.classList.add('disabled'));
         initSortables();
 
+        clearLocalSnapshot(currentPeriod);
         document.getElementById('summaryText').textContent = json.message || '排車已儲存';
         alert(json.message || '排車看板已儲存');
       } catch (err) {
