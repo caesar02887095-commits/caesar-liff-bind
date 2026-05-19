@@ -669,13 +669,99 @@
       return `${hh}:${mm}`;
     }
 
+
+
+    function getCustomerEtaDelayTextClient() {
+      return '配送延遲｜預估時間可能因路況與現場卸貨延遲｜如有急件請聯繫店家';
+    }
+
+    function parseCustomerDeliveryDateClient(deliveryDateText) {
+      const text = String(deliveryDateText || '').trim();
+      if (!text) return null;
+
+      let m = text.match(/(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+      if (m) {
+        const d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 0, 0, 0);
+        return Number.isNaN(d.getTime()) ? null : d;
+      }
+
+      m = text.match(/(^|\D)(\d{1,2})[\/\-](\d{1,2})(\D|$)/);
+      if (m) {
+        const now = new Date();
+        const d = new Date(now.getFullYear(), Number(m[2]) - 1, Number(m[3]), 0, 0, 0);
+        return Number.isNaN(d.getTime()) ? null : d;
+      }
+
+      return null;
+    }
+
+    function getCustomerEtaEndDateClient(etaText, deliveryDateText, deliveryTimeText) {
+      const baseDate = parseCustomerDeliveryDateClient(deliveryDateText);
+      if (!baseDate) return null;
+
+      const rawEta = String(etaText || '')
+        .replace(/[－—~～]/g, '–')
+        .replace(/上午/g, 'AM')
+        .replace(/下午/g, 'PM')
+        .replace(/中午/g, 'PM');
+      const rawPeriod = String(deliveryTimeText || '')
+        .replace(/上午/g, 'AM')
+        .replace(/下午/g, 'PM')
+        .replace(/中午/g, 'PM');
+
+      const matches = [];
+      const re = /(AM|PM)?\s*(\d{1,2})\s*[:：]\s*(\d{2})/gi;
+      let match;
+      while ((match = re.exec(rawEta)) !== null) {
+        matches.push(match);
+      }
+      if (!matches.length) return null;
+
+      const last = matches[matches.length - 1];
+      let meridiem = String(last[1] || '').toUpperCase();
+      if (!meridiem) {
+        if (/PM/i.test(rawPeriod)) meridiem = 'PM';
+        if (/AM/i.test(rawPeriod)) meridiem = 'AM';
+      }
+
+      let h = Number(last[2]);
+      const min = Number(last[3]);
+      if (Number.isNaN(h) || Number.isNaN(min) || h < 0 || h > 23 || min < 0 || min > 59) return null;
+
+      if (meridiem === 'PM' && h < 12) h += 12;
+      if (meridiem === 'AM' && h === 12) h = 0;
+
+      return new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), h, min, 0);
+    }
+
+    function isCustomerEtaOverdueClient(etaText, deliveryDateText, deliveryTimeText, taskStatusText) {
+      const eta = String(etaText || '').trim();
+      if (!eta) return false;
+      if (eta === getCustomerEtaDelayTextClient()) return true;
+
+      const status = String(taskStatusText || '').trim();
+      if (['已完成', '放門口', '改送隔壁', '聯繫後改期', '取消配送', '特殊回報'].includes(status)) return false;
+
+      const etaEnd = getCustomerEtaEndDateClient(eta, deliveryDateText, deliveryTimeText);
+      if (!etaEnd) return false;
+      return Date.now() > etaEnd.getTime();
+    }
+
+    function getCustomerEtaDisplayTextClient(etaText, deliveryDateText, deliveryTimeText, taskStatusText) {
+      const eta = String(etaText || '').trim();
+      if (!eta) return '';
+      return isCustomerEtaOverdueClient(eta, deliveryDateText, deliveryTimeText, taskStatusText)
+        ? getCustomerEtaDelayTextClient()
+        : eta;
+    }
+
     function renderOrderCard(order) {
       const canTrack = !!order.hasTracking;
       const mergedOrderNos = Array.isArray(order.orderNos) ? order.orderNos.filter(Boolean) : [];
       const mergedCount = mergedOrderNos.length || (order.orderNo ? 1 : 0);
       const mergedOrderText = mergedOrderNos.length ? mergedOrderNos.join(' / ') : (order.orderNo || '');
       const detailLines = Array.isArray(order.detailLines) ? order.detailLines : [];
-      const etaText = order.etaText || '';
+      const etaText = getCustomerEtaDisplayTextClient(order.etaText || '', order.deliveryDateText || '', order.deliveryTime || '', order.taskStatus || '');
       const statusInfo = getStatusInfo(order);
       const photos = Array.isArray(order.photos) ? order.photos : [];
       const canShareProgress = canTrack && isSpecifiedDelivery(order.address || '');
@@ -740,7 +826,7 @@
       const taskStatus = String(order.taskStatus || '').trim();
       const taskStatusText = String(order.taskStatusText || '').trim();
       const driverName = String(order.driverName || '').trim();
-      const etaText = String(order.etaText || '').trim();
+      const etaText = getCustomerEtaDisplayTextClient(order.etaText || '', order.deliveryDateText || '', order.deliveryTime || '', order.taskStatus || '');
       const driverSuffix = driverName ? `｜司機 ${driverName}` : '';
       const timeSuffix = formatStatusTimeLabel(order);
 
