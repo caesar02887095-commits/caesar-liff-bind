@@ -533,7 +533,7 @@
           ${showEta ? `
             <div class="eta-box">
               <div class="eta-title">預估送達時間</div>
-              <div class="eta-time">${escapeHtml(data.etaText || '')}</div>
+              <div class="eta-time">${escapeHtml(etaText)}</div>
             </div>
           ` : ''}
 
@@ -698,6 +698,7 @@
       const text = String(data.progressText || '').trim();
       const driverName = String(data.driverName || '').trim();
       const etaText = getCustomerEtaDisplayTextClient(data.etaText || '', data.deliveryDateText || '', data.deliveryTime || '', data.taskStatus || data.progressText || '');
+      const etaOverdue = isCustomerEtaOverdueClient(data.etaText || '', data.deliveryDateText || '', data.deliveryTime || '', data.taskStatus || data.progressText || '');
       const driverSuffix = driverName ? `｜司機 ${driverName}` : '';
       const timeSuffix = formatDetailStatusTimeLabel(data);
 
@@ -713,6 +714,9 @@
       }
       if (text === '放門口' || text === '改送隔壁' || text === '特殊回報' || text.includes('已放門口') || text.includes('已改送隔壁') || text.includes('已改期')) {
         return { text: text, className: 'warn' };
+      }
+      if (etaOverdue) {
+        return { text: getCustomerEtaDelayTextClient(), className: 'warn' };
       }
       if (etaText) {
         return { text: `司機配送中${driverSuffix}`, className: 'active' };
