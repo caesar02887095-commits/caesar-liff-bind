@@ -827,6 +827,7 @@
       const taskStatusText = String(order.taskStatusText || '').trim();
       const driverName = String(order.driverName || '').trim();
       const etaText = getCustomerEtaDisplayTextClient(order.etaText || '', order.deliveryDateText || '', order.deliveryTime || '', order.taskStatus || '');
+      const etaOverdue = isCustomerEtaOverdueClient(order.etaText || '', order.deliveryDateText || '', order.deliveryTime || '', order.taskStatus || '');
       const driverSuffix = driverName ? `｜司機 ${driverName}` : '';
       const timeSuffix = formatStatusTimeLabel(order);
 
@@ -838,6 +839,9 @@
           text: taskStatusText || taskStatus,
           className: taskStatus === '取消配送' ? 'cancel' : 'warn'
         };
+      }
+      if (etaOverdue) {
+        return { text: getCustomerEtaDelayTextClient(), className: 'warn' };
       }
       if (etaText) {
         return { text: `司機配送中${driverSuffix}`, className: 'active' };
