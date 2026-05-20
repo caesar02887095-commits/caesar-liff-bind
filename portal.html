@@ -349,9 +349,20 @@
 
       const results = Array.isArray(data && data.results) ? data.results : [];
       const issues = results.filter(item => item && item.ok === false).slice(0, 5);
-      if (issues.length) {
+      const observations = results.filter(item => item && item.ok !== false && (Number(item.historicalErrorCount || 0) > 0 || Number(item.repairedCount || 0) > 0)).slice(0, 3);
+      const displayItems = issues.concat(observations);
+      if (displayItems.length) {
         list.style.display = 'block';
-        list.innerHTML = issues.map(item => `<li>${escapeHtml(item.title || '項目')}：${escapeHtml(item.message || '需確認')}</li>`).join('');
+        list.innerHTML = displayItems.map(item => {
+          const detailLines = Array.isArray(item.details) && item.details.length
+            ? item.details.slice(0, 8)
+            : (item.detailText ? String(item.detailText).split('｜').slice(0, 8) : []);
+          const details = detailLines.length
+            ? `<div style="margin-top:4px;color:#6b7280;line-height:1.55;">${detailLines.map(escapeHtml).join('<br>')}</div>`
+            : '';
+          const prefix = item.ok === false ? '' : '觀察｜';
+          return `<li>${prefix}${escapeHtml(item.title || '項目')}：${escapeHtml(item.message || '需確認')}${details}</li>`;
+        }).join('');
       } else {
         list.style.display = 'none';
         list.innerHTML = '';
