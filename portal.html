@@ -148,6 +148,93 @@
       font-weight: 700;
     }
 
+
+
+    .health-panel {
+      margin-top: 16px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 16px 18px;
+      box-shadow: var(--shadow);
+    }
+
+    .health-panel.normal {
+      border-color: rgba(34, 197, 94, 0.45);
+      background: #f0fdf4;
+    }
+
+    .health-panel.notice {
+      border-color: rgba(245, 158, 11, 0.6);
+      background: #fffbeb;
+    }
+
+    .health-panel.alert {
+      border-color: rgba(239, 68, 68, 0.55);
+      background: #fef2f2;
+    }
+
+    .health-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: flex-start;
+    }
+
+    .health-title {
+      margin: 0;
+      font-size: 17px;
+      line-height: 1.35;
+      font-weight: 900;
+    }
+
+    .health-meta {
+      margin-top: 5px;
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.5;
+    }
+
+    .health-badge {
+      flex: 0 0 auto;
+      border-radius: 999px;
+      padding: 5px 10px;
+      font-size: 12px;
+      font-weight: 900;
+      background: rgba(107, 114, 128, 0.14);
+      color: #374151;
+    }
+
+    .health-panel.normal .health-badge {
+      background: #22c55e;
+      color: #fff;
+    }
+
+    .health-panel.notice .health-badge {
+      background: #f59e0b;
+      color: #fff;
+    }
+
+    .health-panel.alert .health-badge {
+      background: #ef4444;
+      color: #fff;
+    }
+
+    .health-message {
+      margin: 10px 0 0;
+      font-size: 13px;
+      color: #374151;
+      line-height: 1.6;
+    }
+
+    .health-list {
+      margin: 10px 0 0;
+      padding-left: 18px;
+      color: #4b5563;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
     .footer {
       margin-top: 20px;
       color: var(--muted);
@@ -174,6 +261,19 @@
       <img class="logo" src="LOGO.png" alt="CAESAR" />
     </header>
 
+    <section class="health-panel notice" id="systemHealthPanel">
+      <div class="health-head">
+        <div>
+          <h2 class="health-title" id="systemHealthTitle">系統狀態讀取中</h2>
+          <div class="health-meta" id="systemHealthMeta">正在讀取最近一次系統健檢結果...</div>
+        </div>
+        <span class="health-badge" id="systemHealthBadge">讀取中</span>
+      </div>
+      <p class="health-message" id="systemHealthMessage">入口頁只顯示最近一次健檢結果，不會即時重跑完整健檢。</p>
+      <ul class="health-list" id="systemHealthList" style="display:none;"></ul>
+    </section>
+
+
     <section class="section grid">
       <a class="card" id="dispatchCard" href="dispatch.html?v=dispatch-v4">
         <span class="card-tag" id="dispatchTag">內部</span>
@@ -190,7 +290,7 @@
         <div class="card-action">進入司機頁 →</div>
       </a>
 
-      <a class="card" href="query.html?v=query-v15">
+      <a class="card" href="query.html?v=query-v36">
         <span class="card-tag">客戶</span>
         <h2>配送查詢</h2>
         <p>已綁定 LINE 的店家可查詢配送狀態，並分享指定送貨進度。</p>
@@ -207,6 +307,67 @@
 
   <script>
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
+
+
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function normalizeHealthLevel(level) {
+      const text = String(level || '').trim();
+      if (text === '正常') return { className: 'normal', badge: '正常' };
+      if (text === '異常') return { className: 'alert', badge: '異常' };
+      if (text === '未執行') return { className: 'notice', badge: '未執行' };
+      return { className: 'notice', badge: text || '注意' };
+    }
+
+    function renderSystemHealthStatus(data) {
+      const panel = document.getElementById('systemHealthPanel');
+      const title = document.getElementById('systemHealthTitle');
+      const meta = document.getElementById('systemHealthMeta');
+      const badge = document.getElementById('systemHealthBadge');
+      const message = document.getElementById('systemHealthMessage');
+      const list = document.getElementById('systemHealthList');
+      if (!panel || !title || !meta || !badge || !message || !list) return;
+
+      const levelInfo = normalizeHealthLevel(data && data.level);
+      panel.classList.remove('normal', 'notice', 'alert');
+      panel.classList.add(levelInfo.className);
+      badge.textContent = levelInfo.badge;
+
+      title.textContent = levelInfo.badge === '正常' ? '系統狀態正常' : '系統狀態需確認';
+      meta.textContent = data && data.checkedAt
+        ? `最後健檢：${data.checkedAt}${data.stale ? '｜紀錄偏舊' : ''}`
+        : '尚未有健檢紀錄';
+      message.textContent = (data && data.message) ? data.message : '尚未讀取到系統健檢結果。';
+
+      const results = Array.isArray(data && data.results) ? data.results : [];
+      const issues = results.filter(item => item && item.ok === false).slice(0, 5);
+      if (issues.length) {
+        list.style.display = 'block';
+        list.innerHTML = issues.map(item => `<li>${escapeHtml(item.title || '項目')}：${escapeHtml(item.message || '需確認')}</li>`).join('');
+      } else {
+        list.style.display = 'none';
+        list.innerHTML = '';
+      }
+    }
+
+    async function loadSystemHealthStatus() {
+      try {
+        const resp = await fetch(`${GAS_WEBAPP_URL}?action=get_system_health_status&ts=${Date.now()}`, { cache: 'no-store' });
+        const json = await resp.json();
+        renderSystemHealthStatus(json && json.data ? json.data : { level: '注意', message: '系統健檢資料格式異常。' });
+      } catch (err) {
+        console.warn('loadSystemHealthStatus failed', err);
+        renderSystemHealthStatus({ level: '注意', message: '無法讀取系統狀態。請確認 GAS Web App 是否已重新部署。' });
+      }
+    }
 
     async function loadManualAddStatus() {
       try {
@@ -234,6 +395,7 @@
       }
     }
 
+    loadSystemHealthStatus();
     loadManualAddStatus();
   </script>
 
