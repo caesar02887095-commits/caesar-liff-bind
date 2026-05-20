@@ -690,6 +690,16 @@
       return '';
     }
 
+
+    function getCustomerEtaFieldsClient(obj) {
+      return {
+        etaText: getEtaDebugValueClient(obj, ['etaText', 'ETA', 'eta', 'estimatedArrival', 'estimatedTime']),
+        deliveryDateText: getEtaDebugValueClient(obj, ['deliveryDateText', '送貨日期', 'deliveryDate', 'date']),
+        deliveryTime: getEtaDebugValueClient(obj, ['deliveryTime', '送貨時間', 'timeSlot', 'period']),
+        taskStatusText: getEtaDebugValueClient(obj, ['taskStatus', '配送狀態', 'status', 'progressText', 'progressStep', 'taskStatusText'])
+      };
+    }
+
     function renderEtaDebugBoxClient(obj) {
       if (!isEtaDebugModeClient()) return '';
       const etaRaw = getEtaDebugValueClient(obj, ['etaText', 'ETA', 'eta', 'estimatedArrival', 'estimatedTime']);
@@ -814,7 +824,8 @@
       const mergedCount = mergedOrderNos.length || (order.orderNo ? 1 : 0);
       const mergedOrderText = mergedOrderNos.length ? mergedOrderNos.join(' / ') : (order.orderNo || '');
       const detailLines = Array.isArray(order.detailLines) ? order.detailLines : [];
-      const etaText = getCustomerEtaDisplayTextClient(order.etaText || '', order.deliveryDateText || '', order.deliveryTime || '', order.taskStatus || '');
+      const etaFields = getCustomerEtaFieldsClient(order);
+      const etaText = getCustomerEtaDisplayTextClient(etaFields.etaText, etaFields.deliveryDateText, etaFields.deliveryTime, etaFields.taskStatusText);
       const statusInfo = getStatusInfo(order);
       const photos = Array.isArray(order.photos) ? order.photos : [];
       const canShareProgress = canTrack && isSpecifiedDelivery(order.address || '');
@@ -835,7 +846,7 @@
 
           <div class="row">送貨地址：${escapeHtml(order.address || '')}</div>
           ${formatPhoneForDisplay(order.phone) ? `<div class="row">電話：${escapeHtml(formatPhoneForDisplay(order.phone))}</div>` : ''}
-          <div class="row">送貨時間：${escapeHtml(formatDeliveryDisplay(order.deliveryDateText, order.deliveryTime))}</div>
+          <div class="row">送貨時間：${escapeHtml(formatDeliveryDisplay(etaFields.deliveryDateText || order.deliveryDateText, etaFields.deliveryTime || order.deliveryTime))}</div>
 
           <div class="detail-block">
             <div class="detail-title">明細</div>
@@ -880,8 +891,9 @@
       const taskStatus = String(order.taskStatus || '').trim();
       const taskStatusText = String(order.taskStatusText || '').trim();
       const driverName = String(order.driverName || '').trim();
-      const etaText = getCustomerEtaDisplayTextClient(order.etaText || '', order.deliveryDateText || '', order.deliveryTime || '', order.taskStatus || '');
-      const etaOverdue = isCustomerEtaOverdueClient(order.etaText || '', order.deliveryDateText || '', order.deliveryTime || '', order.taskStatus || '');
+      const etaFields = getCustomerEtaFieldsClient(order);
+      const etaText = getCustomerEtaDisplayTextClient(etaFields.etaText, etaFields.deliveryDateText, etaFields.deliveryTime, etaFields.taskStatusText);
+      const etaOverdue = isCustomerEtaOverdueClient(etaFields.etaText, etaFields.deliveryDateText, etaFields.deliveryTime, etaFields.taskStatusText);
       const driverSuffix = driverName ? `｜司機 ${driverName}` : '';
       const timeSuffix = formatStatusTimeLabel(order);
 
