@@ -411,6 +411,45 @@
       return '配送延遲｜預估時間可能因路況與現場卸貨延遲｜如有急件請聯繫店家';
     }
 
+    function isEtaDebugModeClient() {
+      const qs = new URLSearchParams(window.location.search || '');
+      return qs.get('debugEta') === '1' || qs.get('etaDebug') === '1';
+    }
+
+    function getEtaDebugValueClient(obj, names) {
+      if (!obj) return '';
+      for (const name of names) {
+        if (Object.prototype.hasOwnProperty.call(obj, name) && obj[name] !== undefined && obj[name] !== null && String(obj[name]).trim() !== '') {
+          return String(obj[name]).trim();
+        }
+      }
+      return '';
+    }
+
+    function renderEtaDebugBoxClient(obj) {
+      if (!isEtaDebugModeClient()) return '';
+      const etaRaw = getEtaDebugValueClient(obj, ['etaText', 'ETA', 'eta', 'estimatedArrival', 'estimatedTime']);
+      const dateRaw = getEtaDebugValueClient(obj, ['deliveryDateText', '送貨日期', 'deliveryDate', 'date']);
+      const timeRaw = getEtaDebugValueClient(obj, ['deliveryTime', '送貨時間', 'timeSlot', 'period']);
+      const taskRaw = getEtaDebugValueClient(obj, ['taskStatus', '配送狀態', 'status']);
+      const progressRaw = getEtaDebugValueClient(obj, ['progressText', 'progressStep', 'taskStatusText']);
+      const etaEnd = getCustomerEtaEndDateClient(etaRaw, dateRaw, timeRaw);
+      const overdue = isCustomerEtaOverdueClient(etaRaw, dateRaw, timeRaw, taskRaw || progressRaw);
+      return `
+        <div style="margin-top:10px;padding:10px;border:1px dashed #c77;background:#fff8f0;border-radius:10px;font-size:12px;line-height:1.7;color:#663300;">
+          <b>ETA 診斷 v30 已載入</b><br>
+          raw ETA：${escapeHtml(etaRaw || '(空)')}<br>
+          raw 日期：${escapeHtml(dateRaw || '(空)')}<br>
+          raw 時段：${escapeHtml(timeRaw || '(空)')}<br>
+          raw 狀態：${escapeHtml(taskRaw || '(空)')}<br>
+          raw 進度：${escapeHtml(progressRaw || '(空)')}<br>
+          解析最晚時間：${escapeHtml(etaEnd ? etaEnd.toLocaleString('zh-TW') : '(無法解析)')}<br>
+          是否判定延遲：${overdue ? '是' : '否'}
+        </div>
+      `;
+    }
+
+
     function parseCustomerDeliveryDateClient(deliveryDateText) {
       const text = String(deliveryDateText || '').trim();
       if (!text) return null;
@@ -536,6 +575,7 @@
               <div class="eta-time">${escapeHtml(etaText)}</div>
             </div>
           ` : ''}
+          ${renderEtaDebugBoxClient(data)}
 
           ${photos.length ? `<div class="photo-wrap">${photos.map((photo, idx) => `<a class="photo-item" href="${escapeHtml(photo.url || '')}" target="_blank"><img src="${escapeHtml(photo.previewUrl || photo.url || '')}" alt="送達照片${idx + 1}"><span class="photo-badge">照片${idx + 1}</span></a>`).join('')}</div>` : ''}
           <div class="items">
@@ -580,6 +620,7 @@
             <div class="eta-time">${escapeHtml(etaText)}</div>
           </div>
           ` : ''}
+          ${renderEtaDebugBoxClient(data)}
           <div class="row">店家名稱：${escapeHtml(data.storeName || '')}</div>
           <div class="row">指定送達地址：${escapeHtml(data.address || '')}</div>
           ${phoneLast3 ? `<div class="row">聯絡電話末三碼：${escapeHtml(phoneLast3)}</div>` : ''}
