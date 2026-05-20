@@ -431,9 +431,16 @@
           : (item.detailText ? String(item.detailText).split('｜').slice(0, 8) : []);
         const details = detailLines.length
           ? `<div style="margin-top:4px;color:#6b7280;line-height:1.55;">${detailLines.map(escapeHtml).join('<br>')}</div>`
-          : '';
+          : '<div style="margin-top:4px;color:#6b7280;line-height:1.55;">沒有額外明細。</div>';
         const prefix = item.ok === false ? '需確認｜' : '觀察｜';
-        return `<li>${prefix}${escapeHtml(item.title || '項目')}：${escapeHtml(item.message || '需確認')}${details}</li>`;
+        const counts = [];
+        if (Number(item.missingSheetCount || 0)) counts.push(`缺少分頁 ${Number(item.missingSheetCount || 0)}`);
+        if (Number(item.missingHeaderCount || 0)) counts.push(`缺少表頭 ${Number(item.missingHeaderCount || 0)}`);
+        if (Number(item.currentIssueCount || 0)) counts.push(`目前異常 ${Number(item.currentIssueCount || 0)}`);
+        if (Number(item.historicalProcessingCount || 0)) counts.push(`歷史卡住 ${Number(item.historicalProcessingCount || 0)}`);
+        if (Number(item.historicalErrorCount || 0)) counts.push(`歷史錯誤 ${Number(item.historicalErrorCount || 0)}`);
+        const countText = counts.length ? `（${counts.join('｜')}）` : '';
+        return `<li>${prefix}${escapeHtml(item.title || '項目')}${escapeHtml(countText)}${details}</li>`;
       }).join('');
 
       toggle.onclick = () => {
