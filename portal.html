@@ -235,6 +235,31 @@
       line-height: 1.6;
     }
 
+    .health-summary-line {
+      margin-top: 10px;
+      color: #374151;
+      font-size: 12px;
+      line-height: 1.6;
+    }
+
+    .health-toggle {
+      margin-top: 10px;
+      border: 1px solid rgba(107, 114, 128, 0.35);
+      background: rgba(255,255,255,0.72);
+      color: #374151;
+      border-radius: 999px;
+      padding: 7px 12px;
+      font-size: 12px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+
+    .health-detail-box {
+      margin-top: 10px;
+      border-top: 1px dashed rgba(107, 114, 128, 0.35);
+      padding-top: 10px;
+    }
+
     .footer {
       margin-top: 20px;
       color: var(--muted);
@@ -270,7 +295,11 @@
         <span class="health-badge" id="systemHealthBadge">讀取中</span>
       </div>
       <p class="health-message" id="systemHealthMessage">入口頁只顯示最近一次健檢結果，不會即時重跑完整健檢。</p>
-      <ul class="health-list" id="systemHealthList" style="display:none;"></ul>
+      <div class="health-summary-line" id="systemHealthSummary" style="display:none;"></div>
+      <button class="health-toggle" id="systemHealthToggle" type="button" style="display:none;">查看健檢明細</button>
+      <div class="health-detail-box" id="systemHealthDetailBox" style="display:none;">
+        <ul class="health-list" id="systemHealthList"></ul>
+      </div>
     </section>
 
 
@@ -327,14 +356,43 @@
       return { className: 'notice', badge: text || '注意' };
     }
 
+    function buildHealthDisplayItems(results) {
+      const items = [];
+      (Array.isArray(results) ? results : []).forEach(item => {
+        if (!item) return;
+        const isIssue = item.ok === false;
+        const hasObservation = Number(item.historicalErrorCount || 0) > 0 || Number(item.historicalProcessingCount || 0) > 0 || Number(item.repairedCount || 0) > 0;
+        if (!isIssue && !hasObservation) return;
+        items.push(item);
+      });
+      return items.slice(0, 8);
+    }
+
+    function summarizeHealthIssues(results) {
+      const arr = Array.isArray(results) ? results : [];
+      const issueTitles = arr.filter(item => item && item.ok === false).map(item => item.title).filter(Boolean);
+      const currentIssueCount = arr.reduce((sum, item) => sum + Number(item && item.currentIssueCount || 0), 0);
+      const historicalErrorCount = arr.reduce((sum, item) => sum + Number(item && item.historicalErrorCount || 0), 0);
+      const historicalProcessingCount = arr.reduce((sum, item) => sum + Number(item && item.historicalProcessingCount || 0), 0);
+      const parts = [];
+      if (issueTitles.length) parts.push(`需確認：${issueTitles.join('、')}`);
+      if (currentIssueCount) parts.push(`目前異常：${currentIssueCount}`);
+      if (historicalProcessingCount) parts.push(`歷史卡住任務：${historicalProcessingCount}`);
+      if (historicalErrorCount) parts.push(`歷史錯誤：${historicalErrorCount}`);
+      return parts.join('｜');
+    }
+
     function renderSystemHealthStatus(data) {
       const panel = document.getElementById('systemHealthPanel');
       const title = document.getElementById('systemHealthTitle');
       const meta = document.getElementById('systemHealthMeta');
       const badge = document.getElementById('systemHealthBadge');
       const message = document.getElementById('systemHealthMessage');
+      const summary = document.getElementById('systemHealthSummary');
+      const toggle = document.getElementById('systemHealthToggle');
+      const detailBox = document.getElementById('systemHealthDetailBox');
       const list = document.getElementById('systemHealthList');
-      if (!panel || !title || !meta || !badge || !message || !list) return;
+      if (!panel || !title || !meta || !badge || !message || !summary || !toggle || !detailBox || !list) return;
 
       const levelInfo = normalizeHealthLevel(data && data.level);
       panel.classList.remove('normal', 'notice', 'alert');
@@ -348,25 +406,41 @@
       message.textContent = (data && data.message) ? data.message : '尚未讀取到系統健檢結果。';
 
       const results = Array.isArray(data && data.results) ? data.results : [];
-      const issues = results.filter(item => item && item.ok === false).slice(0, 5);
-      const observations = results.filter(item => item && item.ok !== false && (Number(item.historicalErrorCount || 0) > 0 || Number(item.repairedCount || 0) > 0)).slice(0, 3);
-      const displayItems = issues.concat(observations);
-      if (displayItems.length) {
-        list.style.display = 'block';
-        list.innerHTML = displayItems.map(item => {
-          const detailLines = Array.isArray(item.details) && item.details.length
-            ? item.details.slice(0, 8)
-            : (item.detailText ? String(item.detailText).split('｜').slice(0, 8) : []);
-          const details = detailLines.length
-            ? `<div style="margin-top:4px;color:#6b7280;line-height:1.55;">${detailLines.map(escapeHtml).join('<br>')}</div>`
-            : '';
-          const prefix = item.ok === false ? '' : '觀察｜';
-          return `<li>${prefix}${escapeHtml(item.title || '項目')}：${escapeHtml(item.message || '需確認')}${details}</li>`;
-        }).join('');
+      const displayItems = buildHealthDisplayItems(results);
+      const summaryText = summarizeHealthIssues(results);
+      if (summaryText) {
+        summary.style.display = 'block';
+        summary.textContent = summaryText;
       } else {
-        list.style.display = 'none';
-        list.innerHTML = '';
+        summary.style.display = 'none';
+        summary.textContent = '';
       }
+
+      if (!displayItems.length) {
+        toggle.style.display = 'none';
+        detailBox.style.display = 'none';
+        list.innerHTML = '';
+        return;
+      }
+
+      toggle.style.display = 'inline-block';
+      toggle.textContent = detailBox.style.display === 'block' ? '收合健檢明細' : `查看健檢明細（${displayItems.length}）`;
+      list.innerHTML = displayItems.map(item => {
+        const detailLines = Array.isArray(item.details) && item.details.length
+          ? item.details.slice(0, 8)
+          : (item.detailText ? String(item.detailText).split('｜').slice(0, 8) : []);
+        const details = detailLines.length
+          ? `<div style="margin-top:4px;color:#6b7280;line-height:1.55;">${detailLines.map(escapeHtml).join('<br>')}</div>`
+          : '';
+        const prefix = item.ok === false ? '需確認｜' : '觀察｜';
+        return `<li>${prefix}${escapeHtml(item.title || '項目')}：${escapeHtml(item.message || '需確認')}${details}</li>`;
+      }).join('');
+
+      toggle.onclick = () => {
+        const willShow = detailBox.style.display !== 'block';
+        detailBox.style.display = willShow ? 'block' : 'none';
+        toggle.textContent = willShow ? '收合健檢明細' : `查看健檢明細（${displayItems.length}）`;
+      };
     }
 
     async function loadSystemHealthStatus() {
