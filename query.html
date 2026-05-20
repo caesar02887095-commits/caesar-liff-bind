@@ -826,6 +826,7 @@
       const detailLines = Array.isArray(order.detailLines) ? order.detailLines : [];
       const etaFields = getCustomerEtaFieldsClient(order);
       const etaText = getCustomerEtaDisplayTextClient(etaFields.etaText, etaFields.deliveryDateText, etaFields.deliveryTime, etaFields.taskStatusText);
+      const etaOverdue = isCustomerEtaOverdueClient(etaFields.etaText, etaFields.deliveryDateText, etaFields.deliveryTime, etaFields.taskStatusText);
       const statusInfo = getStatusInfo(order);
       const photos = Array.isArray(order.photos) ? order.photos : [];
       const canShareProgress = canTrack && isSpecifiedDelivery(order.address || '');
@@ -858,7 +859,7 @@
 
           <div class="status-pill">
             <div class="status-banner ${statusInfo.className}">${escapeHtml(statusInfo.text)}</div>
-            ${canTrack && etaText ? `
+            ${canTrack && etaText && !etaOverdue ? `
               <div class="eta-box">
                 <div class="eta-title">預估送達時間</div>
                 <div class="eta-time">${escapeHtml(etaText)}</div>
