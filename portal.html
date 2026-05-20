@@ -260,26 +260,6 @@
       padding-top: 10px;
     }
 
-    .daily-report-panel {
-      margin-top: 16px;
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      padding: 16px 18px;
-      box-shadow: var(--shadow);
-    }
-
-    .daily-report-head { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
-    .daily-report-title { margin: 0; font-size: 17px; line-height: 1.35; font-weight: 900; }
-    .daily-report-meta { margin-top: 5px; color: var(--muted); font-size: 12px; line-height: 1.5; }
-    .daily-report-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-top: 12px; }
-    .daily-report-card { border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,0.72); padding: 12px; }
-    .daily-report-card h3 { margin: 0 0 8px; font-size: 14px; font-weight: 900; }
-    .daily-report-card p { margin: 0; color: #374151; font-size: 13px; line-height: 1.7; }
-    .daily-report-special { margin-top: 10px; font-size: 12px; color: #6b7280; line-height: 1.65; }
-    .daily-report-toggle { margin-top: 10px; border: 1px solid rgba(107, 114, 128, 0.35); background: rgba(255,255,255,0.72); color: #374151; border-radius: 999px; padding: 7px 12px; font-size: 12px; font-weight: 800; cursor: pointer; }
-    .daily-report-detail { margin-top: 10px; border-top: 1px dashed rgba(107, 114, 128, 0.35); padding-top: 10px; display: none; }
-
     .footer {
       margin-top: 20px;
       color: var(--muted);
@@ -322,18 +302,6 @@
       </div>
     </section>
 
-    <section class="daily-report-panel" id="dailyDeliveryReportPanel">
-      <div class="daily-report-head">
-        <div>
-          <h2 class="daily-report-title">今日配送結案</h2>
-          <div class="daily-report-meta" id="dailyReportMeta">正在讀取今日配送報表...</div>
-        </div>
-        <span class="health-badge" id="dailyReportBadge">讀取中</span>
-      </div>
-      <div class="daily-report-grid" id="dailyReportGrid"></div>
-      <button class="daily-report-toggle" id="dailyReportToggle" type="button" style="display:none;">查看特殊 / 未完成明細</button>
-      <div class="daily-report-detail" id="dailyReportDetail"></div>
-    </section>
 
     <section class="section grid">
       <a class="card" id="dispatchCard" href="dispatch.html?v=dispatch-v4">
@@ -493,77 +461,6 @@
       }
     }
 
-    function compactList(list, limit) {
-      const arr = Array.isArray(list) ? list.filter(Boolean) : [];
-      const head = arr.slice(0, limit || 5);
-      const remain = arr.length - head.length;
-      return { head, remain, total: arr.length };
-    }
-
-    function renderDailyDeliveryReport(data) {
-      const meta = document.getElementById('dailyReportMeta');
-      const badge = document.getElementById('dailyReportBadge');
-      const grid = document.getElementById('dailyReportGrid');
-      const toggle = document.getElementById('dailyReportToggle');
-      const detail = document.getElementById('dailyReportDetail');
-      if (!meta || !badge || !grid || !toggle || !detail) return;
-      if (!data || data.ok === false) {
-        badge.textContent = '需確認';
-        meta.textContent = (data && data.message) ? data.message : '今日配送報表讀取失敗。';
-        grid.innerHTML = '';
-        toggle.style.display = 'none';
-        detail.style.display = 'none';
-        return;
-      }
-      badge.textContent = '今日';
-      meta.textContent = `報表日期：${data.reportDate || '今日'}｜更新：${data.updatedAt || '-'}`;
-      const periods = data.periods || {};
-      const am = periods['上午'] || {};
-      const pm = periods['下午'] || {};
-      function cardHtml(title, bucket) {
-        return `<div class="daily-report-card"><h3>${escapeHtml(title)}</h3><p>總 ${Number(bucket.total || 0)}｜完成 ${Number(bucket.completed || 0)}｜未完成 ${Number(bucket.unfinished || 0)}｜延遲 ${Number(bucket.delayed || 0)}</p><p>送店 ${Number(bucket.storeDelivery || 0)}｜指定送貨 ${Number(bucket.directDelivery || 0)}｜照片 ${Number(bucket.withPhotos || 0)}</p></div>`;
-      }
-      grid.innerHTML = cardHtml('上午', am) + cardHtml('下午', pm);
-      const special = [];
-      const unfinished = [];
-      ['上午', '下午'].forEach(period => {
-        const bucket = periods[period] || {};
-        (Array.isArray(bucket.specialList) ? bucket.specialList : []).forEach(item => special.push(`${period}｜${item}`));
-        (Array.isArray(bucket.unfinishedList) ? bucket.unfinishedList : []).forEach(item => unfinished.push(`${period}｜${item}`));
-      });
-      const specialCompact = compactList(special, 8);
-      const unfinishedCompact = compactList(unfinished, 8);
-      if (!specialCompact.total && !unfinishedCompact.total) {
-        toggle.style.display = 'none';
-        detail.style.display = 'none';
-        detail.innerHTML = '';
-        return;
-      }
-      const detailCount = specialCompact.total + unfinishedCompact.total;
-      toggle.style.display = 'inline-block';
-      toggle.textContent = `查看特殊 / 未完成明細（${detailCount}）`;
-      detail.innerHTML = `
-        ${specialCompact.total ? `<div class="daily-report-special"><strong>特殊回報 / 取消 / 改期：</strong><br>${specialCompact.head.map(escapeHtml).join('<br>')}${specialCompact.remain > 0 ? `<br>另 ${specialCompact.remain} 筆未列出` : ''}</div>` : ''}
-        ${unfinishedCompact.total ? `<div class="daily-report-special"><strong>未完成清單：</strong><br>${unfinishedCompact.head.map(escapeHtml).join('<br>')}${unfinishedCompact.remain > 0 ? `<br>另 ${unfinishedCompact.remain} 筆未列出` : ''}</div>` : ''}
-      `;
-      toggle.onclick = () => {
-        const willShow = detail.style.display !== 'block';
-        detail.style.display = willShow ? 'block' : 'none';
-        toggle.textContent = willShow ? '收合特殊 / 未完成明細' : `查看特殊 / 未完成明細（${detailCount}）`;
-      };
-    }
-
-    async function loadDailyDeliveryReport() {
-      try {
-        const resp = await fetch(`${GAS_WEBAPP_URL}?action=get_daily_delivery_report&ts=${Date.now()}`, { cache: 'no-store' });
-        const json = await resp.json();
-        renderDailyDeliveryReport(json && json.data ? json.data : { ok: false, message: '每日配送報表資料格式異常。' });
-      } catch (err) {
-        console.warn('loadDailyDeliveryReport failed', err);
-        renderDailyDeliveryReport({ ok: false, message: '無法讀取每日配送報表。請確認 GAS Web App 是否已重新部署。' });
-      }
-    }
-
     async function loadManualAddStatus() {
       try {
         const resp = await fetch(`${GAS_WEBAPP_URL}?action=get_manual_add_status&ts=${Date.now()}`, { cache: 'no-store' });
@@ -591,7 +488,6 @@
     }
 
     loadSystemHealthStatus();
-    loadDailyDeliveryReport();
     loadManualAddStatus();
   </script>
 
