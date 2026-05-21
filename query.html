@@ -711,7 +711,7 @@
       const overdue = isCustomerEtaOverdueClient(etaRaw, dateRaw, timeRaw, taskRaw || progressRaw);
       return `
         <div style="margin-top:10px;padding:10px;border:1px dashed #c77;background:#fff8f0;border-radius:10px;font-size:12px;line-height:1.7;color:#663300;">
-          <b>ETA 診斷 v33 已載入</b><br>
+          <b>ETA 診斷 v52 已載入</b><br>
           raw ETA：${escapeHtml(etaRaw || '(空)')}<br>
           raw 日期：${escapeHtml(dateRaw || '(空)')}<br>
           raw 時段：${escapeHtml(timeRaw || '(空)')}<br>
@@ -776,23 +776,31 @@
       const re = /(AM|PM)?\s*(\d{1,2})\s*[:：]\s*(\d{2})/gi;
       let match;
       while ((match = re.exec(rawEta)) !== null) {
-        matches.push(match);
+        matches.push({
+          meridiem: String(match[1] || '').toUpperCase(),
+          hour: Number(match[2]),
+          minute: Number(match[3])
+        });
       }
       if (!matches.length) return null;
 
       const last = matches[matches.length - 1];
-      let meridiem = String(last[1] || '').toUpperCase();
+      let meridiem = last.meridiem;
+      const meridiemFromEta = !!meridiem;
       if (!meridiem) {
         if (/PM/i.test(rawPeriod)) meridiem = 'PM';
         if (/AM/i.test(rawPeriod)) meridiem = 'AM';
       }
 
-      let h = Number(last[2]);
-      const min = Number(last[3]);
+      let h = Number(last.hour);
+      const min = Number(last.minute);
       if (Number.isNaN(h) || Number.isNaN(min) || h < 0 || h > 23 || min < 0 || min > 59) return null;
 
+      // v52：配送 ETA 常見格式為「11:52–12:02」且時段欄位為「上午」。
+      // 舊版會把沒有明確 AM/PM 的 12:02 套用上午並轉成凌晨 00:02，導致剛出發就被判定延遲。
+      // 若 AM/PM 是由「送貨時間=上午」推導而來，12:xx 應視為中午 12:xx，不轉凌晨。
       if (meridiem === 'PM' && h < 12) h += 12;
-      if (meridiem === 'AM' && h === 12) h = 0;
+      if (meridiem === 'AM' && h === 12 && meridiemFromEta) h = 0;
 
       return new Date(baseDate.getFullYear(), baseDate.getMonth(), baseDate.getDate(), h, min, 0);
     }
