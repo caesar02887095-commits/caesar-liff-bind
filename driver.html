@@ -875,6 +875,7 @@
         htmlParts.push(`
           <div class="card done">
             <div class="display-name">${escapeHtml(doneText)}</div>
+            ${item.syncPending ? `<div class="done-note">已送出｜系統同步中</div>` : ''}
             ${renderDraftPhotoGrid(item)}
             ${canSupplement ? `<div class="btn-row" style="display:flex; margin-top:8px;"><button class="btn btn-photo btn-photo-upload" data-group-key="${escapeHtml(item.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(item.taskIds || [])))}">補傳照片${escapeHtml(photoText)}</button></div>` : ''}
           </div>
@@ -1021,11 +1022,63 @@
       driverActionDelegationBound = true;
     }
 
+
+    function showSyncNotice(message) {
+      const box = document.getElementById('errorBox');
+      if (!box) return;
+      box.innerHTML = `<div class="error" style="background:#ecfeff;color:#0f766e;border:1px solid #67e8f9;">${escapeHtml(message || '已送出，系統同步中')}</div>`;
+      setTimeout(() => {
+        if (box && box.innerHTML.indexOf('系統同步') !== -1) box.innerHTML = '';
+      }, 3500);
+    }
+
+    function showSyncWarning(message) {
+      const box = document.getElementById('errorBox');
+      if (!box) return;
+      box.innerHTML = `<div class="error" style="background:#fffbeb;color:#92400e;border:1px solid #f59e0b;">${escapeHtml(message || '同步狀態尚未確認，請稍後重新整理。')}</div>`;
+    }
+
+    async function postDriverActionWithSoftTimeout(payload, timeoutMs = 1800) {
+      const fetchPromise = fetch(GAS_WEBAPP_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+        body: JSON.stringify(payload)
+      }).then(async resp => {
+        const text = await resp.text();
+        let json = {};
+        try { json = JSON.parse(text); } catch (e) { throw new Error(text || '系統回應格式錯誤'); }
+        if (!json.ok) throw new Error(json.message || json.error || '送出失敗');
+        return json;
+      });
+
+      let timeoutId = null;
+      const timeoutPromise = new Promise(resolve => {
+        timeoutId = setTimeout(() => resolve({ ok: true, timeout: true, message: '已送出，系統同步中' }), timeoutMs);
+      });
+
+      const result = await Promise.race([fetchPromise, timeoutPromise]);
+      if (timeoutId) clearTimeout(timeoutId);
+
+      if (result && result.timeout) {
+        fetchPromise.catch(err => {
+          console.warn('driver action background confirm failed:', err);
+          showSyncWarning('已先更新畫面，但送出狀態尚未確認。請稍後重新整理確認。');
+        });
+      }
+      return result;
+    }
+
     async function startDeparture() {
+      if (window.__driverActionLock) return;
+      window.__driverActionLock = true;
+      const previousDeparture = departureStarted;
       try {
-        showOverlay('記錄出發並刷新 ETA...');
-        if (window.__driverActionLock) return;
-        window.__driverActionLock = true;
+        pendingDeparture = true;
+        departureStarted = true;
+        suppressAutoReloadUntil = Date.now() + 12000;
+        renderTasks(currentTasks);
+        showSyncNotice('已送出公司出發｜系統同步中，ETA 將於背景更新');
+
         const payload = {
           action: 'mark_driver_departure',
           driverName: currentDriverName,
@@ -1033,33 +1086,15 @@
           routeDate: new Date().toISOString()
         };
 
-        const resp = await fetch(GAS_WEBAPP_URL, {
-          method: 'POST',
-          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-          body: JSON.stringify(payload)
-        });
-
-        const text = await resp.text();
-        let json = {};
-        try {
-          json = JSON.parse(text);
-        } catch (e) {
-          throw new Error(text || '記錄出發失敗');
-        }
-
-        if (!json.ok) {
-          throw new Error(json.message || json.error || '記錄出發失敗');
-        }
-
-        pendingDeparture = true;
-        departureStarted = true;
-        suppressAutoReloadUntil = Date.now() + 8000;
-        renderTasks(currentTasks);
-        setTimeout(() => { suppressAutoReloadUntil = 0; loadTasks(true); }, 2500);
+        await postDriverActionWithSoftTimeout(payload, 1800);
+        setTimeout(() => { suppressAutoReloadUntil = 0; loadTasks(true); }, 5000);
       } catch (err) {
-        alert('出發處理失敗：' + (err.message || err));
+        departureStarted = previousDeparture;
+        pendingDeparture = false;
+        renderTasks(currentTasks);
+        alert('出發送出失敗：' + (err.message || err));
       } finally {
-        window.__driverActionLock = false;
+        setTimeout(() => { window.__driverActionLock = false; }, 800);
         hideOverlay();
       }
     }
@@ -1082,64 +1117,36 @@
 
     async function submitGroupStatus(taskIds, actionType, note = '') {
       let gpsInfo = '';
-      try {
-        gpsInfo = await getCurrentGpsText();
-      } catch (gpsErr) {
-        gpsInfo = '';
-      }
-
-      const payload = {
-        action: 'update_driver_group_status',
-        taskIds,
-        driverName: currentDriverName,
-        actionType,
-        note,
-        gpsInfo
-      };
-
-      const resp = await fetch(GAS_WEBAPP_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(payload)
-      });
-
-      const text = await resp.text();
-      let json = {};
-      try {
-        json = JSON.parse(text);
-      } catch (e) {
-        throw new Error(text || '回報失敗');
-      }
-
-      if (!json.ok) {
-        throw new Error(json.message || json.error || '回報失敗');
-      }
-
-      return json;
+      try { gpsInfo = await getCurrentGpsText(); } catch (gpsErr) { gpsInfo = ''; }
+      const payload = { action: 'update_driver_group_status', taskIds, driverName: currentDriverName, actionType, note, gpsInfo };
+      return postDriverActionWithSoftTimeout(payload, 1800);
     }
 
     async function submitGroupedStatus(taskIdsJson, actionType, groupKey, note = '') {
       let taskIds = [];
-      try {
-        taskIds = JSON.parse(taskIdsJson);
-      } catch (e) {
-        alert('任務資料格式錯誤');
-        return;
-      }
+      try { taskIds = JSON.parse(taskIdsJson); } catch (e) { alert('任務資料格式錯誤'); return; }
+      if (window.__driverActionLock) return;
+      window.__driverActionLock = true;
+
+      const displayStatus = actionType === 'DONE' ? '已完成' : (note || '特殊回報');
+      const previousTasks = currentTasks.map(t => ({ ...t }));
+      const previousCompletedGroups = { ...localCompletedGroups };
+      const previousPendingStates = { ...pendingGroupStates };
 
       try {
-        if (window.__driverActionLock) return;
-        window.__driverActionLock = true;
-        showOverlay(actionType === 'DONE' ? '回報配送完成中...' : '送出特殊回報中...');
+        suppressAutoReloadUntil = Date.now() + 12000;
+        markGroupDone(groupKey, displayStatus, true);
+        showSyncNotice((actionType === 'DONE' ? '已送出完成回報' : '已送出特殊回報') + '｜系統同步中');
         await submitGroupStatus(taskIds, actionType, note);
-        const displayStatus = actionType === 'DONE' ? '已完成' : (note || '特殊回報');
-        suppressAutoReloadUntil = Date.now() + 8000;
-        markGroupDone(groupKey, displayStatus);
-        setTimeout(() => { suppressAutoReloadUntil = 0; loadTasks(true); }, 2500);
+        setTimeout(() => { suppressAutoReloadUntil = 0; loadTasks(true); }, 5000);
       } catch (err) {
-        alert('整站回報失敗：' + (err.message || err));
+        currentTasks = previousTasks;
+        localCompletedGroups = previousCompletedGroups;
+        pendingGroupStates = previousPendingStates;
+        renderTasks(currentTasks);
+        alert('整站回報送出失敗：' + (err.message || err));
       } finally {
-        setTimeout(() => { window.__driverActionLock = false; }, 1200);
+        setTimeout(() => { window.__driverActionLock = false; }, 800);
         hideOverlay();
       }
     }
@@ -1189,7 +1196,7 @@
       await submitGroupedStatus(taskIdsJson, actionType, groupKey, note);
     }
 
-    function markGroupDone(groupKey, note = '') {
+    function markGroupDone(groupKey, note = '', syncPending = false) {
       const group = groupedStopsCache.find(x => x.key === groupKey);
       if (!group) return;
 
@@ -1220,7 +1227,8 @@
         draftPhotos: Array.isArray(group.draftPhotos) ? group.draftPhotos : [],
         reportedAt: now.toISOString(),
         completedAt: now.getTime(),
-        expireAt: Date.now() + 60000
+        syncPending: !!syncPending,
+        expireAt: Date.now() + 120000
       };
       renderTasks(currentTasks);
     }
