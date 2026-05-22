@@ -111,6 +111,17 @@
       color: #4b5563;
       line-height: 1.5;
     }
+    .completed-summary-card {
+      background: #f8fafc;
+      border: 1px dashed #cbd5e1;
+      color: #475569;
+      border-radius: 14px;
+      padding: 10px 12px;
+      margin-bottom: 10px;
+      font-size: 13px;
+      line-height: 1.6;
+    }
+
     .card-top {
       display: flex;
       justify-content: space-between;
@@ -518,6 +529,20 @@
       return url.searchParams.get(name) || '';
     }
 
+
+    function isPerfDebugMode() {
+      try {
+        const qs = new URLSearchParams(window.location.search || '');
+        return qs.get('debugPerf') === '1';
+      } catch (e) { return false; }
+    }
+
+    function setPerfDebugText(text) {
+      if (!isPerfDebugMode()) return;
+      const el = document.getElementById('summaryText');
+      if (el) el.textContent = text;
+    }
+
     async function initPage() {
       try {
         showPageProgress('正在初始化司機頁...', 10, '請稍候，系統正在準備司機任務畫面。');
@@ -657,8 +682,10 @@
           `&period=${encodeURIComponent(currentPeriod)}` +
           `&ts=${Date.now()}`;
 
+        const apiStartedAt = Date.now();
         const resp = await fetch(url, { cache: 'no-store' });
         const json = await resp.json();
+        const apiElapsed = Date.now() - apiStartedAt;
 
         if (!json.ok) {
           throw new Error(json.error || '讀取任務失敗');
@@ -680,7 +707,10 @@
         });
         const serverHasDeparted = currentTasks.some(task => String(task.etaText || '').trim() || ['已完成','放門口','改送隔壁','聯繫後改期','取消配送','特殊回報'].includes(String(task.status || '').trim()));
         if (serverHasDeparted) pendingDeparture = false;
+        if (isPerfDebugMode()) setPerfDebugText('API：' + apiElapsed + 'ms｜正在渲染司機任務...');
+        const renderStartedAt = Date.now();
         renderTasks(currentTasks);
+        if (isPerfDebugMode()) setPerfDebugText('API：' + apiElapsed + 'ms｜Render：' + (Date.now() - renderStartedAt) + 'ms｜任務：' + currentTasks.length + ' 筆');
         loadManualAddNotice();
         if (!silent) completePageProgress('司機任務載入完成');
       } catch (err) {
@@ -865,7 +895,14 @@
         `);
       }
 
-      completedList.forEach((item, idx) => {
+      const maxCompletedVisible = 3;
+      const completedVisibleList = completedList.slice(Math.max(0, completedList.length - maxCompletedVisible));
+      const hiddenCompletedCount = Math.max(0, completedList.length - completedVisibleList.length);
+      if (hiddenCompletedCount > 0) {
+        htmlParts.push(`<div class="completed-summary-card">已完成 ${hiddenCompletedCount} 站已壓縮顯示，保留最近 ${completedVisibleList.length} 站。需要確認全部狀態時可按重新整理或查看後台。</div>`);
+      }
+
+      completedVisibleList.forEach((item, idx) => {
         const doneText = item.note
           ? `${item.label || ''} (${item.note})`
           : `${item.label || ''}`;
@@ -881,7 +918,7 @@
           </div>
         `);
 
-        if (idx === completedList.length - 1 && pendingGroups.length > 0) {
+        if (idx === completedVisibleList.length - 1 && pendingGroups.length > 0) {
           htmlParts.push(`
             <div class="travel-connector">
               <span>🚚 司機配送中</span>
