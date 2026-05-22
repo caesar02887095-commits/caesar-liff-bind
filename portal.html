@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>凱撒衛浴配送系統入口</title>
+  <!-- v53.3：入口頁卡片標籤移至標題右側 -->
   <style>
     :root {
       --caesar-orange: #f28c28;
@@ -114,6 +115,14 @@
       box-shadow: 0 10px 28px rgba(15, 23, 42, 0.11);
     }
 
+    .card-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 10px;
+    }
+
     .card-tag {
       display: inline-flex;
       width: fit-content;
@@ -124,13 +133,15 @@
       color: #9a4f00;
       font-size: 12px;
       padding: 4px 9px;
-      margin-bottom: 14px;
+      flex-shrink: 0;
+      white-space: nowrap;
     }
 
     .card h2 {
       margin: 0;
       font-size: 20px;
       line-height: 1.25;
+      min-width: 0;
     }
 
     .card p {
@@ -305,30 +316,38 @@
 
     <section class="section grid">
       <a class="card" id="dispatchCard" href="dispatch.html?v=dispatch-v4">
-        <span class="card-tag" id="dispatchTag">內部</span>
-        <h2>排車管理</h2>
+        <div class="card-title-row">
+          <h2>排車管理</h2>
+          <span class="card-tag" id="dispatchTag">內部</span>
+        </div>
         <p>查看上午 / 下午任務，調整路線群組、司機與配送順序。</p>
         <div class="warning-text" id="manualAddStatus" style="display:none;"></div>
         <div class="card-action">進入排車頁 →</div>
       </a>
 
       <a class="card" href="driver.html?v=driver-auth">
-        <span class="card-tag">司機</span>
-        <h2>司機任務</h2>
+        <div class="card-title-row">
+          <h2>司機任務</h2>
+          <span class="card-tag">司機</span>
+        </div>
         <p>查看個人配送任務、公司出發、完成配送與特殊回報。</p>
         <div class="card-action">進入司機頁 →</div>
       </a>
 
       <a class="card" href="query.html?v=query-v52">
-        <span class="card-tag">客戶</span>
-        <h2>配送查詢</h2>
+        <div class="card-title-row">
+          <h2>配送查詢</h2>
+          <span class="card-tag">客戶</span>
+        </div>
         <p>已綁定 LINE 的店家可查詢配送狀態，並分享指定送貨進度。</p>
         <div class="card-action">進入查詢頁 →</div>
       </a>
 
       <a class="card" href="admin.html?v=admin-v53-2">
-        <span class="card-tag">管理</span>
-        <h2>系統管理</h2>
+        <div class="card-title-row">
+          <h2>系統管理</h2>
+          <span class="card-tag">管理</span>
+        </div>
         <p>管理員只讀查詢客戶配送與司機任務，不提供修改功能。</p>
         <div class="card-action">進入管理頁 →</div>
       </a>
