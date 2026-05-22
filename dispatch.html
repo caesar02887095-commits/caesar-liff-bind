@@ -804,11 +804,19 @@
     }
 
     function initSortables() {
-      sortableRefs.forEach(x => x.destroy());
+      // v54 Android 載入優化：未進入排序模式前，不建立 Sortable 實例。
+      // Android LINE WebView 對拖曳元件初始化較敏感；排車頁開頁時先只渲染清單，
+      // 使用者按「修改排序」後才啟用拖曳，避免每次讀取都產生多組拖曳監聽器。
+      sortableRefs.forEach(x => {
+        try { x.destroy(); } catch (e) {}
+      });
       sortableRefs = [];
+
+      if (!sortMode) return;
 
       GROUP_NAMES.forEach(groupName => {
         const el = document.getElementById(`group-${groupName}`);
+        if (!el || typeof Sortable === 'undefined') return;
         const sortable = new Sortable(el, {
           group: 'dispatch-board',
           animation: 150,
@@ -816,7 +824,7 @@
           chosenClass: 'sortable-chosen',
           draggable: '.row',
           handle: '.drag-handle',
-          disabled: !sortMode,
+          disabled: false,
           onEnd: function () {
             syncLocalBoardFromDOM();
           }
