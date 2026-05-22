@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>凱撒衛浴查詢入口</title>
+  <!-- v56.1：配送明細展開按鈕使用更明確的客戶端樣式 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     body {
@@ -149,27 +150,89 @@
       border-top: 1px dashed #cfd8e3;
     }
     details.detail-block {
-      margin-top: 10px;
-      padding-top: 10px;
+      margin-top: 12px;
+      padding-top: 12px;
       border-top: 1px dashed #cfd8e3;
     }
     details.detail-block summary {
       cursor: pointer;
-      font-size: 14px;
-      font-weight: bold;
-      color: #374151;
       list-style: none;
       user-select: none;
+      outline: none;
     }
     details.detail-block summary::-webkit-details-marker { display: none; }
-    details.detail-block summary::after {
-      content: '展開';
-      float: right;
-      color: #EBA13A;
-      font-size: 12px;
-      font-weight: 800;
+
+    .detail-summary-btn {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      width: 100%;
+      border: 1px solid rgba(235, 161, 58, 0.72);
+      background: #fff7ed;
+      color: #9a4f00;
+      border-radius: 12px;
+      padding: 11px 12px;
+      font-size: 14px;
+      font-weight: 900;
+      line-height: 1.45;
+      box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
     }
-    details.detail-block[open] summary::after { content: '收合'; }
+    .detail-summary-main {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      min-width: 0;
+    }
+    .detail-summary-icon {
+      width: 24px;
+      height: 24px;
+      border-radius: 999px;
+      background: #EBA13A;
+      color: #fff;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 900;
+      flex-shrink: 0;
+    }
+    .detail-summary-text {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .detail-summary-title {
+      color: #92400e;
+      font-size: 14px;
+      font-weight: 900;
+    }
+    .detail-summary-hint {
+      color: #a16207;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .detail-summary-action {
+      flex-shrink: 0;
+      border-radius: 999px;
+      background: #EBA13A;
+      color: #fff;
+      padding: 5px 9px;
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+    .detail-summary-action::before { content: '查看'; }
+    details.detail-block[open] .detail-summary-action::before { content: '收合'; }
+
+    .detail-content-box {
+      margin-top: 10px;
+      padding: 10px 12px;
+      background: #f8fafc;
+      border: 1px solid #dbe4ef;
+      border-radius: 12px;
+    }
 
     .detail-title {
       font-size: 14px;
@@ -881,11 +944,24 @@
           <div class="row">送貨時間：${escapeHtml(formatDeliveryDisplay(etaFields.deliveryDateText || order.deliveryDateText, etaFields.deliveryTime || order.deliveryTime))}</div>
 
           <details class="detail-block">
-            <summary>配送明細${detailLines.length ? `（${detailLines.length} 筆）` : ''}</summary>
-            ${detailLines.length
-              ? detailLines.map(line => `<div class="detail-line">${escapeHtml(line)}</div>`).join('')
-              : `<div class="detail-line">無明細資料</div>`
-            }
+            <summary>
+              <div class="detail-summary-btn">
+                <div class="detail-summary-main">
+                  <span class="detail-summary-icon">明</span>
+                  <span class="detail-summary-text">
+                    <span class="detail-summary-title">配送明細${detailLines.length ? `（${detailLines.length} 筆）` : ''}</span>
+                    <span class="detail-summary-hint">點一下查看本次送貨品項</span>
+                  </span>
+                </div>
+                <span class="detail-summary-action"></span>
+              </div>
+            </summary>
+            <div class="detail-content-box">
+              ${detailLines.length
+                ? detailLines.map(line => `<div class="detail-line">${escapeHtml(line)}</div>`).join('')
+                : `<div class="detail-line">無明細資料</div>`
+              }
+            </div>
           </details>
 
           <div class="status-pill">
