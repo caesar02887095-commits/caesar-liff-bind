@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>凱撒衛浴查詢入口</title>
-  <!-- v56.1：配送明細展開按鈕使用更明確的客戶端樣式 -->
+  <!-- v56.2：配送明細收合按鈕調整為低干擾膠囊樣式 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     body {
@@ -150,8 +150,8 @@
       border-top: 1px dashed #cfd8e3;
     }
     details.detail-block {
-      margin-top: 12px;
-      padding-top: 12px;
+      margin-top: 10px;
+      padding-top: 8px;
       border-top: 1px dashed #cfd8e3;
     }
     details.detail-block summary {
@@ -162,76 +162,47 @@
     }
     details.detail-block summary::-webkit-details-marker { display: none; }
 
-    .detail-summary-btn {
+    .detail-summary-row {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
-      width: 100%;
-      border: 1px solid rgba(235, 161, 58, 0.72);
-      background: #fff7ed;
-      color: #9a4f00;
-      border-radius: 12px;
-      padding: 11px 12px;
-      font-size: 14px;
-      font-weight: 900;
-      line-height: 1.45;
-      box-shadow: 0 1px 4px rgba(15, 23, 42, 0.04);
-    }
-    .detail-summary-main {
-      display: flex;
-      align-items: center;
       gap: 8px;
-      min-width: 0;
+      width: 100%;
+      min-height: 34px;
     }
-    .detail-summary-icon {
-      width: 24px;
-      height: 24px;
-      border-radius: 999px;
-      background: #EBA13A;
-      color: #fff;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
+    .detail-summary-label {
+      min-width: 0;
+      color: #64748b;
       font-size: 13px;
-      font-weight: 900;
-      flex-shrink: 0;
-    }
-    .detail-summary-text {
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      min-width: 0;
-    }
-    .detail-summary-title {
-      color: #92400e;
-      font-size: 14px;
-      font-weight: 900;
-    }
-    .detail-summary-hint {
-      color: #a16207;
-      font-size: 12px;
       font-weight: 700;
+      line-height: 1.4;
     }
     .detail-summary-action {
       flex-shrink: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 72px;
+      min-height: 32px;
       border-radius: 999px;
-      background: #EBA13A;
-      color: #fff;
-      padding: 5px 9px;
-      font-size: 12px;
+      border: 1px solid rgba(235, 161, 58, 0.85);
+      background: #fff;
+      color: #9a4f00;
+      padding: 6px 12px;
+      font-size: 13px;
       font-weight: 900;
+      line-height: 1;
       white-space: nowrap;
     }
-    .detail-summary-action::before { content: '查看'; }
+    .detail-summary-action::before { content: '展開'; }
     details.detail-block[open] .detail-summary-action::before { content: '收合'; }
 
     .detail-content-box {
-      margin-top: 10px;
-      padding: 10px 12px;
+      margin-top: 8px;
+      padding: 9px 10px;
       background: #f8fafc;
       border: 1px solid #dbe4ef;
-      border-radius: 12px;
+      border-radius: 10px;
     }
 
     .detail-title {
@@ -945,14 +916,8 @@
 
           <details class="detail-block">
             <summary>
-              <div class="detail-summary-btn">
-                <div class="detail-summary-main">
-                  <span class="detail-summary-icon">明</span>
-                  <span class="detail-summary-text">
-                    <span class="detail-summary-title">配送明細${detailLines.length ? `（${detailLines.length} 筆）` : ''}</span>
-                    <span class="detail-summary-hint">點一下查看本次送貨品項</span>
-                  </span>
-                </div>
+              <div class="detail-summary-row">
+                <span class="detail-summary-label">配送明細${detailLines.length ? `（${detailLines.length} 筆）` : ''}</span>
                 <span class="detail-summary-action"></span>
               </div>
             </summary>
