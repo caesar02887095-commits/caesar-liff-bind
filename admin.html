@@ -294,13 +294,11 @@
       <div class="card">
         <div class="tabs">
           <button class="tab-btn active" id="tab-customer" onclick="switchTab('customer')">客戶查詢</button>
-          <button class="tab-btn" id="tab-order" onclick="switchTab('order')">單號追蹤</button>
           <button class="tab-btn" id="tab-driver" onclick="switchTab('driver')">司機任務</button>
-          <button class="tab-btn" id="tab-dispatch" onclick="switchTab('dispatch')">排車看板</button>
         </div>
 
         <div class="section-note">
-          v53 管理員模式僅提供只讀查詢。此頁不會修改排車、司機狀態、LINE 通知、ETA 或任何配送資料。
+          v53.1 管理員模式僅提供只讀查詢。此頁保留「客戶查詢」與「司機任務」，不提供單號追蹤、排車看板或任何修改功能。
         </div>
       </div>
 
@@ -311,34 +309,9 @@
             <label>客編</label>
             <input id="customerClientCode" placeholder="例如 0001" inputmode="numeric" />
           </div>
-          <div class="field">
-            <label>快取</label>
-            <select id="customerForceRefresh">
-              <option value="0">使用現有快取</option>
-              <option value="1">重建客戶查詢快取</option>
-            </select>
-          </div>
         </div>
         <div class="btn-row">
           <button class="btn btn-primary" onclick="loadAdminCustomer()">查詢客戶配送</button>
-          <button class="btn btn-secondary" onclick="clearResult()">清除結果</button>
-        </div>
-      </div>
-
-      <div id="panel-order" class="card" style="display:none;">
-        <div class="result-title">單號追蹤查詢</div>
-        <div class="form-grid">
-          <div class="field">
-            <label>單號</label>
-            <input id="orderNo" placeholder="輸入出貨單號" />
-          </div>
-          <div class="field">
-            <label>客編（可空白）</label>
-            <input id="orderClientCode" placeholder="可選；用於縮小搜尋" inputmode="numeric" />
-          </div>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-primary" onclick="loadAdminOrder()">查詢單號追蹤</button>
           <button class="btn btn-secondary" onclick="clearResult()">清除結果</button>
         </div>
       </div>
@@ -348,7 +321,7 @@
         <div class="form-grid">
           <div class="field">
             <label>司機名稱</label>
-            <input id="driverName" placeholder="例如 小老闆" />
+            <select id="driverName"><option value="">司機名單載入中...</option></select>
           </div>
           <div class="field">
             <label>日期</label>
@@ -364,27 +337,6 @@
         </div>
         <div class="btn-row">
           <button class="btn btn-primary" onclick="loadAdminDriver()">查詢司機任務</button>
-          <button class="btn btn-secondary" onclick="clearResult()">清除結果</button>
-        </div>
-      </div>
-
-      <div id="panel-dispatch" class="card" style="display:none;">
-        <div class="result-title">排車看板查詢</div>
-        <div class="form-grid">
-          <div class="field">
-            <label>日期</label>
-            <input id="dispatchDate" type="date" />
-          </div>
-          <div class="field">
-            <label>時段</label>
-            <select id="dispatchPeriod">
-              <option value="上午">上午</option>
-              <option value="下午">下午</option>
-            </select>
-          </div>
-        </div>
-        <div class="btn-row">
-          <button class="btn btn-primary" onclick="loadAdminDispatch()">查詢排車看板</button>
           <button class="btn btn-secondary" onclick="clearResult()">清除結果</button>
         </div>
       </div>
@@ -406,6 +358,7 @@
 
     let currentAdminUid = '';
     let currentAdminName = '';
+    let adminDriverListLoaded = false;
 
     function escapeHtml(value) {
       return String(value ?? '')
@@ -431,9 +384,7 @@
     function setDefaults() {
       const today = todayDateText();
       document.getElementById('driverDate').value = today;
-      document.getElementById('dispatchDate').value = today;
       document.getElementById('driverPeriod').value = getDefaultPeriod();
-      document.getElementById('dispatchPeriod').value = getDefaultPeriod();
     }
 
     function renderAuthMessage(html, className) {
@@ -453,7 +404,7 @@
     }
 
     function switchTab(tab) {
-      ['customer', 'order', 'driver', 'dispatch'].forEach(name => {
+      ['customer', 'driver'].forEach(name => {
         document.getElementById('tab-' + name).classList.toggle('active', name === tab);
         document.getElementById('panel-' + name).style.display = name === tab ? 'block' : 'none';
       });
@@ -467,6 +418,55 @@
         throw new Error(json.error || 'API 回傳失敗');
       }
       return json.data || {};
+    }
+
+
+    function formatAdminDate(value) {
+      if (!value) return '';
+      const raw = String(value).trim();
+      if (!raw) return '';
+
+      const direct = raw.match(/^(\d{4})[\/-](\d{1,2})[\/-](\d{1,2})/);
+      if (direct) {
+        return `${direct[1]}/${String(direct[2]).padStart(2, '0')}/${String(direct[3]).padStart(2, '0')}`;
+      }
+
+      const d = new Date(raw);
+      if (!isNaN(d.getTime())) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${y}/${m}/${day}`;
+      }
+
+      return raw;
+    }
+
+    function formatAdminDatePeriod(dateValue, periodValue) {
+      const dateText = formatAdminDate(dateValue);
+      const periodText = String(periodValue || '').trim();
+      return [dateText, periodText].filter(Boolean).join(' ');
+    }
+
+    async function loadDriverOptions() {
+      const select = document.getElementById('driverName');
+      if (!select || adminDriverListLoaded) return;
+
+      try {
+        const resp = await fetch(`${GAS_WEBAPP_URL}?action=get_driver_list&ts=${Date.now()}`, { cache: 'no-store' });
+        const json = await resp.json();
+        const data = json.data || json || {};
+        const list = Array.isArray(data.drivers) ? data.drivers : (Array.isArray(data.list) ? data.list : []);
+        const names = list.map(item => {
+          if (typeof item === 'string') return item;
+          return item.driverName || item.name || item.司機名稱 || item.司機 || '';
+        }).filter(Boolean);
+
+        select.innerHTML = '<option value="">請選擇司機</option>' + names.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
+        adminDriverListLoaded = true;
+      } catch (err) {
+        select.innerHTML = '<option value="">司機名單讀取失敗，請重新整理</option>';
+      }
     }
 
     async function initPage() {
@@ -498,6 +498,7 @@
 
         document.getElementById('authPanel').style.display = 'none';
         document.getElementById('mainPanel').style.display = 'block';
+        await loadDriverOptions();
       } catch (err) {
         document.getElementById('adminInfo').textContent = '管理員權限驗證失敗';
         renderAuthMessage('初始化失敗：' + escapeHtml(err.message || err), 'bad');
@@ -522,7 +523,7 @@
           <div class="order-card">
             <div class="order-head">
               <div>${escapeHtml(order.storeName || '未填店家')}</div>
-              <div>${escapeHtml(order.deliveryDateText || '')} ${escapeHtml(order.deliveryTime || '')}</div>
+              <div>${escapeHtml(formatAdminDatePeriod(order.deliveryDateText, order.deliveryTime))}</div>
             </div>
             <div class="row"><span class="tag">單號</span>${escapeHtml((order.orderNos || []).join(' / ') || order.orderNo || '')}</div>
             <div class="row"><span class="tag">狀態</span>${escapeHtml(order.taskStatusText || order.taskStatus || '理貨中')}</div>
@@ -530,7 +531,6 @@
             <div class="row"><span class="tag">司機</span>${escapeHtml(order.driverName || '未指派')}</div>
             <div class="row"><span class="tag">地址</span>${escapeHtml(order.address || '')}</div>
             <div class="row"><span class="tag">電話</span>${escapeHtml(order.phone || '')}</div>
-            <div class="row"><span class="tag">品項</span>${escapeHtml(order.itemSummary || '')}</div>
             ${(order.detailLines || []).map(line => `<div class="detail-line">${escapeHtml(line)}</div>`).join('')}
           </div>
         `).join('')}
@@ -539,7 +539,7 @@
 
     async function loadAdminCustomer() {
       const clientCode = document.getElementById('customerClientCode').value.trim();
-      const forceRefresh = document.getElementById('customerForceRefresh').value;
+      const forceRefresh = '0';
       if (!clientCode) {
         renderResult('<div class="status bad">請輸入客編。</div>');
         return;
