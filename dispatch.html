@@ -456,6 +456,7 @@
     let currentBatchId = '';
     let dispatchBoard = null;
     let sortableRefs = [];
+    let dispatchRenderToken = 0;
     let sortMode = false;
     let isSaving = false;
     let driverOptions = [...DEFAULT_DRIVER_OPTIONS];
@@ -593,214 +594,26 @@
     }
 
     function initDriverSelects() {
-      GROUP_NAMES.forEach(groupName => {
-        const select = document.getElementById(`driver-${groupName}`);
-        if (!select) return;
-        select.innerHTML = [
-          '<option value="">未指派</option>',
-          ...driverOptions.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)
-        ].join('');
-      });
-    }
-
-    function renderDriverRouteButtons() {
-      const box = document.getElementById('driverRouteButtons');
-      if (!box) return;
-      const names = driverOptions && driverOptions.length ? driverOptions : DEFAULT_DRIVER_OPTIONS;
-      box.innerHTML = names.map(name => {
-        return `<button class="route-btn" data-driver="${escapeHtml(name)}" onclick="openDriverRoute(this.getAttribute('data-driver'))">${escapeHtml(name)}</button>`;
-      }).join('');
-    }
-
-    function ensureDriverOption(select, driverName) {
-      const name = String(driverName || '').trim();
-      if (!select || !name) return;
-      const exists = Array.from(select.options).some(opt => opt.value === name);
-      if (!exists) {
-        const option = document.createElement('option');
-        option.value = name;
-        option.textContent = name + '（目前任務）';
-        select.appendChild(option);
-      }
-    }
-
-    function setTabs() {
-      document.getElementById('tabAM').classList.toggle('active', currentPeriod === '上午');
-      document.getElementById('tabPM').classList.toggle('active', currentPeriod === '下午');
-    }
-
-    function switchPeriod(period) {
-      currentPeriod = period;
-      setTabs();
-      loadDispatchBoard();
-    }
-
-    function getLocalSnapshotKey(period) {
-      return `${LOCAL_KEY_PREFIX}${period}`;
-    }
-
-    function saveLocalSnapshot(snapshot) {
-      try {
-        localStorage.setItem(getLocalSnapshotKey(currentPeriod), JSON.stringify({
-          savedAt: Date.now(),
-          batchId: currentBatchId || '',
-          data: snapshot
-        }));
-      } catch (e) {
-        console.warn('saveLocalSnapshot failed', e);
-      }
-    }
-
-    function getLocalSnapshot(period) {
-      try {
-        const raw = localStorage.getItem(getLocalSnapshotKey(period));
-        if (!raw) return null;
-        const parsed = JSON.parse(raw);
-        if (!parsed || !parsed.data) return null;
-        if ((parsed.batchId || '') !== (currentBatchId || '')) return null;
-        return parsed.data;
-      } catch (e) {
-        console.warn('getLocalSnapshot failed', e);
-        return null;
-      }
-    }
-
-    function clearLocalSnapshot(period) {
-      try {
-        localStorage.removeItem(getLocalSnapshotKey(period));
-      } catch (e) {
-        console.warn('clearLocalSnapshot failed', e);
-      }
-    }
-
-    async function loadDispatchBoard() {
-      showPageProgress('正在讀取排車資料...', 45, '系統正在讀取每日任務與目前排車資料。');
-      try {
-        const url = `${GAS_WEBAPP_URL}?action=get_dispatch_board&period=${encodeURIComponent(currentPeriod)}`;
-        const resp = await fetch(url, { cache: 'no-store' });
-        const json = await resp.json();
-
-        if (!json.ok) {
-          alert(json.error || '讀取排車頁失敗');
-          updatePageProgress('排車資料讀取失敗', 100, json.error || '請稍後重新讀取。');
-          return;
-        }
-
-        updatePageProgress('正在整理路線順序...', 78, '系統正在整理路線群組、司機與站點順序。');
-        dispatchBoard = json.data || { groups: {} };
-        currentBatchId = dispatchBoard.batchId || '';
-
-        // 2026-05-14 v3 修正：不再於開頁時套用 localStorage 排車快照。
-        // 原本快照機制會在「清空任務 / 重新產生任務」後，仍把舊的拖拉位置覆蓋回畫面，
-        // 造成後端已回到預設調度，但前端看起來還停在上一次人工排車位置。
-        // 目前排車頁以後端「每日任務看板」為唯一畫面來源；拖拉中的畫面狀態保留在當前 DOM 即可。
-        clearLocalSnapshot(currentPeriod);
-
-        renderDispatchBoard();
-        completePageProgress('排車資料載入完成');
-      } catch (err) {
-        console.error(err);
-        updatePageProgress('排車資料讀取失敗', 100, '請確認網路狀態後重新讀取。');
-        alert('讀取排車頁失敗：' + (err.message || err));
-      }
-    }
-
-    function mergeBoardWithLocalSnapshot(serverBoard, localSnapshot) {
-      const merged = JSON.parse(JSON.stringify(serverBoard || { groups: {} }));
-      merged.groups = merged.groups || {};
-
-      GROUP_NAMES.forEach(groupName => {
-        const serverList = Array.isArray(merged.groups[groupName]) ? merged.groups[groupName] : [];
-        const localGroup = localSnapshot.groups && localSnapshot.groups[groupName]
-          ? localSnapshot.groups[groupName]
-          : { driverName: '', items: [] };
-
-        const localItems = Array.isArray(localGroup.items) ? localGroup.items : [];
-        const serverMap = new Map(serverList.map(item => [String(item.stopKey || ''), item]));
-        const reordered = [];
-
-        localItems.forEach(localItem => {
-          const key = String(localItem.stopKey || '');
-          if (serverMap.has(key)) {
-            const serverItem = serverMap.get(key);
-            reordered.push({
-              ...serverItem,
-              driverName: localGroup.driverName || serverItem.driverName || ''
-            });
-            serverMap.delete(key);
-          }
-        });
-
-        serverMap.forEach(serverItem => {
-          reordered.push({
-            ...serverItem,
-            driverName: localGroup.driverName || serverItem.driverName || ''
-          });
-        });
-
-        merged.groups[groupName] = reordered;
-      });
-
-      return merged;
-    }
-
-    function renderDispatchBoard() {
-      document.getElementById('dispatchInfo').innerHTML = `目前查看：<b>${currentPeriod}</b>`;
-
-      const groups = dispatchBoard.groups || {};
-      const totalStops = GROUP_NAMES.reduce((sum, name) => sum + ((groups[name] || []).length), 0);
-      const totalOrders = GROUP_NAMES.reduce((sum, name) => {
-        return sum + (groups[name] || []).reduce((inner, item) => inner + getOrderCount(item), 0);
-      }, 0);
-
-      document.getElementById('summaryText').textContent = `共 ${totalStops} 站 / ${totalOrders} 張單等待排車`;
+      const renderStartedAt = Date.now();
+      const token = ++dispatchRenderToken;
 
       GROUP_NAMES.forEach(groupName => {
         const box = document.getElementById(`group-${groupName}`);
-        const list = Array.isArray(groups[groupName]) ? groups[groupName] : [];
-        const countBox = document.getElementById(`count-${groupName}`);
-        const driverSelect = document.getElementById(`driver-${groupName}`);
-
-        const groupOrderCount = list.reduce((sum, item) => sum + getOrderCount(item), 0);
-        if (countBox) {
-          countBox.textContent = `${list.length} 站 / ${groupOrderCount} 張單`;
-        }
-
-        const groupDriverName = list.length > 0 ? (list[0].driverName || '') : '';
-        if (driverSelect) {
-          ensureDriverOption(driverSelect, groupDriverName);
-          driverSelect.value = groupDriverName;
-        }
-
-        if (!list.length) {
-          box.innerHTML = '<div class="empty">目前無資料</div>';
-          return;
-        }
-
-        box.innerHTML = list.map(item => {
-          const mainLabel = getMainLabel(item);
-          const deliveryTypeText = isStoreStop(item) ? '店' : '指';
-          const deliveryTypeClass = isStoreStop(item) ? 'type-box' : 'type-box alert';
-          const orderCount = getOrderCount(item);
-          const addonBadge = item.isManualAdd ? '<span class="addon-badge">加單</span>' : '';
-
-          return `
-            <div class="row"
-                 data-stop-key="${escapeHtml(item.stopKey)}"
-                 data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(item.taskIds || [])))}">
-              <div class="row-left">
-                <div class="${deliveryTypeClass}">${escapeHtml(deliveryTypeText)}</div>
-                <div class="row-title">${escapeHtml(mainLabel)}<span class="order-count">(${escapeHtml(String(orderCount))})</span>${addonBadge}</div>
-              </div>
-              <div class="row-right">
-                <div class="drag-handle ${sortMode ? '' : 'disabled'}">☰</div>
-              </div>
-            </div>
-          `;
-        }).join('');
+        if (box) box.innerHTML = '<div class="empty">路線資料整理中...</div>';
       });
 
-      initSortables();
+      GROUP_NAMES.forEach((groupName, idx) => {
+        setTimeout(() => {
+          if (token !== dispatchRenderToken) return;
+          renderDispatchGroup_(groupName, groups);
+          if (idx === GROUP_NAMES.length - 1) {
+            initSortables();
+            if (isPerfDebugMode()) {
+              document.getElementById('summaryText').textContent = `共 ${totalStops} 站 / ${totalOrders} 張單等待排車｜Render ${Date.now() - renderStartedAt}ms`;
+            }
+          }
+        }, idx * 20);
+      });
     }
 
     function initSortables() {
