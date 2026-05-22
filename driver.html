@@ -507,6 +507,7 @@
     let groupedStopsCache = [];
     const PHOTO_SUPPLEMENT_WINDOW_MIN = 10;
     let overlayPreviewUrls = [];
+    let driverActionDelegationBound = false;
     // 已關閉固定時間輪詢：司機頁只在開頁、手動重新整理、切回頁面、操作後重新讀取。
     let suppressAutoReloadUntil = 0;
     let pageLoadingTimer10 = null;
@@ -944,7 +945,7 @@
           ${photos.map((photo, idx) => `
             <div class="photo-thumb">
               <a href="${escapeHtml(photo.url || photo.previewUrl || '')}" target="_blank" rel="noopener">
-                <img src="${escapeHtml(photo.previewUrl || photo.url || '')}" alt="draft-photo-${idx + 1}">
+                <img loading="lazy" decoding="async" src="${escapeHtml(photo.previewUrl || photo.url || '')}" alt="draft-photo-${idx + 1}">
               </a>
               <button class="photo-delete-btn btn-photo-delete"
                       data-group-key="${escapeHtml(group.key)}"
@@ -958,52 +959,66 @@
     }
 
     function bindActionButtons() {
-      const startBtn = document.getElementById('btn-start-departure');
-      if (startBtn) {
-        startBtn.addEventListener('click', startDeparture);
-      }
+      // v54 Android 載入優化：改用事件委派。
+      // 原本每次 renderTasks() 都會 querySelectorAll 並重新綁定每顆按鈕，
+      // Android LINE WebView 在多任務卡片時會明顯卡頓。現在只在 taskContainer 綁一次。
+      if (driverActionDelegationBound) return;
 
-      document.querySelectorAll('.btn-nav').forEach(btn => {
-        btn.addEventListener('click', () => {
-          openMap(btn.getAttribute('data-nav') || '');
-        });
-      });
+      const container = document.getElementById('taskContainer');
+      if (!container) return;
 
-      document.querySelectorAll('.btn-done').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const groupKey = btn.getAttribute('data-group-key') || '';
-          const taskIdsJson = decodeURIComponent(btn.getAttribute('data-taskids') || '');
+      container.addEventListener('click', async (ev) => {
+        const target = ev.target && ev.target.closest ? ev.target.closest('button') : null;
+        if (!target) return;
+
+        if (target.id === 'btn-start-departure') {
+          ev.preventDefault();
+          await startDeparture();
+          return;
+        }
+
+        if (target.classList.contains('btn-nav')) {
+          ev.preventDefault();
+          openMap(target.getAttribute('data-nav') || '');
+          return;
+        }
+
+        if (target.classList.contains('btn-done')) {
+          ev.preventDefault();
+          const groupKey = target.getAttribute('data-group-key') || '';
+          const taskIdsJson = decodeURIComponent(target.getAttribute('data-taskids') || '');
           await submitGroupedStatus(taskIdsJson, 'DONE', groupKey, '');
-        });
-      });
+          return;
+        }
 
-      document.querySelectorAll('.btn-photo-upload').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const groupKey = btn.getAttribute('data-group-key') || '';
-          const taskIdsJson = decodeURIComponent(btn.getAttribute('data-taskids') || '[]');
+        if (target.classList.contains('btn-photo-upload')) {
+          ev.preventDefault();
+          const groupKey = target.getAttribute('data-group-key') || '';
+          const taskIdsJson = decodeURIComponent(target.getAttribute('data-taskids') || '[]');
           await chooseAndUploadPhotos(taskIdsJson, groupKey);
-        });
-      });
+          return;
+        }
 
-      document.querySelectorAll('.btn-photo-delete').forEach(btn => {
-        btn.addEventListener('click', async (ev) => {
+        if (target.classList.contains('btn-photo-delete')) {
           ev.preventDefault();
           ev.stopPropagation();
-          const groupKey = btn.getAttribute('data-group-key') || '';
-          const taskIdsJson = decodeURIComponent(btn.getAttribute('data-taskids') || '[]');
-          const photoIndex = Number(btn.getAttribute('data-photo-index') || '-1');
-          const fileId = btn.getAttribute('data-file-id') || '';
+          const groupKey = target.getAttribute('data-group-key') || '';
+          const taskIdsJson = decodeURIComponent(target.getAttribute('data-taskids') || '[]');
+          const photoIndex = Number(target.getAttribute('data-photo-index') || '-1');
+          const fileId = target.getAttribute('data-file-id') || '';
           await deleteUploadedPhoto(taskIdsJson, groupKey, photoIndex, fileId);
-        });
+          return;
+        }
+
+        if (target.classList.contains('btn-special')) {
+          ev.preventDefault();
+          const groupKey = target.getAttribute('data-group-key') || '';
+          const taskIdsJson = decodeURIComponent(target.getAttribute('data-taskids') || '');
+          await submitGroupedSpecial(taskIdsJson, groupKey);
+        }
       });
 
-      document.querySelectorAll('.btn-special').forEach(btn => {
-        btn.addEventListener('click', async () => {
-          const groupKey = btn.getAttribute('data-group-key') || '';
-          const taskIdsJson = decodeURIComponent(btn.getAttribute('data-taskids') || '');
-          await submitGroupedSpecial(taskIdsJson, groupKey);
-        });
-      });
+      driverActionDelegationBound = true;
     }
 
     async function startDeparture() {
