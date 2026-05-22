@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CAESAR 系統管理</title>
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <style>
+    :root {
+      --caesar-orange: #f28c28;
+      --bg: #f5f6f8;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #64748b;
+      --line: #d8dee8;
+      --blue: #1d4ed8;
+      --green: #166534;
+      --red: #991b1b;
+      --yellow: #92400e;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      font-family: Arial, "Microsoft JhengHei", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    .wrap {
+      width: min(860px, 100%);
+      margin: 0 auto;
+      padding: 12px;
+    }
+
+    .topbar {
+      background: #ffffff;
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .brand-line {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+
+    .brand-title {
+      font-size: 20px;
+      font-weight: 900;
+      line-height: 1.35;
+      color: #1f2937;
+    }
+
+    .brand-logo {
+      width: 108px;
+      max-width: 34%;
+      height: auto;
+      display: block;
+      object-fit: contain;
+      flex-shrink: 0;
+    }
+
+    .sub {
+      margin-top: 8px;
+      font-size: 14px;
+      line-height: 1.6;
+      color: var(--muted);
+    }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--line);
+      border-radius: 16px;
+      padding: 14px;
+      margin-bottom: 12px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+    }
+
+    .tabs {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .tab-btn {
+      border: none;
+      border-radius: 10px;
+      padding: 11px 8px;
+      font-size: 14px;
+      font-weight: 800;
+      cursor: pointer;
+      background: #d9dde3;
+      color: #333;
+    }
+
+    .tab-btn.active {
+      background: var(--caesar-orange);
+      color: #fff;
+    }
+
+    .form-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+    }
+
+    .field {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    label {
+      font-size: 13px;
+      color: #374151;
+      font-weight: 800;
+    }
+
+    input, select {
+      width: 100%;
+      border: 1px solid #cbd5e1;
+      border-radius: 10px;
+      padding: 11px;
+      font-size: 15px;
+      background: #fff;
+    }
+
+    .btn-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 10px;
+      padding: 11px 14px;
+      font-size: 14px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
+    .btn-primary {
+      background: var(--caesar-orange);
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: #e5e7eb;
+      color: #374151;
+    }
+
+    .btn:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .status {
+      font-size: 14px;
+      line-height: 1.7;
+      font-weight: 800;
+      margin-bottom: 8px;
+    }
+
+    .muted {
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.7;
+    }
+
+    .ok { color: var(--green); }
+    .bad { color: var(--red); }
+    .warn { color: var(--yellow); }
+
+    .result-title {
+      font-size: 17px;
+      font-weight: 900;
+      margin-bottom: 10px;
+    }
+
+    .order-card, .task-card, .route-card {
+      border: 1px solid #dbe4ef;
+      border-radius: 14px;
+      padding: 12px;
+      margin-top: 10px;
+      background: #fff;
+    }
+
+    .order-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+      flex-wrap: wrap;
+      font-size: 15px;
+      font-weight: 900;
+      margin-bottom: 8px;
+    }
+
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 12px;
+      font-weight: 900;
+      background: #eef2ff;
+      color: #3730a3;
+      margin-right: 5px;
+      margin-bottom: 4px;
+    }
+
+    .row {
+      font-size: 14px;
+      line-height: 1.8;
+      color: #374151;
+      word-break: break-word;
+    }
+
+    .detail-line {
+      margin-top: 4px;
+      padding-left: 8px;
+      border-left: 3px solid #e5e7eb;
+      color: #475569;
+      font-size: 13px;
+      line-height: 1.7;
+      word-break: break-word;
+    }
+
+    .empty {
+      color: #64748b;
+      text-align: center;
+      padding: 22px 10px;
+      line-height: 1.7;
+    }
+
+    .loading {
+      text-align: center;
+      color: #64748b;
+      padding: 18px;
+      font-size: 14px;
+    }
+
+    .section-note {
+      margin-top: 8px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      color: #475569;
+      font-size: 13px;
+      line-height: 1.7;
+    }
+
+    .system-footer {
+      text-align: center;
+      color: #6b7280;
+      font-size: 12px;
+      line-height: 1.7;
+      padding: 10px 6px 18px;
+    }
+
+    @media (max-width: 700px) {
+      .tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .form-grid { grid-template-columns: 1fr; }
+      .brand-title { font-size: 19px; }
+      .brand-logo { width: 92px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="topbar">
+      <div class="brand-line">
+        <div class="brand-title">凱撒衛浴系統管理</div>
+        <img class="brand-logo" src="LOGO.png" alt="CAESAR" />
+      </div>
+      <div class="sub" id="adminInfo">正在驗證管理員權限...</div>
+    </div>
+
+    <div id="authPanel" class="card">
+      <div class="loading">管理員模式載入中...</div>
+    </div>
+
+    <div id="mainPanel" style="display:none;">
+      <div class="card">
+        <div class="tabs">
+          <button class="tab-btn active" id="tab-customer" onclick="switchTab('customer')">客戶查詢</button>
+          <button class="tab-btn" id="tab-order" onclick="switchTab('order')">單號追蹤</button>
+          <button class="tab-btn" id="tab-driver" onclick="switchTab('driver')">司機任務</button>
+          <button class="tab-btn" id="tab-dispatch" onclick="switchTab('dispatch')">排車看板</button>
+        </div>
+
+        <div class="section-note">
+          v53 管理員模式僅提供只讀查詢。此頁不會修改排車、司機狀態、LINE 通知、ETA 或任何配送資料。
+        </div>
+      </div>
+
+      <div id="panel-customer" class="card">
+        <div class="result-title">客戶配送查詢</div>
+        <div class="form-grid">
+          <div class="field">
+            <label>客編</label>
+            <input id="customerClientCode" placeholder="例如 0001" inputmode="numeric" />
+          </div>
+          <div class="field">
+            <label>快取</label>
+            <select id="customerForceRefresh">
+              <option value="0">使用現有快取</option>
+              <option value="1">重建客戶查詢快取</option>
+            </select>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="loadAdminCustomer()">查詢客戶配送</button>
+          <button class="btn btn-secondary" onclick="clearResult()">清除結果</button>
+        </div>
+      </div>
+
+      <div id="panel-order" class="card" style="display:none;">
+        <div class="result-title">單號追蹤查詢</div>
+        <div class="form-grid">
+          <div class="field">
+            <label>單號</label>
+            <input id="orderNo" placeholder="輸入出貨單號" />
+          </div>
+          <div class="field">
+            <label>客編（可空白）</label>
+            <input id="orderClientCode" placeholder="可選；用於縮小搜尋" inputmode="numeric" />
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="loadAdminOrder()">查詢單號追蹤</button>
+          <button class="btn btn-secondary" onclick="clearResult()">清除結果</button>
+        </div>
+      </div>
+
+      <div id="panel-driver" class="card" style="display:none;">
+        <div class="result-title">司機任務查詢</div>
+        <div class="form-grid">
+          <div class="field">
+            <label>司機名稱</label>
+            <input id="driverName" placeholder="例如 小老闆" />
+          </div>
+          <div class="field">
+            <label>日期</label>
+            <input id="driverDate" type="date" />
+          </div>
+          <div class="field">
+            <label>時段</label>
+            <select id="driverPeriod">
+              <option value="上午">上午</option>
+              <option value="下午">下午</option>
+            </select>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="loadAdminDriver()">查詢司機任務</button>
+          <button class="btn btn-secondary" onclick="clearResult()">清除結果</button>
+        </div>
+      </div>
+
+      <div id="panel-dispatch" class="card" style="display:none;">
+        <div class="result-title">排車看板查詢</div>
+        <div class="form-grid">
+          <div class="field">
+            <label>日期</label>
+            <input id="dispatchDate" type="date" />
+          </div>
+          <div class="field">
+            <label>時段</label>
+            <select id="dispatchPeriod">
+              <option value="上午">上午</option>
+              <option value="下午">下午</option>
+            </select>
+          </div>
+        </div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="loadAdminDispatch()">查詢排車看板</button>
+          <button class="btn btn-secondary" onclick="clearResult()">清除結果</button>
+        </div>
+      </div>
+
+      <div id="resultPanel" class="card">
+        <div class="empty">請選擇查詢類型並輸入條件。</div>
+      </div>
+    </div>
+
+    <div class="system-footer">
+      本頁由新竹凱撒總經銷配送系統提供<br />
+      新竹總經銷｜日生商行 / 正新衛浴有限公司
+    </div>
+  </div>
+
+  <script>
+    const LIFF_ID = '2009380550-ow9SlJK4';
+    const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
+
+    let currentAdminUid = '';
+    let currentAdminName = '';
+
+    function escapeHtml(value) {
+      return String(value ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+    }
+
+    function todayDateText() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+
+    function getDefaultPeriod() {
+      return new Date().getHours() < 12 ? '上午' : '下午';
+    }
+
+    function setDefaults() {
+      const today = todayDateText();
+      document.getElementById('driverDate').value = today;
+      document.getElementById('dispatchDate').value = today;
+      document.getElementById('driverPeriod').value = getDefaultPeriod();
+      document.getElementById('dispatchPeriod').value = getDefaultPeriod();
+    }
+
+    function renderAuthMessage(html, className) {
+      document.getElementById('authPanel').innerHTML = `<div class="status ${className || ''}">${html}</div>`;
+    }
+
+    function renderResult(html) {
+      document.getElementById('resultPanel').innerHTML = html;
+    }
+
+    function renderLoading(text) {
+      renderResult(`<div class="loading">${escapeHtml(text || '讀取中...')}</div>`);
+    }
+
+    function clearResult() {
+      renderResult('<div class="empty">請選擇查詢類型並輸入條件。</div>');
+    }
+
+    function switchTab(tab) {
+      ['customer', 'order', 'driver', 'dispatch'].forEach(name => {
+        document.getElementById('tab-' + name).classList.toggle('active', name === tab);
+        document.getElementById('panel-' + name).style.display = name === tab ? 'block' : 'none';
+      });
+      clearResult();
+    }
+
+    async function fetchJson(url) {
+      const resp = await fetch(url, { cache: 'no-store' });
+      const json = await resp.json();
+      if (!json.ok) {
+        throw new Error(json.error || 'API 回傳失敗');
+      }
+      return json.data || {};
+    }
+
+    async function initPage() {
+      setDefaults();
+
+      try {
+        await liff.init({ liffId: LIFF_ID });
+
+        if (!liff.isLoggedIn()) {
+          liff.login({ redirectUri: window.location.href });
+          return;
+        }
+
+        const profile = await liff.getProfile();
+        currentAdminUid = profile.userId || '';
+
+        const url = `${GAS_WEBAPP_URL}?action=get_admin_access&adminUid=${encodeURIComponent(currentAdminUid)}&ts=${Date.now()}`;
+        const access = await fetchJson(url);
+
+        if (!access.isAdmin) {
+          document.getElementById('adminInfo').innerHTML = `LINE 使用者：<b>${escapeHtml(profile.displayName || '未辨識')}</b>`;
+          renderAuthMessage(`沒有管理員權限。<br>${escapeHtml(access.message || '請確認此 LINE UID 是否已加入 ADMIN_DB 並啟用。')}`, 'bad');
+          return;
+        }
+
+        currentAdminName = access.adminName || profile.displayName || '管理員';
+        document.getElementById('adminInfo').innerHTML =
+          `管理員：<b>${escapeHtml(currentAdminName)}</b>｜角色：${escapeHtml(access.role || 'admin')}`;
+
+        document.getElementById('authPanel').style.display = 'none';
+        document.getElementById('mainPanel').style.display = 'block';
+      } catch (err) {
+        document.getElementById('adminInfo').textContent = '管理員權限驗證失敗';
+        renderAuthMessage('初始化失敗：' + escapeHtml(err.message || err), 'bad');
+      }
+    }
+
+    function renderOrderList(data) {
+      const orders = Array.isArray(data.orders) ? data.orders : [];
+      if (!orders.length) {
+        return `
+          <div class="result-title">客戶配送查詢</div>
+          <div class="row">客編：${escapeHtml(data.formalClientCode || '')}</div>
+          <div class="empty">目前沒有查到配送資料。</div>
+        `;
+      }
+
+      return `
+        <div class="result-title">客戶配送查詢</div>
+        <div class="row">客編：${escapeHtml(data.formalClientCode || '')}</div>
+        <div class="row">店家：${escapeHtml(data.customerName || '')}</div>
+        ${orders.map(order => `
+          <div class="order-card">
+            <div class="order-head">
+              <div>${escapeHtml(order.storeName || '未填店家')}</div>
+              <div>${escapeHtml(order.deliveryDateText || '')} ${escapeHtml(order.deliveryTime || '')}</div>
+            </div>
+            <div class="row"><span class="tag">單號</span>${escapeHtml((order.orderNos || []).join(' / ') || order.orderNo || '')}</div>
+            <div class="row"><span class="tag">狀態</span>${escapeHtml(order.taskStatusText || order.taskStatus || '理貨中')}</div>
+            <div class="row"><span class="tag">ETA</span>${escapeHtml(order.etaText || '尚未產生')}</div>
+            <div class="row"><span class="tag">司機</span>${escapeHtml(order.driverName || '未指派')}</div>
+            <div class="row"><span class="tag">地址</span>${escapeHtml(order.address || '')}</div>
+            <div class="row"><span class="tag">電話</span>${escapeHtml(order.phone || '')}</div>
+            <div class="row"><span class="tag">品項</span>${escapeHtml(order.itemSummary || '')}</div>
+            ${(order.detailLines || []).map(line => `<div class="detail-line">${escapeHtml(line)}</div>`).join('')}
+          </div>
+        `).join('')}
+      `;
+    }
+
+    async function loadAdminCustomer() {
+      const clientCode = document.getElementById('customerClientCode').value.trim();
+      const forceRefresh = document.getElementById('customerForceRefresh').value;
+      if (!clientCode) {
+        renderResult('<div class="status bad">請輸入客編。</div>');
+        return;
+      }
+
+      renderLoading('正在查詢客戶配送資料...');
+      try {
+        const url = `${GAS_WEBAPP_URL}?action=get_admin_customer_portal` +
+          `&adminUid=${encodeURIComponent(currentAdminUid)}` +
+          `&targetClientCode=${encodeURIComponent(clientCode)}` +
+          `&forceRefresh=${encodeURIComponent(forceRefresh)}` +
+          `&ts=${Date.now()}`;
+        const data = await fetchJson(url);
+        renderResult(renderOrderList(data));
+      } catch (err) {
+        renderResult(`<div class="status bad">查詢失敗：${escapeHtml(err.message || err)}</div>`);
+      }
+    }
+
+    function renderTrackingDetail(data) {
+      if (!data.found) {
+        return '<div class="result-title">單號追蹤查詢</div><div class="empty">查無此單號追蹤資料。</div>';
+      }
+
+      const itemLines = (Array.isArray(data.items) ? data.items : [])
+        .map(item => `<div class="detail-line">${escapeHtml(item.model || '')} * ${escapeHtml(item.qty || '0')}</div>`)
+        .join('');
+
+      return `
+        <div class="result-title">單號追蹤查詢</div>
+        <div class="order-card">
+          <div class="order-head">
+            <div>${escapeHtml(data.storeName || '未填店家')}</div>
+            <div>${escapeHtml(data.deliveryDateText || '')} ${escapeHtml(data.deliveryTime || '')}</div>
+          </div>
+          <div class="row"><span class="tag">客編</span>${escapeHtml(data.clientCode || '')}</div>
+          <div class="row"><span class="tag">單號</span>${escapeHtml(data.orderNo || '')}</div>
+          <div class="row"><span class="tag">狀態</span>${escapeHtml(data.progressText || data.taskStatus || '')}</div>
+          <div class="row"><span class="tag">ETA</span>${escapeHtml(data.etaText || '尚未產生')}</div>
+          <div class="row"><span class="tag">司機</span>${escapeHtml(data.driverName || '未指派')}</div>
+          <div class="row"><span class="tag">地址</span>${escapeHtml(data.address || '')}</div>
+          <div class="row"><span class="tag">電話</span>${escapeHtml(data.phone || '')}</div>
+          ${itemLines || '<div class="detail-line">無品項明細。</div>'}
+        </div>
+      `;
+    }
+
+    async function loadAdminOrder() {
+      const orderNo = document.getElementById('orderNo').value.trim();
+      const clientCode = document.getElementById('orderClientCode').value.trim();
+
+      if (!orderNo) {
+        renderResult('<div class="status bad">請輸入單號。</div>');
+        return;
+      }
+
+      renderLoading('正在查詢單號追蹤資料...');
+      try {
+        const url = `${GAS_WEBAPP_URL}?action=get_admin_tracking_detail` +
+          `&adminUid=${encodeURIComponent(currentAdminUid)}` +
+          `&orderNo=${encodeURIComponent(orderNo)}` +
+          `&targetClientCode=${encodeURIComponent(clientCode)}` +
+          `&ts=${Date.now()}`;
+        const data = await fetchJson(url);
+        renderResult(renderTrackingDetail(data));
+      } catch (err) {
+        renderResult(`<div class="status bad">查詢失敗：${escapeHtml(err.message || err)}</div>`);
+      }
+    }
+
+    function renderDriverTasks(pack) {
+      const data = pack.data || {};
+      const groups = Array.isArray(data.groups) ? data.groups : [];
+      const tasks = Array.isArray(data.tasks) ? data.tasks : [];
+
+      const list = groups.length ? groups : tasks;
+      if (!list.length) {
+        return '<div class="result-title">司機任務查詢</div><div class="empty">目前沒有查到司機任務。</div>';
+      }
+
+      return `
+        <div class="result-title">司機任務查詢</div>
+        <div class="row">司機：${escapeHtml(pack.driver || '')}｜時段：${escapeHtml(pack.period || '')}</div>
+        ${list.map((item, idx) => `
+          <div class="task-card">
+            <div class="order-head">
+              <div>${idx + 1}. ${escapeHtml(item.displayName || item.storeName || item.shopName || item.address || '未命名站點')}</div>
+              <div>${escapeHtml(item.taskStatus || item.status || '')}</div>
+            </div>
+            <div class="row"><span class="tag">單號</span>${escapeHtml((item.orderNos || item.orders || []).join ? (item.orderNos || item.orders || []).join(' / ') : (item.orderNo || ''))}</div>
+            <div class="row"><span class="tag">地址</span>${escapeHtml(item.address || '')}</div>
+            <div class="row"><span class="tag">ETA</span>${escapeHtml(item.etaText || item.etaWindow || '')}</div>
+          </div>
+        `).join('')}
+      `;
+    }
+
+    async function loadAdminDriver() {
+      const driverName = document.getElementById('driverName').value.trim();
+      const date = document.getElementById('driverDate').value;
+      const period = document.getElementById('driverPeriod').value;
+
+      if (!driverName) {
+        renderResult('<div class="status bad">請輸入司機名稱。</div>');
+        return;
+      }
+
+      renderLoading('正在查詢司機任務...');
+      try {
+        const url = `${GAS_WEBAPP_URL}?action=get_admin_driver_tasks` +
+          `&adminUid=${encodeURIComponent(currentAdminUid)}` +
+          `&driver=${encodeURIComponent(driverName)}` +
+          `&period=${encodeURIComponent(period)}` +
+          `&date=${encodeURIComponent(date)}` +
+          `&ts=${Date.now()}`;
+        const data = await fetchJson(url);
+        renderResult(renderDriverTasks(data));
+      } catch (err) {
+        renderResult(`<div class="status bad">查詢失敗：${escapeHtml(err.message || err)}</div>`);
+      }
+    }
+
+    function renderDispatchBoard(pack) {
+      const data = pack.data || {};
+      const groups = data.groups || {};
+      const groupNames = Object.keys(groups);
+      if (!groupNames.length) {
+        return '<div class="result-title">排車看板查詢</div><div class="empty">目前沒有查到排車資料。</div>';
+      }
+
+      return `
+        <div class="result-title">排車看板查詢</div>
+        <div class="row">日期：${escapeHtml(data.date || '')}｜時段：${escapeHtml(data.period || pack.period || '')}</div>
+        ${groupNames.map(groupName => {
+          const list = Array.isArray(groups[groupName]) ? groups[groupName] : [];
+          return `
+            <div class="route-card">
+              <div class="order-head">
+                <div>${escapeHtml(groupName)}</div>
+                <div>${list.length} 站</div>
+              </div>
+              ${list.length ? list.map((item, idx) => `
+                <div class="detail-line">
+                  ${idx + 1}. ${escapeHtml(item.displayLabel || item.shopName || item.address || '')}
+                  ｜司機：${escapeHtml(item.driverName || '未指派')}
+                  ｜單號：${escapeHtml((item.orderNos || []).join(' / '))}
+                  ${item.isManualAdd ? '｜加單' : ''}
+                </div>
+              `).join('') : '<div class="detail-line">無資料。</div>'}
+            </div>
+          `;
+        }).join('')}
+      `;
+    }
+
+    async function loadAdminDispatch() {
+      const date = document.getElementById('dispatchDate').value;
+      const period = document.getElementById('dispatchPeriod').value;
+
+      renderLoading('正在查詢排車看板...');
+      try {
+        const url = `${GAS_WEBAPP_URL}?action=get_admin_dispatch_board` +
+          `&adminUid=${encodeURIComponent(currentAdminUid)}` +
+          `&period=${encodeURIComponent(period)}` +
+          `&date=${encodeURIComponent(date)}` +
+          `&ts=${Date.now()}`;
+        const data = await fetchJson(url);
+        renderResult(renderDispatchBoard(data));
+      } catch (err) {
+        renderResult(`<div class="status bad">查詢失敗：${escapeHtml(err.message || err)}</div>`);
+      }
+    }
+
+    initPage();
+  </script>
+</body>
+</html>
