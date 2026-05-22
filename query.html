@@ -148,6 +148,29 @@
       padding-top: 10px;
       border-top: 1px dashed #cfd8e3;
     }
+    details.detail-block {
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed #cfd8e3;
+    }
+    details.detail-block summary {
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: bold;
+      color: #374151;
+      list-style: none;
+      user-select: none;
+    }
+    details.detail-block summary::-webkit-details-marker { display: none; }
+    details.detail-block summary::after {
+      content: '展開';
+      float: right;
+      color: #EBA13A;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    details.detail-block[open] summary::after { content: '收合'; }
+
     .detail-title {
       font-size: 14px;
       font-weight: bold;
@@ -711,7 +734,7 @@
       const overdue = isCustomerEtaOverdueClient(etaRaw, dateRaw, timeRaw, taskRaw || progressRaw);
       return `
         <div style="margin-top:10px;padding:10px;border:1px dashed #c77;background:#fff8f0;border-radius:10px;font-size:12px;line-height:1.7;color:#663300;">
-          <b>ETA 診斷 v52 已載入</b><br>
+          <b>ETA 診斷 v56 已載入</b><br>
           raw ETA：${escapeHtml(etaRaw || '(空)')}<br>
           raw 日期：${escapeHtml(dateRaw || '(空)')}<br>
           raw 時段：${escapeHtml(timeRaw || '(空)')}<br>
@@ -857,13 +880,13 @@
           ${formatPhoneForDisplay(order.phone) ? `<div class="row">電話：${escapeHtml(formatPhoneForDisplay(order.phone))}</div>` : ''}
           <div class="row">送貨時間：${escapeHtml(formatDeliveryDisplay(etaFields.deliveryDateText || order.deliveryDateText, etaFields.deliveryTime || order.deliveryTime))}</div>
 
-          <div class="detail-block">
-            <div class="detail-title">明細</div>
+          <details class="detail-block">
+            <summary>配送明細${detailLines.length ? `（${detailLines.length} 筆）` : ''}</summary>
             ${detailLines.length
               ? detailLines.map(line => `<div class="detail-line">${escapeHtml(line)}</div>`).join('')
               : `<div class="detail-line">無明細資料</div>`
             }
-          </div>
+          </details>
 
           <div class="status-pill">
             <div class="status-banner ${statusInfo.className}">${escapeHtml(statusInfo.text)}</div>
@@ -876,7 +899,7 @@
             ${photos.length ? `
               <div class="photo-wrap">
                 ${photos.map((photo, idx) => `
-                  <a class="photo-item" href="${escapeHtml(photo.url || '')}" target="_blank"><img src="${escapeHtml(photo.previewUrl || photo.url || '')}" alt="送達照片${idx + 1}"><span class="photo-badge">照片${idx + 1}</span></a>
+                  <a class="photo-item" href="${escapeHtml(photo.url || '')}" target="_blank"><img loading="lazy" decoding="async" src="${escapeHtml(photo.previewUrl || photo.url || '')}" alt="送達照片${idx + 1}"><span class="photo-badge">照片${idx + 1}</span></a>
                 `).join('')}
               </div>
             ` : ''}
