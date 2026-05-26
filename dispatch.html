@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CAESAR 排車頁</title>
-  <!-- v60：調度快捷分類；固定路線：市區 / 竹東 / 湖口 / 其他；仍採全頁一組儲存 -->
+  <!-- v60.1：調度快捷分類按鈕文案簡化；固定路線：市區 / 竹東 / 湖口 / 其他；仍採全頁一組儲存 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <style>
@@ -879,7 +879,7 @@
       return `
         <div class="quick-route-actions">
           ${QUICK_ROUTE_GROUPS.map(groupName => `
-            <button type="button" class="quick-route-btn" data-target-group="${escapeHtml(groupName)}" data-stop-key="${escapeHtml(stopKey)}" onclick="moveStopToGroup(this.getAttribute('data-stop-key'), this.getAttribute('data-target-group'))">移到${escapeHtml(groupName)}</button>
+            <button type="button" class="quick-route-btn" data-target-group="${escapeHtml(groupName)}" data-stop-key="${escapeHtml(stopKey)}" onclick="moveStopToGroup(this.getAttribute('data-stop-key'), this.getAttribute('data-target-group'))">${escapeHtml(groupName)}</button>
           `).join('')}
         </div>
       `;
