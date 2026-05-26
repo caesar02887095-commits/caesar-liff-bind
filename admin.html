@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CAESAR 系統管理</title>
-  <!-- v58.2：系統異常操作按鈕合併，重新整理時同步清理三天前紀錄 -->
+  <!-- v58.3：系統異常看板將 OK 慢請求預設收合 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     :root {
@@ -321,6 +321,54 @@
       border-color: #bfdbfe;
       background: #eff6ff;
     }
+    .issue-slow-section {
+      margin-top: 14px;
+      border: 1px solid #dbeafe;
+      border-radius: 14px;
+      background: #f8fbff;
+      overflow: hidden;
+    }
+
+    .issue-slow-toggle {
+      width: 100%;
+      border: none;
+      background: #eff6ff;
+      color: #1d4ed8;
+      padding: 12px;
+      font-size: 14px;
+      font-weight: 900;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .issue-slow-toggle::after {
+      content: '展開';
+      flex-shrink: 0;
+      border-radius: 999px;
+      background: #2563eb;
+      color: #fff;
+      padding: 4px 9px;
+      font-size: 12px;
+      font-weight: 900;
+    }
+
+    .issue-slow-section.open .issue-slow-toggle::after {
+      content: '收合';
+    }
+
+    .issue-slow-body {
+      display: none;
+      padding: 0 10px 10px;
+    }
+
+    .issue-slow-section.open .issue-slow-body {
+      display: block;
+    }
+
 
     .issue-head {
       display: flex;
@@ -405,7 +453,9 @@
         <div class="result-title">系統異常看板</div>
         <div class="muted">顯示 Queue 失敗、Queue 重試中、卡住的背景工作，以及 SYSTEM_RUNTIME_LOG 的錯誤 / 慢請求。</div>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="refreshAdminSystemIssues()">重新整理異常 / 清理舊紀錄</button>
+          <button class="btn btn-primary" onclick="loadAdminSystemIssues()">重新整理異常</button>
+          <button class="btn btn-secondary" onclick="runAdminSystemLogCleanup()">清理三天前紀錄</button>
+          <button class="btn btn-secondary" onclick="clearResult()">清除結果</button>
         </div>
       </div>
 
@@ -606,7 +656,7 @@
         document.getElementById('authPanel').style.display = 'none';
         document.getElementById('mainPanel').style.display = 'block';
         await loadDriverOptions();
-        await refreshAdminSystemIssues();
+        await loadAdminSystemIssues();
       } catch (err) {
         document.getElementById('adminInfo').textContent = '管理員權限驗證失敗';
         renderAuthMessage('初始化失敗：' + escapeHtml(err.message || err), 'bad');
@@ -614,15 +664,26 @@
     }
 
 
+
+    function toggleSlowIssueSection() {
+      const box = document.getElementById('slowIssueSection');
+      if (!box) return;
+      box.classList.toggle('open');
+    }
+
     function renderSystemIssues(data) {
       const summary = data.summary || {};
       const queueIssues = Array.isArray(data.queueIssues) ? data.queueIssues : [];
       const runtimeIssues = Array.isArray(data.runtimeIssues) ? data.runtimeIssues : [];
       const healthIssues = Array.isArray(data.healthIssues) ? data.healthIssues : [];
-      const allIssues = []
-        .concat(queueIssues.map(item => Object.assign({ source: 'ASYNC_QUEUE' }, item)))
-        .concat(runtimeIssues.map(item => Object.assign({ source: 'SYSTEM_RUNTIME_LOG' }, item)))
-        .concat(healthIssues.map(item => Object.assign({ source: 'SYSTEM_HEALTH_STATUS' }, item)));
+
+      const mappedQueue = queueIssues.map(item => Object.assign({ source: 'ASYNC_QUEUE' }, item));
+      const mappedRuntime = runtimeIssues.map(item => Object.assign({ source: 'SYSTEM_RUNTIME_LOG' }, item));
+      const mappedHealth = healthIssues.map(item => Object.assign({ source: 'SYSTEM_HEALTH_STATUS' }, item));
+
+      const allIssues = [].concat(mappedQueue, mappedRuntime, mappedHealth);
+      const slowIssues = allIssues.filter(item => item.severity === 'slow');
+      const mainIssues = allIssues.filter(item => item.severity !== 'slow');
 
       const summaryHtml = `
         <div class="result-title">系統異常看板</div>
@@ -637,17 +698,13 @@
           </div>
           <div class="issue-stat">
             <div class="issue-stat-num">${escapeHtml(summary.slowCount || 0)}</div>
-            <div class="issue-stat-label">慢請求</div>
+            <div class="issue-stat-label">效能提醒</div>
           </div>
         </div>
         <div class="muted">最後更新：${escapeHtml(data.generatedAt || '')}</div>
       `;
 
-      if (!allIssues.length) {
-        return summaryHtml + '<div class="status ok" style="margin-top:12px;">目前沒有系統異常紀錄。</div>';
-      }
-
-      return summaryHtml + allIssues.map(item => {
+      function renderIssueCard(item) {
         const severity = item.severity || 'warn';
         const label = severity === 'error' ? '錯誤' : (severity === 'slow' ? '慢請求' : '警告');
         return `
@@ -673,18 +730,29 @@
             </div>
           </div>
         `;
-      }).join('');
-    }
-
-
-    async function refreshAdminSystemIssues() {
-      renderLoading('正在清理三天前紀錄並讀取最新異常...');
-      try {
-        await runAdminSystemLogCleanup({ silent: true });
-      } catch (cleanupErr) {
-        console.warn('cleanup before refresh failed', cleanupErr);
       }
-      await loadAdminSystemIssues();
+
+      const mainHtml = mainIssues.length
+        ? mainIssues.map(renderIssueCard).join('')
+        : '<div class="status ok" style="margin-top:12px;">目前沒有需要立即處理的系統錯誤或警告。</div>';
+
+      const slowHtml = slowIssues.length
+        ? `
+          <div class="issue-slow-section" id="slowIssueSection">
+            <button class="issue-slow-toggle" type="button" onclick="toggleSlowIssueSection()">
+              效能提醒（OK 但偏慢）｜${escapeHtml(slowIssues.length)} 筆
+            </button>
+            <div class="issue-slow-body">
+              <div class="muted" style="padding:10px 2px 0;">
+                這類紀錄代表功能有完成但耗時較久，通常不是系統錯誤。健檢與管理員查詢偏慢多半可接受。
+              </div>
+              ${slowIssues.map(renderIssueCard).join('')}
+            </div>
+          </div>
+        `
+        : '';
+
+      return summaryHtml + mainHtml + slowHtml;
     }
 
     async function loadAdminSystemIssues() {
@@ -701,35 +769,34 @@
     }
 
 
-    async function runAdminSystemLogCleanup(options) {
-      const silent = !!(options && options.silent);
-      if (!silent) renderLoading('正在清理三天前的系統紀錄...');
-      const url = `${GAS_WEBAPP_URL}?action=run_admin_system_log_cleanup` +
-        `&adminUid=${encodeURIComponent(currentAdminUid)}` +
-        `&ts=${Date.now()}`;
-      const data = await fetchJson(url);
-
-      if (silent) return data;
-
-      const result = data || {};
-      const rows = Array.isArray(result.results) ? result.results : [];
-      const html = `
-        <div class="result-title">系統紀錄清理完成</div>
-        <div class="status ok">${escapeHtml(result.message || '已清理完成')}</div>
-        <div class="muted">保留天數：${escapeHtml(result.retentionDays || 3)} 天｜刪除筆數：${escapeHtml(result.totalDeleted || 0)}｜截止時間：${escapeHtml(result.cutoff || '')}</div>
-        ${rows.map(item => `
-          <div class="issue-card">
-            <div class="issue-head">
-              <div>${escapeHtml(item.sheet || '')}</div>
-              <span class="issue-badge">${escapeHtml(item.deleted || 0)} 筆</span>
+    async function runAdminSystemLogCleanup() {
+      renderLoading('正在清理三天前的系統紀錄...');
+      try {
+        const url = `${GAS_WEBAPP_URL}?action=run_admin_system_log_cleanup` +
+          `&adminUid=${encodeURIComponent(currentAdminUid)}` +
+          `&ts=${Date.now()}`;
+        const data = await fetchJson(url);
+        const result = data || {};
+        const rows = Array.isArray(result.results) ? result.results : [];
+        const html = `
+          <div class="result-title">系統紀錄清理完成</div>
+          <div class="status ok">${escapeHtml(result.message || '已清理完成')}</div>
+          <div class="muted">保留天數：${escapeHtml(result.retentionDays || 3)} 天｜刪除筆數：${escapeHtml(result.totalDeleted || 0)}｜截止時間：${escapeHtml(result.cutoff || '')}</div>
+          ${rows.map(item => `
+            <div class="issue-card">
+              <div class="issue-head">
+                <div>${escapeHtml(item.sheet || '')}</div>
+                <span class="issue-badge">${escapeHtml(item.deleted || 0)} 筆</span>
+              </div>
+              <div class="row"><span class="tag">保留</span>${escapeHtml(item.kept || 0)} 筆</div>
+              ${item.message ? `<div class="row"><span class="tag">說明</span>${escapeHtml(item.message)}</div>` : ''}
             </div>
-            <div class="row"><span class="tag">保留</span>${escapeHtml(item.kept || 0)} 筆</div>
-            ${item.message ? `<div class="row"><span class="tag">說明</span>${escapeHtml(item.message)}</div>` : ''}
-          </div>
-        `).join('')}
-      `;
-      renderResult(html);
-      return data;
+          `).join('')}
+        `;
+        renderResult(html);
+      } catch (err) {
+        renderResult(`<div class="status bad">系統紀錄清理失敗：${escapeHtml(err.message || err)}</div>`);
+      }
     }
 
     function renderOrderList(data) {
