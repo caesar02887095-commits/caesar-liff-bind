@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CAESAR 排車頁</title>
+  <!-- v60：調度快捷分類；固定路線：市區 / 竹東 / 湖口 / 其他；仍採全頁一組儲存 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <style>
@@ -123,6 +124,43 @@
       opacity: 0.6;
       cursor: not-allowed;
     }
+    .unsaved-notice {
+      display: none;
+      margin: -2px 0 12px;
+      background: #fffbeb;
+      border: 1px solid #f59e0b;
+      color: #92400e;
+      border-radius: 12px;
+      padding: 10px 12px;
+      font-size: 13px;
+      font-weight: 900;
+      line-height: 1.5;
+    }
+    .unsaved-notice.show {
+      display: block;
+    }
+    .quick-route-actions {
+      display: flex;
+      gap: 5px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      max-width: 190px;
+    }
+    .quick-route-btn {
+      border: none;
+      border-radius: 999px;
+      padding: 6px 8px;
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+      background: #dbeafe;
+      color: #1d4ed8;
+      white-space: nowrap;
+    }
+    .quick-route-btn:hover {
+      background: #bfdbfe;
+    }
+
     .group-block {
       margin-bottom: 14px;
     }
@@ -352,6 +390,14 @@
         gap: 4px;
         margin-left: 6px;
       }
+      .quick-route-actions {
+        max-width: 132px;
+        gap: 4px;
+      }
+      .quick-route-btn {
+        padding: 5px 7px;
+        font-size: 11px;
+      }
     }
   </style>
 </head>
@@ -384,7 +430,7 @@
       </div>
     </div>
 
-
+    <div class="unsaved-notice" id="unsavedNotice">已有未儲存變更，請記得按「儲存排車」。</div>
 
     <div class="page-loading-panel" id="pageLoadingPanel">
       <div class="page-loading-row">
@@ -441,13 +487,25 @@
       </div>
       <div class="group-list" id="group-湖口"></div>
     </div>
+
+    <div class="group-block">
+      <div class="group-head">
+        <div class="group-title">其他</div>
+        <div class="group-meta">
+          <div class="group-count" id="count-其他">0 站 / 0 張單</div>
+          <select class="group-driver" id="driver-其他"></select>
+        </div>
+      </div>
+      <div class="group-list" id="group-其他"></div>
+    </div>
   </div>
 
   <script>
     const LIFF_ID = '2009380550-ow9SlJK4';
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
     const DEFAULT_DRIVER_OPTIONS = ['莊主任','王經理','阿勇','阿凱','小老闆'];
-    const GROUP_NAMES = ['調度','市區','竹東','湖口'];
+    const GROUP_NAMES = ['調度','市區','竹東','湖口','其他'];
+    const QUICK_ROUTE_GROUPS = ['市區','竹東','湖口','其他'];
     const LOCAL_KEY_PREFIX = 'caesar_dispatch_board_snapshot_';
     const RETURN_URL_KEY = 'caesar_return_url';
     const RETURN_RESTORED_KEY = 'caesar_return_restored';
@@ -455,9 +513,11 @@
     let currentPeriod = '上午';
     let currentBatchId = '';
     let dispatchBoard = null;
+    let lastLoadedDispatchBoard = null;
     let sortableRefs = [];
     let sortMode = false;
     let isSaving = false;
+    let hasUnsavedChanges = false;
     let driverOptions = [...DEFAULT_DRIVER_OPTIONS];
     let pageLoadingTimer10 = null;
     let pageLoadingTimer30 = null;
@@ -600,6 +660,10 @@
           '<option value="">未指派</option>',
           ...driverOptions.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)
         ].join('');
+        select.onchange = function() {
+          markUnsavedChanges();
+          syncLocalBoardFromDOM();
+        };
       });
     }
 
@@ -687,8 +751,11 @@
         }
 
         updatePageProgress('正在整理路線順序...', 78, '系統正在整理路線群組、司機與站點順序。');
-        dispatchBoard = json.data || { groups: {} };
+        dispatchBoard = normalizeDispatchBoardGroups_(json.data || { groups: {} });
         currentBatchId = dispatchBoard.batchId || '';
+        lastLoadedDispatchBoard = cloneDispatchBoard_(dispatchBoard);
+        hasUnsavedChanges = false;
+        updateUnsavedNotice();
 
         // 2026-05-14 v3 修正：不再於開頁時套用 localStorage 排車快照。
         // 原本快照機制會在「清空任務 / 重新產生任務」後，仍把舊的拖拉位置覆蓋回畫面，
@@ -783,6 +850,7 @@
           const deliveryTypeClass = isStoreStop(item) ? 'type-box' : 'type-box alert';
           const orderCount = getOrderCount(item);
           const addonBadge = item.isManualAdd ? '<span class="addon-badge">加單</span>' : '';
+          const quickActions = groupName === '調度' ? renderQuickRouteActions(item) : '';
 
           return `
             <div class="row"
@@ -793,6 +861,7 @@
                 <div class="row-title">${escapeHtml(mainLabel)}<span class="order-count">(${escapeHtml(String(orderCount))})</span>${addonBadge}</div>
               </div>
               <div class="row-right">
+                ${quickActions}
                 <div class="drag-handle ${sortMode ? '' : 'disabled'}">☰</div>
               </div>
             </div>
@@ -801,6 +870,76 @@
       });
 
       initSortables();
+    }
+
+
+    function renderQuickRouteActions(item) {
+      const stopKey = String(item && item.stopKey ? item.stopKey : '');
+      if (!stopKey) return '';
+      return `
+        <div class="quick-route-actions">
+          ${QUICK_ROUTE_GROUPS.map(groupName => `
+            <button type="button" class="quick-route-btn" data-target-group="${escapeHtml(groupName)}" data-stop-key="${escapeHtml(stopKey)}" onclick="moveStopToGroup(this.getAttribute('data-stop-key'), this.getAttribute('data-target-group'))">移到${escapeHtml(groupName)}</button>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function normalizeDispatchBoardGroups_(board) {
+      const normalized = board || { groups: {} };
+      normalized.groups = normalized.groups || {};
+      GROUP_NAMES.forEach(groupName => {
+        if (!Array.isArray(normalized.groups[groupName])) normalized.groups[groupName] = [];
+      });
+      return normalized;
+    }
+
+    function cloneDispatchBoard_(board) {
+      return JSON.parse(JSON.stringify(normalizeDispatchBoardGroups_(board || { groups: {} })));
+    }
+
+    function markUnsavedChanges() {
+      hasUnsavedChanges = true;
+      updateUnsavedNotice();
+    }
+
+    function clearUnsavedChanges() {
+      hasUnsavedChanges = false;
+      updateUnsavedNotice();
+    }
+
+    function updateUnsavedNotice() {
+      const notice = document.getElementById('unsavedNotice');
+      const saveBtn = document.getElementById('saveBtn');
+      if (notice) notice.classList.toggle('show', !!hasUnsavedChanges);
+      if (saveBtn && !isSaving) {
+        saveBtn.textContent = hasUnsavedChanges ? '儲存排車（有未儲存變更）' : '儲存排車';
+      }
+    }
+
+    function moveStopToGroup(stopKey, targetGroup) {
+      const key = String(stopKey || '');
+      const target = String(targetGroup || '');
+      if (!key || QUICK_ROUTE_GROUPS.indexOf(target) === -1) return;
+
+      dispatchBoard = normalizeDispatchBoardGroups_(dispatchBoard || { groups: {} });
+      const fromList = dispatchBoard.groups['調度'] || [];
+      const index = fromList.findIndex(item => String(item.stopKey || '') === key);
+      if (index < 0) return;
+
+      const item = fromList.splice(index, 1)[0];
+      item.routeGroup = target;
+
+      const targetDriverSelect = document.getElementById(`driver-${target}`);
+      const targetDriverName = targetDriverSelect ? targetDriverSelect.value : '';
+      if (targetDriverName) item.driverName = targetDriverName;
+
+      dispatchBoard.groups[target] = dispatchBoard.groups[target] || [];
+      dispatchBoard.groups[target].push(item);
+
+      renderDispatchBoard();
+      markUnsavedChanges();
+      syncLocalBoardFromDOM();
     }
 
     function initSortables() {
@@ -826,6 +965,7 @@
           handle: '.drag-handle',
           disabled: false,
           onEnd: function () {
+            markUnsavedChanges();
             syncLocalBoardFromDOM();
           }
         });
@@ -848,8 +988,10 @@
       initSortables();
       document.querySelectorAll('.drag-handle').forEach(el => el.classList.add('disabled'));
 
-      // 取消排序時回到目前從後端讀取的 dispatchBoard，不再套用 localStorage 舊快照。
+      // 取消排序時回到目前從後端讀取的排車資料，不套用本次未儲存的拖拉 / 快捷分類變更。
       clearLocalSnapshot(currentPeriod);
+      dispatchBoard = cloneDispatchBoard_(lastLoadedDispatchBoard || dispatchBoard || { groups: {} });
+      clearUnsavedChanges();
       renderDispatchBoard();
     }
 
@@ -885,12 +1027,10 @@
     async function saveDispatchBoard() {
       if (isSaving) return;
 
-      const groups = {
-        '調度': collectGroup('調度'),
-        '市區': collectGroup('市區'),
-        '竹東': collectGroup('竹東'),
-        '湖口': collectGroup('湖口')
-      };
+      const groups = GROUP_NAMES.reduce((out, groupName) => {
+        out[groupName] = collectGroup(groupName);
+        return out;
+      }, {});
 
       const payload = {
         action: 'save_dispatch_board',
@@ -930,7 +1070,10 @@
         document.querySelectorAll('.drag-handle').forEach(el => el.classList.add('disabled'));
         initSortables();
 
+        dispatchBoard = normalizeDispatchBoardGroups_(dispatchBoard || { groups: {} });
+        lastLoadedDispatchBoard = cloneDispatchBoard_(dispatchBoard);
         clearLocalSnapshot(currentPeriod);
+        clearUnsavedChanges();
         document.getElementById('summaryText').textContent = json.message || '排車已儲存';
         alert(json.message || '排車看板已儲存');
       } catch (err) {
@@ -950,7 +1093,7 @@
 
       if (saveBtn) {
         saveBtn.disabled = saving;
-        saveBtn.textContent = saving ? '儲存中...' : '儲存排車';
+        saveBtn.textContent = saving ? '儲存中...' : (hasUnsavedChanges ? '儲存排車（有未儲存變更）' : '儲存排車');
       }
       if (refreshBtn) refreshBtn.disabled = saving;
       if (sortBtn) sortBtn.disabled = saving;
@@ -987,6 +1130,7 @@
         case '市區': return '市';
         case '竹東': return '東';
         case '湖口': return '湖';
+        case '其他': return '其';
         default: return String(groupName || '').trim();
       }
     }
