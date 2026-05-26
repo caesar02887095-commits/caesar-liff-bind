@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CAESAR 系統管理</title>
+  <!-- v58：新增系統異常看板，只讀顯示 Queue / Runtime Log 問題 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     :root {
@@ -84,7 +85,7 @@
 
     .tabs {
       display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
+      grid-template-columns: repeat(3, minmax(0, 1fr));
       gap: 8px;
       margin-bottom: 12px;
     }
@@ -269,6 +270,91 @@
       line-height: 1.7;
     }
 
+
+    .issue-summary {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+
+    .issue-stat {
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 10px;
+      background: #f8fafc;
+    }
+
+    .issue-stat-num {
+      font-size: 22px;
+      font-weight: 900;
+      line-height: 1.1;
+      color: #1f2937;
+    }
+
+    .issue-stat-label {
+      margin-top: 4px;
+      font-size: 12px;
+      font-weight: 800;
+      color: #64748b;
+    }
+
+    .issue-card {
+      border: 1px solid #dbe4ef;
+      border-radius: 14px;
+      padding: 12px;
+      margin-top: 10px;
+      background: #fff;
+    }
+
+    .issue-card.error {
+      border-color: #fecaca;
+      background: #fff7f7;
+    }
+
+    .issue-card.warn {
+      border-color: #fed7aa;
+      background: #fffaf3;
+    }
+
+    .issue-card.slow {
+      border-color: #bfdbfe;
+      background: #eff6ff;
+    }
+
+    .issue-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 8px;
+      font-size: 15px;
+      font-weight: 900;
+    }
+
+    .issue-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-size: 12px;
+      font-weight: 900;
+      color: #fff;
+      background: #64748b;
+    }
+
+    .issue-badge.error { background: #dc2626; }
+    .issue-badge.warn { background: #f59e0b; }
+    .issue-badge.slow { background: #2563eb; }
+    .issue-meta {
+      font-size: 12px;
+      color: #64748b;
+      line-height: 1.6;
+      word-break: break-word;
+    }
+
     .system-footer {
       text-align: center;
       color: #6b7280;
@@ -279,6 +365,7 @@
 
     @media (max-width: 700px) {
       .tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .issue-summary { grid-template-columns: minmax(0, 1fr); }
       .form-grid { grid-template-columns: minmax(0, 1fr); }
       .field, input, select { min-width: 0; }
       input[type="date"] { width: 100%; max-width: 100%; }
@@ -304,16 +391,26 @@
     <div id="mainPanel" style="display:none;">
       <div class="card">
         <div class="tabs">
-          <button class="tab-btn active" id="tab-customer" onclick="switchTab('customer')">客戶查詢</button>
+          <button class="tab-btn active" id="tab-system" onclick="switchTab('system')">系統異常</button>
+          <button class="tab-btn" id="tab-customer" onclick="switchTab('customer')">客戶查詢</button>
           <button class="tab-btn" id="tab-driver" onclick="switchTab('driver')">司機任務</button>
         </div>
 
         <div class="section-note">
-          v53.2 管理員模式僅提供只讀查詢。此頁保留「客戶查詢」與「司機任務」，不提供單號追蹤、排車看板或任何修改功能。
+          v58 管理員模式為只讀維護頁。此頁顯示系統異常、客戶配送查詢與司機任務查詢；不提供排車修改、通知重送或任何寫入操作。
         </div>
       </div>
 
-      <div id="panel-customer" class="card">
+      <div id="panel-system" class="card">
+        <div class="result-title">系統異常看板</div>
+        <div class="muted">顯示 Queue 失敗、Queue 重試中、卡住的背景工作，以及 SYSTEM_RUNTIME_LOG 的錯誤 / 慢請求。</div>
+        <div class="btn-row">
+          <button class="btn btn-primary" onclick="loadAdminSystemIssues()">重新整理異常</button>
+          <button class="btn btn-secondary" onclick="clearResult()">清除結果</button>
+        </div>
+      </div>
+
+      <div id="panel-customer" class="card" style="display:none;">
         <div class="result-title">客戶配送查詢</div>
         <div class="form-grid">
           <div class="field">
@@ -353,7 +450,7 @@
       </div>
 
       <div id="resultPanel" class="card">
-        <div class="empty">請選擇查詢類型並輸入條件。</div>
+        <div class="empty">請選擇功能或重新整理系統異常。</div>
       </div>
     </div>
 
@@ -411,11 +508,11 @@
     }
 
     function clearResult() {
-      renderResult('<div class="empty">請選擇查詢類型並輸入條件。</div>');
+      renderResult('<div class="empty">請選擇功能或重新整理系統異常。</div>');
     }
 
     function switchTab(tab) {
-      ['customer', 'driver'].forEach(name => {
+      ['system', 'customer', 'driver'].forEach(name => {
         document.getElementById('tab-' + name).classList.toggle('active', name === tab);
         document.getElementById('panel-' + name).style.display = name === tab ? 'block' : 'none';
       });
@@ -510,9 +607,86 @@
         document.getElementById('authPanel').style.display = 'none';
         document.getElementById('mainPanel').style.display = 'block';
         await loadDriverOptions();
+        await loadAdminSystemIssues();
       } catch (err) {
         document.getElementById('adminInfo').textContent = '管理員權限驗證失敗';
         renderAuthMessage('初始化失敗：' + escapeHtml(err.message || err), 'bad');
+      }
+    }
+
+
+    function renderSystemIssues(data) {
+      const summary = data.summary || {};
+      const queueIssues = Array.isArray(data.queueIssues) ? data.queueIssues : [];
+      const runtimeIssues = Array.isArray(data.runtimeIssues) ? data.runtimeIssues : [];
+      const healthIssues = Array.isArray(data.healthIssues) ? data.healthIssues : [];
+      const allIssues = []
+        .concat(queueIssues.map(item => Object.assign({ source: 'ASYNC_QUEUE' }, item)))
+        .concat(runtimeIssues.map(item => Object.assign({ source: 'SYSTEM_RUNTIME_LOG' }, item)))
+        .concat(healthIssues.map(item => Object.assign({ source: 'SYSTEM_HEALTH_STATUS' }, item)));
+
+      const summaryHtml = `
+        <div class="result-title">系統異常看板</div>
+        <div class="issue-summary">
+          <div class="issue-stat">
+            <div class="issue-stat-num">${escapeHtml(summary.errorCount || 0)}</div>
+            <div class="issue-stat-label">錯誤</div>
+          </div>
+          <div class="issue-stat">
+            <div class="issue-stat-num">${escapeHtml(summary.warnCount || 0)}</div>
+            <div class="issue-stat-label">警告 / 重試</div>
+          </div>
+          <div class="issue-stat">
+            <div class="issue-stat-num">${escapeHtml(summary.slowCount || 0)}</div>
+            <div class="issue-stat-label">慢請求</div>
+          </div>
+        </div>
+        <div class="muted">最後更新：${escapeHtml(data.generatedAt || '')}</div>
+      `;
+
+      if (!allIssues.length) {
+        return summaryHtml + '<div class="status ok" style="margin-top:12px;">目前沒有系統異常紀錄。</div>';
+      }
+
+      return summaryHtml + allIssues.map(item => {
+        const severity = item.severity || 'warn';
+        const label = severity === 'error' ? '錯誤' : (severity === 'slow' ? '慢請求' : '警告');
+        return `
+          <div class="issue-card ${escapeHtml(severity)}">
+            <div class="issue-head">
+              <div>${escapeHtml(item.title || item.action || item.functionName || item.source || '系統事件')}</div>
+              <span class="issue-badge ${escapeHtml(severity)}">${escapeHtml(label)}</span>
+            </div>
+            <div class="row"><span class="tag">來源</span>${escapeHtml(item.source || '')}</div>
+            ${item.queueId ? `<div class="row"><span class="tag">Queue</span>${escapeHtml(item.queueId)}</div>` : ''}
+            ${item.action ? `<div class="row"><span class="tag">Action</span>${escapeHtml(item.action)}</div>` : ''}
+            ${item.functionName ? `<div class="row"><span class="tag">功能</span>${escapeHtml(item.functionName)}</div>` : ''}
+            ${item.status ? `<div class="row"><span class="tag">狀態</span>${escapeHtml(item.status)}</div>` : ''}
+            ${item.retryCount !== undefined && item.retryCount !== '' ? `<div class="row"><span class="tag">重試</span>${escapeHtml(item.retryCount)}</div>` : ''}
+            ${item.elapsedMs ? `<div class="row"><span class="tag">耗時</span>${escapeHtml(item.elapsedMs)} ms</div>` : ''}
+            ${item.message ? `<div class="row"><span class="tag">內容</span>${escapeHtml(item.message)}</div>` : ''}
+            ${item.lastError ? `<div class="row"><span class="tag">錯誤</span>${escapeHtml(item.lastError)}</div>` : ''}
+            <div class="issue-meta">
+              ${item.createdAt ? `建立：${escapeHtml(item.createdAt)}　` : ''}
+              ${item.updatedAt ? `更新：${escapeHtml(item.updatedAt)}　` : ''}
+              ${item.nextRetryAt ? `下次重試：${escapeHtml(item.nextRetryAt)}` : ''}
+              ${item.time ? `時間：${escapeHtml(item.time)}` : ''}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    async function loadAdminSystemIssues() {
+      renderLoading('正在讀取系統異常...');
+      try {
+        const url = `${GAS_WEBAPP_URL}?action=get_admin_system_issues` +
+          `&adminUid=${encodeURIComponent(currentAdminUid)}` +
+          `&ts=${Date.now()}`;
+        const data = await fetchJson(url);
+        renderResult(renderSystemIssues(data));
+      } catch (err) {
+        renderResult(`<div class="status bad">系統異常讀取失敗：${escapeHtml(err.message || err)}</div>`);
       }
     }
 
