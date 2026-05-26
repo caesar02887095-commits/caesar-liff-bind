@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CAESAR 排車頁</title>
+  <!-- v60.3：快捷分類按鈕手機/電腦皆四等分滿版，並改為低飽和溫和配色 -->
   <!-- v60.2：排車頁易讀版；快捷分類按鈕下方四等分；調度區不指派司機；整體字級放大 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
@@ -147,22 +148,38 @@
       margin-top: 10px;
     }
     .quick-route-btn {
-      border: none;
+      border: 1px solid #dbe4ef;
       border-radius: 12px;
-      padding: 11px 6px;
-      font-size: 16px;
+      padding: 12px 6px;
+      font-size: 17px;
       font-weight: 900;
       cursor: pointer;
-      color: #fff;
+      color: #334155;
       white-space: nowrap;
-      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
+      box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
     }
-    .quick-route-btn.city { background: #2563eb; }
-    .quick-route-btn.east { background: #16a34a; }
-    .quick-route-btn.lake { background: #d97706; }
-    .quick-route-btn.other { background: #64748b; }
+    .quick-route-btn.city {
+      background: #eef6ff;
+      border-color: #bfdbfe;
+      color: #1e3a8a;
+    }
+    .quick-route-btn.east {
+      background: #f0fdf4;
+      border-color: #bbf7d0;
+      color: #166534;
+    }
+    .quick-route-btn.lake {
+      background: #fff7ed;
+      border-color: #fed7aa;
+      color: #9a3412;
+    }
+    .quick-route-btn.other {
+      background: #f8fafc;
+      border-color: #cbd5e1;
+      color: #475569;
+    }
     .quick-route-btn:hover {
-      filter: brightness(0.95);
+      filter: brightness(0.985);
     }
 
     .group-block {
@@ -401,12 +418,13 @@
         margin-left: 6px;
       }
       .quick-route-actions {
-        max-width: 132px;
-        gap: 4px;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 6px;
+        width: 100%;
       }
       .quick-route-btn {
-        padding: 5px 7px;
-        font-size: 11px;
+        padding: 11px 4px;
+        font-size: 16px;
       }
     }
   </style>
