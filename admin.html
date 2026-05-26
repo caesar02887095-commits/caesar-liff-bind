@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CAESAR 系統管理</title>
-  <!-- v58.3：系統異常看板將 OK 慢請求預設收合 -->
+  <!-- v58.4：系統管理頁文案改為操作人員友善說明 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     :root {
@@ -440,21 +440,21 @@
       <div class="card">
         <div class="tabs">
           <button class="tab-btn active" id="tab-system" onclick="switchTab('system')">系統異常</button>
-          <button class="tab-btn" id="tab-customer" onclick="switchTab('customer')">客戶查詢</button>
-          <button class="tab-btn" id="tab-driver" onclick="switchTab('driver')">司機任務</button>
+          <button class="tab-btn" id="tab-customer" onclick="switchTab('customer')">查客戶配送</button>
+          <button class="tab-btn" id="tab-driver" onclick="switchTab('driver')">查司機任務</button>
         </div>
 
         <div class="section-note">
-          v58 管理員模式為只讀維護頁。此頁顯示系統異常、客戶配送查詢與司機任務查詢；不提供排車修改、通知重送或任何寫入操作。
+          此頁給管理人員查看系統狀況、客戶配送資料與司機任務。只能查看，不能修改排車、重送通知或更改配送狀態。
         </div>
       </div>
 
       <div id="panel-system" class="card">
-        <div class="result-title">系統異常看板</div>
-        <div class="muted">顯示 Queue 失敗、Queue 重試中、卡住的背景工作，以及 SYSTEM_RUNTIME_LOG 的錯誤 / 慢請求。</div>
+        <div class="result-title">系統狀況</div>
+        <div class="muted">這裡會顯示需要注意的系統問題，例如背景同步失敗、系統排程卡住、或查詢速度異常。若沒有紅色錯誤，通常代表系統可以正常使用。</div>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="loadAdminSystemIssues()">重新整理異常</button>
-          <button class="btn btn-secondary" onclick="runAdminSystemLogCleanup()">清理三天前紀錄</button>
+          <button class="btn btn-primary" onclick="loadAdminSystemIssues()">重新整理系統狀況</button>
+          <button class="btn btn-secondary" onclick="runAdminSystemLogCleanup()">清理舊紀錄</button>
           <button class="btn btn-secondary" onclick="clearResult()">清除結果</button>
         </div>
       </div>
@@ -477,7 +477,7 @@
         <div class="result-title">司機任務查詢</div>
         <div class="form-grid">
           <div class="field">
-            <label>司機名稱</label>
+            <label>選擇司機</label>
             <select id="driverName"><option value="">司機名單載入中...</option></select>
           </div>
           <div class="field">
@@ -616,7 +616,7 @@
         const list = Array.isArray(data.drivers) ? data.drivers : (Array.isArray(data.list) ? data.list : []);
         const names = list.map(item => {
           if (typeof item === 'string') return item;
-          return item.driverName || item.name || item.司機名稱 || item.司機 || '';
+          return item.driverName || item.name || item.選擇司機 || item.司機 || '';
         }).filter(Boolean);
 
         select.innerHTML = '<option value="">請選擇司機</option>' + names.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('');
@@ -671,6 +671,33 @@
       box.classList.toggle('open');
     }
 
+
+    function getFriendlyIssueTitle(item) {
+      const raw = String(item.title || item.action || item.functionName || item.source || '系統事件');
+      const action = String(item.action || '');
+      const fn = String(item.functionName || '');
+
+      if (/背景同步失敗|update_driver_group_status|mark_driver_departure|update_driver_status|save_driver_order/.test(raw + action)) {
+        return '配送資料同步失敗';
+      }
+      if (/背景同步等待重試|PENDING/.test(raw)) {
+        return '系統正在重新嘗試同步';
+      }
+      if (/背景同步可能卡住|PROCESSING/.test(raw)) {
+        return '系統同步可能卡住';
+      }
+      if (/系統健檢異常/.test(raw)) {
+        return '系統健檢發現問題';
+      }
+      if (/系統執行錯誤|ERROR/.test(raw)) {
+        return '系統執行發生錯誤';
+      }
+      if (/系統請求偏慢|caesarSystemHealthCheck_|checkCaesarSystemStructure_|get_admin_system_issues/.test(raw + fn)) {
+        return '系統執行較慢';
+      }
+      return raw;
+    }
+
     function renderSystemIssues(data) {
       const summary = data.summary || {};
       const queueIssues = Array.isArray(data.queueIssues) ? data.queueIssues : [];
@@ -686,19 +713,19 @@
       const mainIssues = allIssues.filter(item => item.severity !== 'slow');
 
       const summaryHtml = `
-        <div class="result-title">系統異常看板</div>
+        <div class="result-title">系統狀況</div>
         <div class="issue-summary">
           <div class="issue-stat">
             <div class="issue-stat-num">${escapeHtml(summary.errorCount || 0)}</div>
-            <div class="issue-stat-label">錯誤</div>
+            <div class="issue-stat-label">需要處理</div>
           </div>
           <div class="issue-stat">
             <div class="issue-stat-num">${escapeHtml(summary.warnCount || 0)}</div>
-            <div class="issue-stat-label">警告 / 重試</div>
+            <div class="issue-stat-label">觀察中</div>
           </div>
           <div class="issue-stat">
             <div class="issue-stat-num">${escapeHtml(summary.slowCount || 0)}</div>
-            <div class="issue-stat-label">效能提醒</div>
+            <div class="issue-stat-label">速度提醒</div>
           </div>
         </div>
         <div class="muted">最後更新：${escapeHtml(data.generatedAt || '')}</div>
@@ -706,11 +733,12 @@
 
       function renderIssueCard(item) {
         const severity = item.severity || 'warn';
-        const label = severity === 'error' ? '錯誤' : (severity === 'slow' ? '慢請求' : '警告');
+        const label = severity === 'error' ? '需處理' : (severity === 'slow' ? '速度提醒' : '觀察中');
+        const friendlyTitle = getFriendlyIssueTitle(item);
         return `
           <div class="issue-card ${escapeHtml(severity)}">
             <div class="issue-head">
-              <div>${escapeHtml(item.title || item.action || item.functionName || item.source || '系統事件')}</div>
+              <div>${escapeHtml(friendlyTitle)}</div>
               <span class="issue-badge ${escapeHtml(severity)}">${escapeHtml(label)}</span>
             </div>
             <div class="row"><span class="tag">來源</span>${escapeHtml(item.source || '')}</div>
@@ -734,17 +762,17 @@
 
       const mainHtml = mainIssues.length
         ? mainIssues.map(renderIssueCard).join('')
-        : '<div class="status ok" style="margin-top:12px;">目前沒有需要立即處理的系統錯誤或警告。</div>';
+        : '<div class="status ok" style="margin-top:12px;">目前沒有需要立即處理的系統問題。</div>';
 
       const slowHtml = slowIssues.length
         ? `
           <div class="issue-slow-section" id="slowIssueSection">
             <button class="issue-slow-toggle" type="button" onclick="toggleSlowIssueSection()">
-              效能提醒（OK 但偏慢）｜${escapeHtml(slowIssues.length)} 筆
+              速度提醒（已完成但較慢）｜${escapeHtml(slowIssues.length)} 筆
             </button>
             <div class="issue-slow-body">
               <div class="muted" style="padding:10px 2px 0;">
-                這類紀錄代表功能有完成但耗時較久，通常不是系統錯誤。健檢與管理員查詢偏慢多半可接受。
+                這類紀錄代表功能有完成，只是花比較久。通常不是故障；系統健檢或管理頁查詢偶爾較慢，多半可以接受。
               </div>
               ${slowIssues.map(renderIssueCard).join('')}
             </div>
@@ -937,7 +965,7 @@
       const period = document.getElementById('driverPeriod').value;
 
       if (!driverName) {
-        renderResult('<div class="status bad">請輸入司機名稱。</div>');
+        renderResult('<div class="status bad">請輸入選擇司機。</div>');
         return;
       }
 
