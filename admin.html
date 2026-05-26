@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CAESAR 系統管理</title>
-  <!-- v58：新增系統異常看板，只讀顯示 Queue / Runtime Log 問題 -->
+  <!-- v58.2：系統異常操作按鈕合併，重新整理時同步清理三天前紀錄 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     :root {
@@ -405,8 +405,7 @@
         <div class="result-title">系統異常看板</div>
         <div class="muted">顯示 Queue 失敗、Queue 重試中、卡住的背景工作，以及 SYSTEM_RUNTIME_LOG 的錯誤 / 慢請求。</div>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="loadAdminSystemIssues()">重新整理異常</button>
-          <button class="btn btn-secondary" onclick="clearResult()">清除結果</button>
+          <button class="btn btn-primary" onclick="refreshAdminSystemIssues()">重新整理異常 / 清理舊紀錄</button>
         </div>
       </div>
 
@@ -607,7 +606,7 @@
         document.getElementById('authPanel').style.display = 'none';
         document.getElementById('mainPanel').style.display = 'block';
         await loadDriverOptions();
-        await loadAdminSystemIssues();
+        await refreshAdminSystemIssues();
       } catch (err) {
         document.getElementById('adminInfo').textContent = '管理員權限驗證失敗';
         renderAuthMessage('初始化失敗：' + escapeHtml(err.message || err), 'bad');
@@ -677,6 +676,17 @@
       }).join('');
     }
 
+
+    async function refreshAdminSystemIssues() {
+      renderLoading('正在清理三天前紀錄並讀取最新異常...');
+      try {
+        await runAdminSystemLogCleanup({ silent: true });
+      } catch (cleanupErr) {
+        console.warn('cleanup before refresh failed', cleanupErr);
+      }
+      await loadAdminSystemIssues();
+    }
+
     async function loadAdminSystemIssues() {
       renderLoading('正在讀取系統異常...');
       try {
@@ -688,6 +698,38 @@
       } catch (err) {
         renderResult(`<div class="status bad">系統異常讀取失敗：${escapeHtml(err.message || err)}</div>`);
       }
+    }
+
+
+    async function runAdminSystemLogCleanup(options) {
+      const silent = !!(options && options.silent);
+      if (!silent) renderLoading('正在清理三天前的系統紀錄...');
+      const url = `${GAS_WEBAPP_URL}?action=run_admin_system_log_cleanup` +
+        `&adminUid=${encodeURIComponent(currentAdminUid)}` +
+        `&ts=${Date.now()}`;
+      const data = await fetchJson(url);
+
+      if (silent) return data;
+
+      const result = data || {};
+      const rows = Array.isArray(result.results) ? result.results : [];
+      const html = `
+        <div class="result-title">系統紀錄清理完成</div>
+        <div class="status ok">${escapeHtml(result.message || '已清理完成')}</div>
+        <div class="muted">保留天數：${escapeHtml(result.retentionDays || 3)} 天｜刪除筆數：${escapeHtml(result.totalDeleted || 0)}｜截止時間：${escapeHtml(result.cutoff || '')}</div>
+        ${rows.map(item => `
+          <div class="issue-card">
+            <div class="issue-head">
+              <div>${escapeHtml(item.sheet || '')}</div>
+              <span class="issue-badge">${escapeHtml(item.deleted || 0)} 筆</span>
+            </div>
+            <div class="row"><span class="tag">保留</span>${escapeHtml(item.kept || 0)} 筆</div>
+            ${item.message ? `<div class="row"><span class="tag">說明</span>${escapeHtml(item.message)}</div>` : ''}
+          </div>
+        `).join('')}
+      `;
+      renderResult(html);
+      return data;
     }
 
     function renderOrderList(data) {
