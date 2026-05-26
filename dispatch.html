@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CAESAR 排車頁</title>
-  <!-- v60.1：調度快捷分類按鈕文案簡化；固定路線：市區 / 竹東 / 湖口 / 其他；仍採全頁一組儲存 -->
+  <!-- v60.2：排車頁易讀版；快捷分類按鈕下方四等分；調度區不指派司機；整體字級放大 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <style>
@@ -27,13 +27,13 @@
       margin-bottom: 12px;
     }
     .title {
-      font-size: 20px;
+      font-size: 23px;
       font-weight: bold;
       margin-bottom: 6px;
     }
     .sub {
-      font-size: 14px;
-      line-height: 1.6;
+      font-size: 16px;
+      line-height: 1.65;
       opacity: 0.95;
     }
     .tabs {
@@ -46,7 +46,7 @@
       border: none;
       border-radius: 10px;
       padding: 12px;
-      font-size: 15px;
+      font-size: 17px;
       font-weight: bold;
       cursor: pointer;
       background: #d9dde3;
@@ -64,7 +64,7 @@
       box-shadow: 0 2px 8px rgba(0,0,0,0.05);
     }
     .route-title {
-      font-size: 15px;
+      font-size: 17px;
       font-weight: bold;
       color: #334155;
       margin-bottom: 10px;
@@ -78,7 +78,7 @@
       border: none;
       border-radius: 10px;
       padding: 10px 14px;
-      font-size: 14px;
+      font-size: 16px;
       font-weight: bold;
       cursor: pointer;
       background: #dbeafe;
@@ -100,7 +100,7 @@
       border: none;
       border-radius: 10px;
       padding: 10px 14px;
-      font-size: 14px;
+      font-size: 16px;
       font-weight: bold;
       cursor: pointer;
     }
@@ -132,33 +132,37 @@
       color: #92400e;
       border-radius: 12px;
       padding: 10px 12px;
-      font-size: 13px;
+      font-size: 16px;
       font-weight: 900;
-      line-height: 1.5;
+      line-height: 1.55;
     }
     .unsaved-notice.show {
       display: block;
     }
     .quick-route-actions {
-      display: flex;
-      gap: 5px;
-      flex-wrap: wrap;
-      justify-content: flex-end;
-      max-width: 190px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 8px;
+      width: 100%;
+      margin-top: 10px;
     }
     .quick-route-btn {
       border: none;
-      border-radius: 999px;
-      padding: 6px 8px;
-      font-size: 12px;
+      border-radius: 12px;
+      padding: 11px 6px;
+      font-size: 16px;
       font-weight: 900;
       cursor: pointer;
-      background: #dbeafe;
-      color: #1d4ed8;
+      color: #fff;
       white-space: nowrap;
+      box-shadow: 0 2px 6px rgba(15, 23, 42, 0.12);
     }
+    .quick-route-btn.city { background: #2563eb; }
+    .quick-route-btn.east { background: #16a34a; }
+    .quick-route-btn.lake { background: #d97706; }
+    .quick-route-btn.other { background: #64748b; }
     .quick-route-btn:hover {
-      background: #bfdbfe;
+      filter: brightness(0.95);
     }
 
     .group-block {
@@ -173,8 +177,8 @@
       flex-wrap: wrap;
     }
     .group-title {
-      font-size: 16px;
-      font-weight: bold;
+      font-size: 19px;
+      font-weight: 900;
       color: #334155;
     }
     .group-meta {
@@ -184,15 +188,16 @@
       flex-wrap: wrap;
     }
     .group-count {
-      font-size: 12px;
+      font-size: 15px;
       color: #64748b;
+      font-weight: 800;
     }
     .group-driver {
       border: 1px solid #cbd5e1;
-      border-radius: 8px;
-      padding: 8px;
-      font-size: 13px;
-      min-width: 110px;
+      border-radius: 10px;
+      padding: 10px;
+      font-size: 16px;
+      min-width: 132px;
       background: #fff;
     }
     .group-list {
@@ -203,14 +208,17 @@
     }
     .row {
       background: #fff;
-      border-radius: 12px;
-      padding: 10px 12px;
-      margin-bottom: 8px;
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+    }
+    .row-main {
       display: flex;
       gap: 10px;
       align-items: center;
       justify-content: space-between;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      width: 100%;
     }
     .row-left {
       flex: 1;
@@ -220,14 +228,14 @@
       gap: 10px;
     }
     .type-box {
-      width: 28px;
-      height: 28px;
-      border-radius: 8px;
+      width: 32px;
+      height: 32px;
+      border-radius: 9px;
       display: flex;
       align-items: center;
       justify-content: center;
       flex-shrink: 0;
-      font-size: 14px;
+      font-size: 16px;
       font-weight: 800;
       line-height: 1;
       background: #e5e7eb;
@@ -241,9 +249,9 @@
     .row-title {
       flex: 1;
       min-width: 0;
-      font-size: 16px;
-      font-weight: bold;
-      line-height: 1.35;
+      font-size: 19px;
+      font-weight: 900;
+      line-height: 1.4;
       word-break: break-word;
       color: #111827;
       white-space: nowrap;
@@ -276,7 +284,7 @@
       margin-left: 8px;
     }
     .drag-handle {
-      font-size: 18px;
+      font-size: 22px;
       color: #94a3b8;
       padding: 0 4px;
       flex-shrink: 0;
@@ -290,8 +298,8 @@
     }
     .empty {
       color: #64748b;
-      font-size: 13px;
-      padding: 8px;
+      font-size: 15px;
+      padding: 10px;
     }
     .sortable-ghost {
       opacity: 0.35;
@@ -366,25 +374,27 @@
 
     @media (max-width: 640px) {
       .row {
-        padding: 9px 10px;
+        padding: 11px 10px;
+      }
+      .row-main {
         gap: 8px;
       }
       .row-left {
         gap: 8px;
       }
       .type-box {
-        width: 26px;
-        height: 26px;
-        font-size: 13px;
+        width: 30px;
+        height: 30px;
+        font-size: 15px;
       }
       .type-box.alert {
         font-size: 14px;
       }
       .row-title {
-        font-size: 15px;
+        font-size: 18px;
       }
       .order-count {
-        font-size: 13px;
+        font-size: 15px;
       }
       .row-right {
         gap: 4px;
@@ -416,7 +426,7 @@
     <div class="route-panel">
       <div class="route-title">查看司機路線</div>
       <div class="route-btns" id="driverRouteButtons">
-        <span style="color:#64748b;font-size:13px;">司機名單載入中...</span>
+        <span style="color:#64748b;font-size:15px;">司機名單載入中...</span>
       </div>
     </div>
 
@@ -449,7 +459,6 @@
         <div class="group-title">調度</div>
         <div class="group-meta">
           <div class="group-count" id="count-調度">0 站 / 0 張單</div>
-          <select class="group-driver" id="driver-調度"></select>
         </div>
       </div>
       <div class="group-list" id="group-調度"></div>
@@ -856,14 +865,16 @@
             <div class="row"
                  data-stop-key="${escapeHtml(item.stopKey)}"
                  data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(item.taskIds || [])))}">
-              <div class="row-left">
-                <div class="${deliveryTypeClass}">${escapeHtml(deliveryTypeText)}</div>
-                <div class="row-title">${escapeHtml(mainLabel)}<span class="order-count">(${escapeHtml(String(orderCount))})</span>${addonBadge}</div>
+              <div class="row-main">
+                <div class="row-left">
+                  <div class="${deliveryTypeClass}">${escapeHtml(deliveryTypeText)}</div>
+                  <div class="row-title">${escapeHtml(mainLabel)}<span class="order-count">(${escapeHtml(String(orderCount))})</span>${addonBadge}</div>
+                </div>
+                <div class="row-right">
+                  <div class="drag-handle ${sortMode ? '' : 'disabled'}">☰</div>
+                </div>
               </div>
-              <div class="row-right">
-                ${quickActions}
-                <div class="drag-handle ${sortMode ? '' : 'disabled'}">☰</div>
-              </div>
+              ${quickActions}
             </div>
           `;
         }).join('');
@@ -877,12 +888,22 @@
       const stopKey = String(item && item.stopKey ? item.stopKey : '');
       if (!stopKey) return '';
       return `
-        <div class="quick-route-actions">
+        <div class="quick-route-actions" aria-label="快捷分類">
           ${QUICK_ROUTE_GROUPS.map(groupName => `
-            <button type="button" class="quick-route-btn" data-target-group="${escapeHtml(groupName)}" data-stop-key="${escapeHtml(stopKey)}" onclick="moveStopToGroup(this.getAttribute('data-stop-key'), this.getAttribute('data-target-group'))">${escapeHtml(groupName)}</button>
+            <button type="button" class="quick-route-btn ${getQuickRouteButtonClass_(groupName)}" data-target-group="${escapeHtml(groupName)}" data-stop-key="${escapeHtml(stopKey)}" onclick="moveStopToGroup(this.getAttribute('data-stop-key'), this.getAttribute('data-target-group'))">${escapeHtml(groupName)}</button>
           `).join('')}
         </div>
       `;
+    }
+
+    function getQuickRouteButtonClass_(groupName) {
+      switch (String(groupName || '')) {
+        case '市區': return 'city';
+        case '竹東': return 'east';
+        case '湖口': return 'lake';
+        case '其他': return 'other';
+        default: return '';
+      }
     }
 
     function normalizeDispatchBoardGroups_(board) {
