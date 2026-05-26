@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>凱撒衛浴查詢入口</title>
-  <!-- v56.3：依使用者指定調整客戶查詢頁主要字級 -->
+  <!-- v61：新增自取顯示，地址包含「自取」不顯示 ETA / 司機 / 分享進度 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     body {
@@ -250,6 +250,11 @@
       color: #92400e;
       border: 1px solid #fcd34d;
     }
+    .status-banner.pickup {
+      background: #f8fafc;
+      color: #334155;
+      border: 1px solid #cbd5e1;
+    }
     .status-banner.warn {
       background: #ffedd5;
       color: #9a3412;
@@ -403,6 +408,7 @@
   <script>
     const LIFF_ID = '2009380550-ow9SlJK4';
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
+    const SELF_PICKUP_LOCATION = '新竹縣竹北市環北路一段278號 (凱撒衛浴)';
 
     const RETURN_URL_KEY = 'caesar_return_url';
     const RETURN_RESTORED_KEY = 'caesar_return_restored';
@@ -894,7 +900,9 @@
       const etaOverdue = isCustomerEtaOverdueClient(etaFields.etaText, etaFields.deliveryDateText, etaFields.deliveryTime, etaFields.taskStatusText);
       const statusInfo = getStatusInfo(order);
       const photos = Array.isArray(order.photos) ? order.photos : [];
-      const canShareProgress = canTrack && isSpecifiedDelivery(order.address || '');
+      const isSelfPickup = isSelfPickupOrder(order);
+      const canShareProgress = !isSelfPickup && canTrack && isSpecifiedDelivery(order.address || '');
+      const pickupLocation = order.pickupLocation || SELF_PICKUP_LOCATION;
 
       return `
         <div class="order-card">
@@ -910,9 +918,15 @@
             </div>
           ` : ''}
 
-          <div class="row">送貨地址：${escapeHtml(order.address || '')}</div>
-          ${formatPhoneForDisplay(order.phone) ? `<div class="row">電話：${escapeHtml(formatPhoneForDisplay(order.phone))}</div>` : ''}
-          <div class="row">送貨時間：${escapeHtml(formatDeliveryDisplay(etaFields.deliveryDateText || order.deliveryDateText, etaFields.deliveryTime || order.deliveryTime))}</div>
+          ${isSelfPickup ? `
+            <div class="row">取貨方式：自取</div>
+            <div class="row">取貨地點：${escapeHtml(pickupLocation)}</div>
+            <div class="row">取貨時間：${escapeHtml(formatDeliveryDisplay(etaFields.deliveryDateText || order.deliveryDateText, etaFields.deliveryTime || order.deliveryTime))}</div>
+          ` : `
+            <div class="row">送貨地址：${escapeHtml(order.address || '')}</div>
+            ${formatPhoneForDisplay(order.phone) ? `<div class="row">電話：${escapeHtml(formatPhoneForDisplay(order.phone))}</div>` : ''}
+            <div class="row">送貨時間：${escapeHtml(formatDeliveryDisplay(etaFields.deliveryDateText || order.deliveryDateText, etaFields.deliveryTime || order.deliveryTime))}</div>
+          `}
 
           <details class="detail-block">
             <summary>
@@ -931,7 +945,7 @@
 
           <div class="status-pill">
             <div class="status-banner ${statusInfo.className}">${escapeHtml(statusInfo.text)}</div>
-            ${canTrack && etaText && !etaOverdue ? `
+            ${!isSelfPickup && canTrack && etaText && !etaOverdue ? `
               <div class="eta-box">
                 <div class="eta-title">預估送達時間</div>
                 <div class="eta-time">${escapeHtml(etaText)}</div>
@@ -957,6 +971,10 @@
     }
 
     function getStatusInfo(order) {
+      if (isSelfPickupOrder(order)) {
+        return { text: '待自取', className: 'pickup' };
+      }
+
       if (!order.hasTracking) {
         return { text: '尚未排車', className: 'warn' };
       }
@@ -1018,9 +1036,21 @@
       `;
     }
 
+    function isSelfPickupText(text) {
+      return String(text || '').indexOf('自取') !== -1;
+    }
+
+    function isSelfPickupOrder(order) {
+      if (!order) return false;
+      if (order.isSelfPickup === true) return true;
+      if (String(order.taskStatus || '').trim() === '待自取') return true;
+      return isSelfPickupText(order.address || '');
+    }
+
     function isSpecifiedDelivery(address) {
       const text = String(address || '').trim();
-      return !!text && text !== '送店';
+      if (!text || isSelfPickupText(text)) return false;
+      return text !== '送店';
     }
 
     function formatPhoneForDisplay(phone) {
