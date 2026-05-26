@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>凱撒衛浴配送系統入口</title>
-  <!-- v53.3：入口頁卡片標籤移至標題右側 -->
+  <!-- v53.4：移除入口頁系統健檢錯誤區，異常集中至管理頁 -->
   <style>
     :root {
       --caesar-orange: #f28c28;
@@ -161,116 +161,6 @@
 
 
 
-    .health-panel {
-      margin-top: 16px;
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 18px;
-      padding: 16px 18px;
-      box-shadow: var(--shadow);
-    }
-
-    .health-panel.normal {
-      border-color: rgba(34, 197, 94, 0.45);
-      background: #f0fdf4;
-    }
-
-    .health-panel.notice {
-      border-color: rgba(245, 158, 11, 0.6);
-      background: #fffbeb;
-    }
-
-    .health-panel.alert {
-      border-color: rgba(239, 68, 68, 0.55);
-      background: #fef2f2;
-    }
-
-    .health-head {
-      display: flex;
-      justify-content: space-between;
-      gap: 12px;
-      align-items: flex-start;
-    }
-
-    .health-title {
-      margin: 0;
-      font-size: 17px;
-      line-height: 1.35;
-      font-weight: 900;
-    }
-
-    .health-meta {
-      margin-top: 5px;
-      color: var(--muted);
-      font-size: 12px;
-      line-height: 1.5;
-    }
-
-    .health-badge {
-      flex: 0 0 auto;
-      border-radius: 999px;
-      padding: 5px 10px;
-      font-size: 12px;
-      font-weight: 900;
-      background: rgba(107, 114, 128, 0.14);
-      color: #374151;
-    }
-
-    .health-panel.normal .health-badge {
-      background: #22c55e;
-      color: #fff;
-    }
-
-    .health-panel.notice .health-badge {
-      background: #f59e0b;
-      color: #fff;
-    }
-
-    .health-panel.alert .health-badge {
-      background: #ef4444;
-      color: #fff;
-    }
-
-    .health-message {
-      margin: 10px 0 0;
-      font-size: 13px;
-      color: #374151;
-      line-height: 1.6;
-    }
-
-    .health-list {
-      margin: 10px 0 0;
-      padding-left: 18px;
-      color: #4b5563;
-      font-size: 12px;
-      line-height: 1.6;
-    }
-
-    .health-summary-line {
-      margin-top: 10px;
-      color: #374151;
-      font-size: 12px;
-      line-height: 1.6;
-    }
-
-    .health-toggle {
-      margin-top: 10px;
-      border: 1px solid rgba(107, 114, 128, 0.35);
-      background: rgba(255,255,255,0.72);
-      color: #374151;
-      border-radius: 999px;
-      padding: 7px 12px;
-      font-size: 12px;
-      font-weight: 800;
-      cursor: pointer;
-    }
-
-    .health-detail-box {
-      margin-top: 10px;
-      border-top: 1px dashed rgba(107, 114, 128, 0.35);
-      padding-top: 10px;
-    }
-
     .footer {
       margin-top: 20px;
       color: var(--muted);
@@ -296,22 +186,6 @@
       </div>
       <img class="logo" src="LOGO.png" alt="CAESAR" />
     </header>
-
-    <section class="health-panel notice" id="systemHealthPanel">
-      <div class="health-head">
-        <div>
-          <h2 class="health-title" id="systemHealthTitle">系統狀態讀取中</h2>
-          <div class="health-meta" id="systemHealthMeta">正在讀取最近一次系統健檢結果...</div>
-        </div>
-        <span class="health-badge" id="systemHealthBadge">讀取中</span>
-      </div>
-      <p class="health-message" id="systemHealthMessage">入口頁只顯示最近一次健檢結果，不會即時重跑完整健檢。</p>
-      <div class="health-summary-line" id="systemHealthSummary" style="display:none;"></div>
-      <button class="health-toggle" id="systemHealthToggle" type="button" style="display:none;">查看健檢明細</button>
-      <div class="health-detail-box" id="systemHealthDetailBox" style="display:none;">
-        <ul class="health-list" id="systemHealthList"></ul>
-      </div>
-    </section>
 
 
     <section class="section grid">
@@ -343,12 +217,12 @@
         <div class="card-action">進入查詢頁 →</div>
       </a>
 
-      <a class="card" href="admin.html?v=admin-v53-2">
+      <a class="card" href="admin.html?v=admin-v58">
         <div class="card-title-row">
           <h2>系統管理</h2>
           <span class="card-tag">管理</span>
         </div>
-        <p>管理員只讀查詢客戶配送與司機任務，不提供修改功能。</p>
+        <p>管理員只讀查看系統異常、客戶配送與司機任務，不提供修改功能。</p>
         <div class="card-action">進入管理頁 →</div>
       </a>
     </section>
@@ -408,85 +282,6 @@
       return parts.join('｜');
     }
 
-    function renderSystemHealthStatus(data) {
-      const panel = document.getElementById('systemHealthPanel');
-      const title = document.getElementById('systemHealthTitle');
-      const meta = document.getElementById('systemHealthMeta');
-      const badge = document.getElementById('systemHealthBadge');
-      const message = document.getElementById('systemHealthMessage');
-      const summary = document.getElementById('systemHealthSummary');
-      const toggle = document.getElementById('systemHealthToggle');
-      const detailBox = document.getElementById('systemHealthDetailBox');
-      const list = document.getElementById('systemHealthList');
-      if (!panel || !title || !meta || !badge || !message || !summary || !toggle || !detailBox || !list) return;
-
-      const levelInfo = normalizeHealthLevel(data && data.level);
-      panel.classList.remove('normal', 'notice', 'alert');
-      panel.classList.add(levelInfo.className);
-      badge.textContent = levelInfo.badge;
-
-      title.textContent = levelInfo.badge === '正常' ? '系統狀態正常' : '系統狀態需確認';
-      meta.textContent = data && data.checkedAt
-        ? `最後健檢：${data.checkedAt}${data.stale ? '｜紀錄偏舊' : ''}`
-        : '尚未有健檢紀錄';
-      message.textContent = (data && data.message) ? data.message : '尚未讀取到系統健檢結果。';
-
-      const results = Array.isArray(data && data.results) ? data.results : [];
-      const displayItems = buildHealthDisplayItems(results);
-      const summaryText = summarizeHealthIssues(results);
-      if (summaryText) {
-        summary.style.display = 'block';
-        summary.textContent = summaryText;
-      } else {
-        summary.style.display = 'none';
-        summary.textContent = '';
-      }
-
-      if (!displayItems.length) {
-        toggle.style.display = 'none';
-        detailBox.style.display = 'none';
-        list.innerHTML = '';
-        return;
-      }
-
-      toggle.style.display = 'inline-block';
-      toggle.textContent = detailBox.style.display === 'block' ? '收合健檢明細' : `查看健檢明細（${displayItems.length}）`;
-      list.innerHTML = displayItems.map(item => {
-        const detailLines = Array.isArray(item.details) && item.details.length
-          ? item.details.slice(0, 8)
-          : (item.detailText ? String(item.detailText).split('｜').slice(0, 8) : []);
-        const details = detailLines.length
-          ? `<div style="margin-top:4px;color:#6b7280;line-height:1.55;">${detailLines.map(escapeHtml).join('<br>')}</div>`
-          : '<div style="margin-top:4px;color:#6b7280;line-height:1.55;">沒有額外明細。</div>';
-        const prefix = item.ok === false ? '需確認｜' : '觀察｜';
-        const counts = [];
-        if (Number(item.missingSheetCount || 0)) counts.push(`缺少分頁 ${Number(item.missingSheetCount || 0)}`);
-        if (Number(item.missingHeaderCount || 0)) counts.push(`缺少表頭 ${Number(item.missingHeaderCount || 0)}`);
-        if (Number(item.currentIssueCount || 0)) counts.push(`目前異常 ${Number(item.currentIssueCount || 0)}`);
-        if (Number(item.historicalProcessingCount || 0)) counts.push(`歷史卡住 ${Number(item.historicalProcessingCount || 0)}`);
-        if (Number(item.historicalErrorCount || 0)) counts.push(`歷史錯誤 ${Number(item.historicalErrorCount || 0)}`);
-        const countText = counts.length ? `（${counts.join('｜')}）` : '';
-        return `<li>${prefix}${escapeHtml(item.title || '項目')}${escapeHtml(countText)}${details}</li>`;
-      }).join('');
-
-      toggle.onclick = () => {
-        const willShow = detailBox.style.display !== 'block';
-        detailBox.style.display = willShow ? 'block' : 'none';
-        toggle.textContent = willShow ? '收合健檢明細' : `查看健檢明細（${displayItems.length}）`;
-      };
-    }
-
-    async function loadSystemHealthStatus() {
-      try {
-        const resp = await fetch(`${GAS_WEBAPP_URL}?action=get_system_health_status&ts=${Date.now()}`, { cache: 'no-store' });
-        const json = await resp.json();
-        renderSystemHealthStatus(json && json.data ? json.data : { level: '注意', message: '系統健檢資料格式異常。' });
-      } catch (err) {
-        console.warn('loadSystemHealthStatus failed', err);
-        renderSystemHealthStatus({ level: '注意', message: '無法讀取系統狀態。請確認 GAS Web App 是否已重新部署。' });
-      }
-    }
-
     async function loadManualAddStatus() {
       try {
         const resp = await fetch(`${GAS_WEBAPP_URL}?action=get_manual_add_status&ts=${Date.now()}`, { cache: 'no-store' });
@@ -513,7 +308,6 @@
       }
     }
 
-    loadSystemHealthStatus();
     loadManualAddStatus();
   </script>
 
