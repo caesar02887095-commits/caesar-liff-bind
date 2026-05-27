@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CAESAR 司機任務</title>
+  <title>CAESAR 司機工作</title>
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     body {
@@ -453,15 +453,15 @@
 <body>
   <div class="wrap">
     <div class="topbar">
-      <div class="title">CAESAR 司機任務</div>
+      <div class="title">CAESAR 司機工作</div>
       <div class="sub" id="driverInfo">載入中...</div>
     </div>
 
     <div id="errorBox"></div>
 
     <div class="tabs">
-      <button class="tab-btn" id="tabAM" onclick="switchPeriod('上午')">上午任務</button>
-      <button class="tab-btn" id="tabPM" onclick="switchPeriod('下午')">下午任務</button>
+      <button class="tab-btn" id="tabAM" onclick="switchPeriod('上午')">上午工作</button>
+      <button class="tab-btn" id="tabPM" onclick="switchPeriod('下午')">下午工作</button>
     </div>
 
     <div class="panel">
@@ -475,7 +475,7 @@
 
     <div class="page-loading-panel" id="pageLoadingPanel">
       <div class="page-loading-row">
-        <div id="pageLoadingText">正在讀取司機任務...</div>
+        <div id="pageLoadingText">正在讀取司機工作...</div>
         <div class="page-loading-percent" id="pageLoadingPercent">0%</div>
       </div>
       <div class="page-loading-bar">
@@ -486,11 +486,11 @@
     </div>
 
     <div id="taskContainer">
-      <div class="loading">任務載入中...</div>
+      <div class="loading">工作載入中...</div>
     </div>
 
     <div class="footer-note">
-      本頁僅提供任務查看、導航與回報功能。<br />
+      本頁僅提供工作查看、導航與回報功能。<br />
       實際配送明細仍以紙本單據為準。
     </div>
   </div>
@@ -545,7 +545,7 @@
 
     async function initPage() {
       try {
-        showPageProgress('正在初始化司機頁...', 10, '請稍候，系統正在準備司機任務畫面。');
+        showPageProgress('正在初始化司機頁...', 10, '請稍候，系統正在準備司機工作畫面。');
         await liff.init({ liffId: LIFF_ID });
         if (!liff.isLoggedIn()) {
           liff.login();
@@ -556,7 +556,7 @@
         const queryDriver = getQueryParam('driver');
         const queryPeriod = getQueryParam('period');
 
-        currentPeriod = queryPeriod || getDefaultPeriod();
+        currentPeriod = (queryPeriod === '上午' || queryPeriod === '下午') ? queryPeriod : getDefaultPeriod();
         updatePageProgress('正在驗證司機權限...', 24, '系統正在確認此 LINE 帳號是否已綁定司機。');
         const auth = await verifyDriverAccess(profile.userId || '', queryDriver);
         currentDriverName = auth.driverName || '';
@@ -613,7 +613,7 @@
         `司機權限：<b>未通過</b><br>目前查看：<b>${escapeHtml(currentPeriod || '')}</b>`;
       list.innerHTML = `
         <div class="empty">
-          <b>無法開啟司機任務</b><br>
+          <b>無法開啟司機工作</b><br>
           ${escapeHtml(message || '此 LINE 帳號尚未綁定司機權限。')}<br>
           請確認 DRIVER_DB 已填入此司機的 LINE_UID，且啟用欄位為 Y。
         </div>
@@ -669,7 +669,7 @@
         if (silent && Date.now() < suppressAutoReloadUntil) return;
         clearError();
         if (!silent) {
-          showPageProgress('正在讀取司機任務...', 35, '系統正在確認今日路線與配送狀態。');
+          showPageProgress('正在讀取司機工作...', 35, '系統正在確認今日路線與配送狀態。');
           renderLoading();
         }
 
@@ -688,7 +688,7 @@
         const apiElapsed = Date.now() - apiStartedAt;
 
         if (!json.ok) {
-          throw new Error(json.error || '讀取任務失敗');
+          throw new Error(json.error || '讀取工作失敗');
         }
 
         if (!silent) updatePageProgress('正在整理配送順序...', 78, '系統正在整理站點、配送狀態與照片資訊。');
@@ -707,17 +707,17 @@
         });
         const serverHasDeparted = currentTasks.some(task => String(task.etaText || '').trim() || ['已完成','放門口','改送隔壁','聯繫後改期','取消配送','特殊回報'].includes(String(task.status || '').trim()));
         if (serverHasDeparted) pendingDeparture = false;
-        if (isPerfDebugMode()) setPerfDebugText('API：' + apiElapsed + 'ms｜正在渲染司機任務...');
+        if (isPerfDebugMode()) setPerfDebugText('API：' + apiElapsed + 'ms｜正在渲染司機工作...');
         const renderStartedAt = Date.now();
         renderTasks(currentTasks);
         if (isPerfDebugMode()) setPerfDebugText('API：' + apiElapsed + 'ms｜Render：' + (Date.now() - renderStartedAt) + 'ms｜任務：' + currentTasks.length + ' 筆');
         loadManualAddNotice();
-        if (!silent) completePageProgress('司機任務載入完成');
+        if (!silent) completePageProgress('司機工作載入完成');
       } catch (err) {
         if (!silent) {
-          updatePageProgress('司機任務讀取失敗', 100, '請確認網路狀態後重新整理。');
-          showError('讀取任務失敗：' + (err.message || err));
-          renderEmpty('目前無法讀取任務。');
+          updatePageProgress('司機工作讀取失敗', 100, '請確認網路狀態後重新整理。');
+          showError('讀取工作失敗：' + (err.message || err));
+          renderEmpty('目前無法讀取工作。');
         }
       }
     }
@@ -745,11 +745,11 @@
 
     function renderLoading() {
       document.getElementById('summaryText').textContent = '載入中...';
-      document.getElementById('taskContainer').innerHTML = '<div class="loading">任務載入中...</div>';
+      document.getElementById('taskContainer').innerHTML = '<div class="loading">工作載入中...</div>';
     }
 
     function renderEmpty(text) {
-      document.getElementById('summaryText').textContent = '目前沒有任務';
+      document.getElementById('summaryText').textContent = '目前沒有工作';
       document.getElementById('taskContainer').innerHTML = `<div class="empty">${escapeHtml(text)}</div>`;
     }
 
@@ -928,7 +928,7 @@
       });
 
       if (!pendingGroups.length && !completedList.length) {
-        htmlParts.push(`<div class="empty">目前 ${escapeHtml(currentPeriod)} 沒有待配送任務</div>`);
+        htmlParts.push(`<div class="empty">目前 ${escapeHtml(currentPeriod)} 沒有待配送工作</div>`);
       } else {
         pendingGroups.forEach((group, index) => {
           const firstTask = group.tasks[0];
@@ -1161,7 +1161,7 @@
 
     async function submitGroupedStatus(taskIdsJson, actionType, groupKey, note = '') {
       let taskIds = [];
-      try { taskIds = JSON.parse(taskIdsJson); } catch (e) { alert('任務資料格式錯誤'); return; }
+      try { taskIds = JSON.parse(taskIdsJson); } catch (e) { alert('工作資料格式錯誤'); return; }
       if (window.__driverActionLock) return;
       window.__driverActionLock = true;
 
@@ -1193,7 +1193,7 @@
       try {
         taskIds = JSON.parse(taskIdsJson);
       } catch (e) {
-        alert('任務資料格式錯誤');
+        alert('工作資料格式錯誤');
         return;
       }
 
@@ -1370,7 +1370,7 @@
 
     async function chooseAndUploadPhotos(taskIdsJson, groupKey) {
       let taskIds = [];
-      try { taskIds = JSON.parse(taskIdsJson); } catch (e) { alert('任務資料格式錯誤'); return; }
+      try { taskIds = JSON.parse(taskIdsJson); } catch (e) { alert('工作資料格式錯誤'); return; }
       try {
         await uploadGroupPhotos(taskIds, groupKey);
       } catch (err) {
@@ -1379,7 +1379,7 @@
     }
     async function deleteUploadedPhoto(taskIdsJson, groupKey, photoIndex, fileId = '') {
       let taskIds = [];
-      try { taskIds = JSON.parse(taskIdsJson); } catch (e) { alert('任務資料格式錯誤'); return; }
+      try { taskIds = JSON.parse(taskIdsJson); } catch (e) { alert('工作資料格式錯誤'); return; }
       if (photoIndex < 0) return;
       showOverlay('刪除照片中...');
       suppressAutoReloadUntil = Date.now() + 5000;
@@ -1442,7 +1442,7 @@
       updatePageProgress(text || '正在讀取資料...', percent || 8, note || '請稍候。');
       clearPageProgressTimers();
       pageLoadingTimer10 = setTimeout(() => {
-        updatePageProgress('資料較多，系統仍在整理中...', 88, '請不要關閉頁面，系統仍在讀取司機任務。');
+        updatePageProgress('資料較多，系統仍在整理中...', 88, '請不要關閉頁面，系統仍在讀取司機工作。');
       }, 10000);
       pageLoadingTimer30 = setTimeout(() => {
         const retry = document.getElementById('pageLoadingRetry');
