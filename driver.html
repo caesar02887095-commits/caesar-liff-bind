@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CAESAR 司機工作</title>
+  <!-- v65：完成配送二段式防誤觸、已完成工作預設收合，提升司機頁操作體感 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     body {
@@ -121,6 +122,37 @@
       font-size: 13px;
       line-height: 1.6;
     }
+    .completed-toggle-card {
+      width: 100%;
+      border: 1px solid #dbe4ef;
+      border-radius: 14px;
+      background: #f8fafc;
+      color: #334155;
+      padding: 11px 12px;
+      margin-bottom: 10px;
+      font-size: 14px;
+      font-weight: 900;
+      line-height: 1.5;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    .completed-toggle-card::after {
+      content: '展開';
+      flex-shrink: 0;
+      border-radius: 999px;
+      background: #e5e7eb;
+      color: #374151;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 900;
+    }
+    .completed-toggle-card.open::after {
+      content: '收合';
+    }
 
     .card-top {
       display: flex;
@@ -225,6 +257,10 @@
     .btn-done {
       background: #16a34a;
       color: #fff;
+    }
+    .btn-done.confirming {
+      background: #15803d;
+      box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.18);
     }
     .btn-special {
       background: #d97706;
@@ -523,6 +559,10 @@
     let suppressAutoReloadUntil = 0;
     let pageLoadingTimer10 = null;
     let pageLoadingTimer30 = null;
+    let showCompletedJobs = false;
+    let pendingDoneConfirmKey = '';
+    let pendingDoneConfirmTimer = null;
+    const DONE_CONFIRM_WINDOW_MS = 2500;
 
     function getQueryParam(name) {
       const url = new URL(window.location.href);
@@ -578,6 +618,8 @@
 
     function switchPeriod(period) {
       currentPeriod = period;
+      showCompletedJobs = false;
+      clearDoneConfirmState();
       setTabs();
       loadTasks();
     }
@@ -895,13 +937,15 @@
         `);
       }
 
-      const maxCompletedVisible = 3;
-      const completedVisibleList = completedList.slice(Math.max(0, completedList.length - maxCompletedVisible));
-      const hiddenCompletedCount = Math.max(0, completedList.length - completedVisibleList.length);
-      if (hiddenCompletedCount > 0) {
-        htmlParts.push(`<div class="completed-summary-card">已完成 ${hiddenCompletedCount} 站已壓縮顯示，保留最近 ${completedVisibleList.length} 站。需要確認全部狀態時可按重新整理或查看後台。</div>`);
+      if (completedList.length > 0) {
+        htmlParts.push(`
+          <button type="button" class="completed-toggle-card ${showCompletedJobs ? 'open' : ''}" id="completedToggleBtn">
+            <span>已完成工作 ${completedList.length} 筆${showCompletedJobs ? '，點此收合' : '，點此查看'}</span>
+          </button>
+        `);
       }
 
+      const completedVisibleList = showCompletedJobs ? completedList : [];
       completedVisibleList.forEach((item, idx) => {
         const doneText = item.note
           ? `${item.label || ''} (${item.note})`
@@ -917,15 +961,15 @@
             ${canSupplement ? `<div class="btn-row" style="display:flex; margin-top:8px;"><button class="btn btn-photo btn-photo-upload" data-group-key="${escapeHtml(item.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(item.taskIds || [])))}">補傳照片${escapeHtml(photoText)}</button></div>` : ''}
           </div>
         `);
-
-        if (idx === completedVisibleList.length - 1 && pendingGroups.length > 0) {
-          htmlParts.push(`
-            <div class="travel-connector">
-              <span>🚚 司機配送中</span>
-            </div>
-          `);
-        }
       });
+
+      if (pendingGroups.length > 0 && (departureStarted || completedList.length > 0)) {
+        htmlParts.push(`
+          <div class="travel-connector">
+            <span>🚚 司機配送中</span>
+          </div>
+        `);
+      }
 
       if (!pendingGroups.length && !completedList.length) {
         htmlParts.push(`<div class="empty">目前 ${escapeHtml(currentPeriod)} 沒有待配送工作</div>`);
@@ -1021,11 +1065,18 @@
           return;
         }
 
+        if (target.id === 'completedToggleBtn') {
+          ev.preventDefault();
+          showCompletedJobs = !showCompletedJobs;
+          renderTasks(currentTasks);
+          return;
+        }
+
         if (target.classList.contains('btn-done')) {
           ev.preventDefault();
           const groupKey = target.getAttribute('data-group-key') || '';
           const taskIdsJson = decodeURIComponent(target.getAttribute('data-taskids') || '');
-          await submitGroupedStatus(taskIdsJson, 'DONE', groupKey, '');
+          await handleDoneButtonConfirm(target, taskIdsJson, groupKey);
           return;
         }
 
@@ -1057,6 +1108,39 @@
       });
 
       driverActionDelegationBound = true;
+    }
+
+    async function handleDoneButtonConfirm(button, taskIdsJson, groupKey) {
+      const key = String(groupKey || '');
+      if (!key) return;
+
+      if (pendingDoneConfirmKey === key) {
+        clearDoneConfirmState();
+        await submitGroupedStatus(taskIdsJson, 'DONE', key, '');
+        return;
+      }
+
+      clearDoneConfirmState();
+      pendingDoneConfirmKey = key;
+      if (button) {
+        button.classList.add('confirming');
+        button.textContent = '再按一次確認完成';
+      }
+      pendingDoneConfirmTimer = setTimeout(() => {
+        clearDoneConfirmState();
+      }, DONE_CONFIRM_WINDOW_MS);
+    }
+
+    function clearDoneConfirmState() {
+      if (pendingDoneConfirmTimer) {
+        clearTimeout(pendingDoneConfirmTimer);
+        pendingDoneConfirmTimer = null;
+      }
+      pendingDoneConfirmKey = '';
+      document.querySelectorAll('.btn-done.confirming').forEach(btn => {
+        btn.classList.remove('confirming');
+        btn.textContent = '完成配送';
+      });
     }
 
 
