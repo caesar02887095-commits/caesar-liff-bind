@@ -182,7 +182,7 @@
     <header class="brand-bar">
       <div class="brand-title">
         <h1>凱撒衛浴配送系統</h1>
-        <p>內部入口｜排車、司機任務、配送查詢</p>
+        <p>內部入口｜排車、司機工作、配送查詢</p>
       </div>
       <img class="logo" src="LOGO.png" alt="CAESAR" />
     </header>
@@ -194,17 +194,17 @@
           <h2>排車管理</h2>
           <span class="card-tag" id="dispatchTag">內部</span>
         </div>
-        <p>查看上午 / 下午任務，調整路線群組、司機與配送順序。</p>
+        <p>查看上午 / 下午工作，調整路線群組、司機與配送順序。</p>
         <div class="warning-text" id="manualAddStatus" style="display:none;"></div>
         <div class="card-action">進入排車頁 →</div>
       </a>
 
       <a class="card" href="driver.html?v=driver-auth">
         <div class="card-title-row">
-          <h2>司機任務</h2>
+          <h2>司機工作</h2>
           <span class="card-tag">司機</span>
         </div>
-        <p>查看個人配送任務、公司出發、完成配送與特殊回報。</p>
+        <p>查看個人配送工作、公司出發、完成配送與特殊回報。</p>
         <div class="card-action">進入司機頁 →</div>
       </a>
 
@@ -222,7 +222,7 @@
           <h2>系統管理</h2>
           <span class="card-tag">管理</span>
         </div>
-        <p>管理員只讀查看系統異常、客戶配送與司機任務，不提供修改功能。</p>
+        <p>管理員只讀查看系統異常、客戶配送與司機工作，不提供修改功能。</p>
         <div class="card-action">進入管理頁 →</div>
       </a>
     </section>
@@ -277,7 +277,7 @@
       const parts = [];
       if (issueTitles.length) parts.push(`需確認：${issueTitles.join('、')}`);
       if (currentIssueCount) parts.push(`目前異常：${currentIssueCount}`);
-      if (historicalProcessingCount) parts.push(`歷史卡住任務：${historicalProcessingCount}`);
+      if (historicalProcessingCount) parts.push(`歷史卡住工作：${historicalProcessingCount}`);
       if (historicalErrorCount) parts.push(`歷史錯誤：${historicalErrorCount}`);
       return parts.join('｜');
     }
