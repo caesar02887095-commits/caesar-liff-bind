@@ -447,8 +447,8 @@
       const overdue = isCustomerEtaOverdueClient(etaRaw, dateRaw, timeRaw, taskRaw || progressRaw);
       return `
         <div style="margin-top:10px;padding:10px;border:1px dashed #c77;background:#fff8f0;border-radius:10px;font-size:12px;line-height:1.7;color:#663300;">
-          <b>ETA 診斷 v52 已載入</b><br>
-          raw ETA：${escapeHtml(etaRaw || '(空)')}<br>
+          <b>預估抵達時間診斷 v52 已載入</b><br>
+          raw 預估抵達時間：${escapeHtml(etaRaw || '(空)')}<br>
           raw 日期：${escapeHtml(dateRaw || '(空)')}<br>
           raw 時段：${escapeHtml(timeRaw || '(空)')}<br>
           raw 狀態：${escapeHtml(taskRaw || '(空)')}<br>
@@ -605,7 +605,7 @@
 
           ${showEta ? `
             <div class="eta-box">
-              <div class="eta-title">預估送達時間</div>
+              <div class="eta-title">預估抵達時間</div>
               <div class="eta-time">${escapeHtml(etaText)}</div>
             </div>
           ` : ''}
@@ -652,7 +652,7 @@
           <div class="status-banner ${statusInfo.className}">${escapeHtml(statusInfo.text)}</div>
           ${showEta ? `
           <div class="eta-box">
-            <div class="eta-title">預估送達時間</div>
+            <div class="eta-title">預估抵達時間</div>
             <div class="eta-time">${escapeHtml(etaText)}</div>
           </div>
           ` : ''}
