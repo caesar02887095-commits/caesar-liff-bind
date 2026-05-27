@@ -6,6 +6,7 @@
   <title>CAESAR 排車頁</title>
   <!-- v60.3：快捷分類按鈕手機/電腦皆四等分滿版，並改為低飽和溫和配色 -->
   <!-- v63：新增第五條路線「機動」；快捷分類按鈕維持市區 / 竹東 / 湖口 / 其他；請假系統暫緩 -->
+  <!-- v65：儲存排車按鈕主動作強化；未儲存時更醒目，已儲存時降低干擾 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <style>
@@ -108,6 +109,17 @@
     .btn-save {
       background: #16a34a;
       color: #fff;
+      transition: transform 0.12s ease, box-shadow 0.12s ease, background 0.12s ease;
+    }
+    .btn-save.unsaved-active {
+      background: #15803d;
+      box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.18), 0 6px 14px rgba(21, 128, 61, 0.22);
+      transform: translateY(-1px);
+    }
+    .btn-save.clean-state {
+      background: #e5f7ec;
+      color: #166534;
+      box-shadow: none;
     }
     .btn-refresh {
       background: #d9dde3;
@@ -972,6 +984,8 @@
       if (notice) notice.classList.toggle('show', !!hasUnsavedChanges);
       if (saveBtn && !isSaving) {
         saveBtn.textContent = hasUnsavedChanges ? '儲存排車（有未儲存變更）' : '儲存排車';
+        saveBtn.classList.toggle('unsaved-active', !!hasUnsavedChanges);
+        saveBtn.classList.toggle('clean-state', !hasUnsavedChanges);
       }
     }
 
@@ -1152,6 +1166,8 @@
       if (saveBtn) {
         saveBtn.disabled = saving;
         saveBtn.textContent = saving ? '儲存中...' : (hasUnsavedChanges ? '儲存排車（有未儲存變更）' : '儲存排車');
+        saveBtn.classList.toggle('unsaved-active', !saving && !!hasUnsavedChanges);
+        saveBtn.classList.toggle('clean-state', !saving && !hasUnsavedChanges);
       }
       if (refreshBtn) refreshBtn.disabled = saving;
       if (sortBtn) sortBtn.disabled = saving;
