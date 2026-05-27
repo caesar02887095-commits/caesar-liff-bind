@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>凱撒衛浴查詢入口</title>
   <!-- v61：新增自取顯示，地址包含「自取」不顯示預估抵達時間 / 司機 / 分享進度 -->
+  <!-- v65：自取訂單卡片外框微強化，維持低干擾提示 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     body {
@@ -117,6 +118,10 @@
       margin-top: 14px;
       background: #ffffff;
       box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+    .order-card.self-pickup {
+      border-color: #f3d7a1;
+      background: #fffdf8;
     }
     .order-title {
       font-size: 17px;
@@ -905,7 +910,7 @@
       const pickupLocation = order.pickupLocation || SELF_PICKUP_LOCATION;
 
       return `
-        <div class="order-card">
+        <div class="order-card ${isSelfPickup ? 'self-pickup' : ''}">
           <div class="order-title order-title-line">
             <span>配送批次單號：${escapeHtml(order.orderNo || '')}</span>
             <button class="mini-btn" onclick="copyOrderNo('${escapeJs(order.orderNo || '')}')">複製單號</button>
