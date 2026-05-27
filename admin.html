@@ -441,11 +441,11 @@
         <div class="tabs">
           <button class="tab-btn active" id="tab-system" onclick="switchTab('system')">系統異常</button>
           <button class="tab-btn" id="tab-customer" onclick="switchTab('customer')">查客戶配送</button>
-          <button class="tab-btn" id="tab-driver" onclick="switchTab('driver')">查司機任務</button>
+          <button class="tab-btn" id="tab-driver" onclick="switchTab('driver')">查司機工作</button>
         </div>
 
         <div class="section-note">
-          此頁給管理人員查看系統狀況、客戶配送資料與司機任務。只能查看，不能修改排車、重送通知或更改配送狀態。
+          此頁給管理人員查看系統狀況、客戶配送資料與司機工作。只能查看，不能修改排車、重送通知或更改配送狀態。
         </div>
       </div>
 
@@ -474,7 +474,7 @@
       </div>
 
       <div id="panel-driver" class="card" style="display:none;">
-        <div class="result-title">司機任務查詢</div>
+        <div class="result-title">司機工作查詢</div>
         <div class="form-grid">
           <div class="field">
             <label>選擇司機</label>
@@ -493,7 +493,7 @@
           </div>
         </div>
         <div class="btn-row">
-          <button class="btn btn-primary" onclick="loadAdminDriver()">查詢司機任務</button>
+          <button class="btn btn-primary" onclick="loadAdminDriver()">查詢司機工作</button>
           <button class="btn btn-secondary" onclick="clearResult()">清除結果</button>
         </div>
       </div>
@@ -939,11 +939,11 @@
 
       const list = groups.length ? groups : tasks;
       if (!list.length) {
-        return '<div class="result-title">司機任務查詢</div><div class="empty">目前沒有查到司機任務。</div>';
+        return '<div class="result-title">司機工作查詢</div><div class="empty">目前沒有查到司機工作。</div>';
       }
 
       return `
-        <div class="result-title">司機任務查詢</div>
+        <div class="result-title">司機工作查詢</div>
         <div class="row">司機：${escapeHtml(pack.driver || '')}｜時段：${escapeHtml(pack.period || '')}</div>
         ${list.map((item, idx) => `
           <div class="task-card">
@@ -969,7 +969,7 @@
         return;
       }
 
-      renderLoading('正在查詢司機任務...');
+      renderLoading('正在查詢司機工作...');
       try {
         const url = `${GAS_WEBAPP_URL}?action=get_admin_driver_tasks` +
           `&adminUid=${encodeURIComponent(currentAdminUid)}` +
