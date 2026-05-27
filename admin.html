@@ -849,7 +849,7 @@
             </div>
             <div class="row"><span class="tag">單號</span>${escapeHtml((order.orderNos || []).join(' / ') || order.orderNo || '')}</div>
             <div class="row"><span class="tag">狀態</span>${escapeHtml(order.taskStatusText || order.taskStatus || '理貨中')}</div>
-            <div class="row"><span class="tag">ETA</span>${escapeHtml(order.etaText || '尚未產生')}</div>
+            <div class="row"><span class="tag">預估抵達時間</span>${escapeHtml(order.etaText || '尚未產生')}</div>
             <div class="row"><span class="tag">司機</span>${escapeHtml(order.driverName || '未指派')}</div>
             <div class="row"><span class="tag">地址</span>${escapeHtml(order.address || '')}</div>
             <div class="row"><span class="tag">電話</span>${escapeHtml(order.phone || '')}</div>
@@ -900,7 +900,7 @@
           <div class="row"><span class="tag">客編</span>${escapeHtml(data.clientCode || '')}</div>
           <div class="row"><span class="tag">單號</span>${escapeHtml(data.orderNo || '')}</div>
           <div class="row"><span class="tag">狀態</span>${escapeHtml(data.progressText || data.taskStatus || '')}</div>
-          <div class="row"><span class="tag">ETA</span>${escapeHtml(data.etaText || '尚未產生')}</div>
+          <div class="row"><span class="tag">預估抵達時間</span>${escapeHtml(data.etaText || '尚未產生')}</div>
           <div class="row"><span class="tag">司機</span>${escapeHtml(data.driverName || '未指派')}</div>
           <div class="row"><span class="tag">地址</span>${escapeHtml(data.address || '')}</div>
           <div class="row"><span class="tag">電話</span>${escapeHtml(data.phone || '')}</div>
@@ -953,7 +953,7 @@
             </div>
             <div class="row"><span class="tag">單號</span>${escapeHtml((item.orderNos || item.orders || []).join ? (item.orderNos || item.orders || []).join(' / ') : (item.orderNo || ''))}</div>
             <div class="row"><span class="tag">地址</span>${escapeHtml(item.address || '')}</div>
-            <div class="row"><span class="tag">ETA</span>${escapeHtml(item.etaText || item.etaWindow || '')}</div>
+            <div class="row"><span class="tag">預估抵達時間</span>${escapeHtml(item.etaText || item.etaWindow || '')}</div>
           </div>
         `).join('')}
       `;
