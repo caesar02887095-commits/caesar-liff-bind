@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CAESAR 排車頁</title>
   <!-- v60.3：快捷分類按鈕手機/電腦皆四等分滿版，並改為低飽和溫和配色 -->
-  <!-- v60.2：排車頁易讀版；快捷分類按鈕下方四等分；調度區不指派司機；整體字級放大 -->
+  <!-- v63：新增第五條路線「機動」；快捷分類按鈕維持市區 / 竹東 / 湖口 / 其他；請假系統暫緩 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <style>
@@ -439,8 +439,8 @@
     </div>
 
     <div class="tabs">
-      <button class="tab-btn" id="tabAM" onclick="switchPeriod('上午')">上午任務</button>
-      <button class="tab-btn" id="tabPM" onclick="switchPeriod('下午')">下午任務</button>
+      <button class="tab-btn" id="tabAM" onclick="switchPeriod('上午')">上午工作</button>
+      <button class="tab-btn" id="tabPM" onclick="switchPeriod('下午')">下午工作</button>
     </div>
 
     <div class="route-panel">
@@ -527,19 +527,30 @@
       </div>
       <div class="group-list" id="group-其他"></div>
     </div>
+
+    <div class="group-block">
+      <div class="group-head">
+        <div class="group-title">機動</div>
+        <div class="group-meta">
+          <div class="group-count" id="count-機動">0 站 / 0 張單</div>
+          <select class="group-driver" id="driver-機動"></select>
+        </div>
+      </div>
+      <div class="group-list" id="group-機動"></div>
+    </div>
   </div>
 
   <script>
     const LIFF_ID = '2009380550-ow9SlJK4';
     const GAS_WEBAPP_URL = 'https://script.google.com/macros/s/AKfycbxmUEj7tu2ZbqZaIESXhu9oS73QdE8qOGRKmHONqHXf-H6pL3zdYxuSvssjOExQNJjlhA/exec';
     const DEFAULT_DRIVER_OPTIONS = ['莊主任','王經理','阿勇','阿凱','小老闆'];
-    const GROUP_NAMES = ['調度','市區','竹東','湖口','其他'];
+    const GROUP_NAMES = ['調度','市區','竹東','湖口','其他','機動'];
     const QUICK_ROUTE_GROUPS = ['市區','竹東','湖口','其他'];
     const LOCAL_KEY_PREFIX = 'caesar_dispatch_board_snapshot_';
     const RETURN_URL_KEY = 'caesar_return_url';
     const RETURN_RESTORED_KEY = 'caesar_return_restored';
 
-    let currentPeriod = '上午';
+    let currentPeriod = getDefaultPeriod();
     let currentBatchId = '';
     let dispatchBoard = null;
     let lastLoadedDispatchBoard = null;
@@ -550,6 +561,12 @@
     let driverOptions = [...DEFAULT_DRIVER_OPTIONS];
     let pageLoadingTimer10 = null;
     let pageLoadingTimer30 = null;
+
+
+    function getDefaultPeriod() {
+      const now = new Date();
+      return now.getHours() < 12 ? '上午' : '下午';
+    }
 
     async function initPage() {
       try {
@@ -712,7 +729,7 @@
       if (!exists) {
         const option = document.createElement('option');
         option.value = name;
-        option.textContent = name + '（目前任務）';
+        option.textContent = name + '（目前工作）';
         select.appendChild(option);
       }
     }
@@ -767,7 +784,7 @@
     }
 
     async function loadDispatchBoard() {
-      showPageProgress('正在讀取排車資料...', 45, '系統正在讀取每日任務與目前排車資料。');
+      showPageProgress('正在讀取排車資料...', 45, '系統正在讀取每日工作與目前排車資料。');
       try {
         const url = `${GAS_WEBAPP_URL}?action=get_dispatch_board&period=${encodeURIComponent(currentPeriod)}`;
         const resp = await fetch(url, { cache: 'no-store' });
@@ -1172,6 +1189,7 @@
         case '竹東': return '東';
         case '湖口': return '湖';
         case '其他': return '其';
+        case '機動': return '機';
         default: return String(groupName || '').trim();
       }
     }
