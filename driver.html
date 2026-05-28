@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CAESAR 司機工作</title>
-  <!-- v65.1：完成配送改為卡片內確認區塊，不使用系統彈窗 -->
+  <!-- v67：司機頁三按鈕與多狀態回報 UX 改版 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     body {
@@ -240,15 +240,22 @@
     .btn {
       flex: 1;
       border: none;
-      border-radius: 10px;
-      padding: 11px 8px;
-      font-size: 15px;
-      font-weight: bold;
+      border-radius: 12px;
+      padding: 13px 8px;
+      font-size: 17px;
+      font-weight: 900;
       cursor: pointer;
+      line-height: 1.25;
     }
     .btn:disabled {
       opacity: 0.5;
       cursor: not-allowed;
+    }
+    .btn-row.driver-main-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr 2fr;
+      gap: 8px;
+      align-items: stretch;
     }
     .btn-nav {
       background: #dbeafe;
@@ -257,49 +264,83 @@
     .btn-done {
       background: #16a34a;
       color: #fff;
-    }
-    .btn-done.confirming {
-      background: #15803d;
-      box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.18);
+      font-size: 18px;
     }
     .done-confirm-panel {
       margin-top: 10px;
-      padding: 10px;
-      border-radius: 12px;
+      padding: 12px;
+      border-radius: 14px;
       border: 1px solid #86efac;
       background: #f0fdf4;
       color: #14532d;
     }
     .done-confirm-title {
-      font-size: 15px;
+      font-size: 18px;
       font-weight: 900;
       line-height: 1.5;
-      margin-bottom: 8px;
+      margin-bottom: 10px;
+    }
+    .done-confirm-subtitle {
+      font-size: 14px;
+      color: #166534;
+      line-height: 1.6;
+      margin-bottom: 10px;
+      font-weight: 700;
     }
     .done-confirm-actions {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: 1fr;
       gap: 8px;
     }
     .done-confirm-btn {
       border: none;
-      border-radius: 10px;
-      padding: 11px 8px;
-      font-size: 15px;
+      border-radius: 12px;
+      padding: 13px 10px;
+      font-size: 17px;
       font-weight: 900;
       cursor: pointer;
+      line-height: 1.35;
+      text-align: left;
     }
     .done-confirm-submit {
       background: #16a34a;
       color: #fff;
+      text-align: center;
     }
     .done-confirm-cancel {
       background: #e5e7eb;
       color: #374151;
+      text-align: center;
     }
-    .btn-special {
-      background: #d97706;
-      color: #fff;
+    .done-confirm-option {
+      background: #ffffff;
+      color: #14532d;
+      border: 1px solid #bbf7d0;
+    }
+    .done-confirm-option.primary {
+      background: #dcfce7;
+      border-color: #86efac;
+    }
+    .done-other-box {
+      display: none;
+      margin-top: 10px;
+      padding-top: 10px;
+      border-top: 1px dashed #86efac;
+    }
+    .done-other-box.show {
+      display: block;
+    }
+    .done-other-input {
+      width: 100%;
+      box-sizing: border-box;
+      border: 1px solid #86efac;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 17px;
+      line-height: 1.4;
+      min-height: 72px;
+      resize: vertical;
+      font-family: Arial, "Microsoft JhengHei", sans-serif;
     }
 .btn-start {
       background: #0891b2;
@@ -307,8 +348,8 @@
     }
 
     .btn-photo {
-      background: #7c3aed;
-      color: #fff;
+      background: #ede9fe;
+      color: #5b21b6;
     }
 
     .photo-note {
@@ -1035,11 +1076,10 @@
               <div class="display-name">${escapeHtml(mainLabel)}</div>
               ${addressBlock}
 
-              <div class="btn-row">
+              <div class="btn-row driver-main-actions">
                 <button class="btn btn-nav" data-nav="${escapeHtml(navTarget)}">導航</button>
-                <button class="btn btn-photo btn-photo-upload" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">傳照片${group.photoCount ? `(${group.photoCount})` : ''}</button>
-                <button class="btn btn-done" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">完成配送</button>
-                <button class="btn btn-special" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">特殊回報</button>
+                <button class="btn btn-photo btn-photo-upload" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">照片${group.photoCount ? `(${group.photoCount})` : ''}</button>
+                <button class="btn btn-done" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">配送完成</button>
               </div>
               ${renderDraftPhotoGrid(group)}
               <div class="photo-note">指定送達建議拍照，最多 2 張。</div>
@@ -1114,13 +1154,17 @@
           return;
         }
 
-        if (target.classList.contains('done-confirm-submit')) {
+        if (target.classList.contains('done-confirm-option')) {
           ev.preventDefault();
           const panel = target.closest('.done-confirm-panel');
-          const groupKey = panel ? (panel.getAttribute('data-group-key') || '') : '';
-          const taskIdsJson = panel ? decodeURIComponent(panel.getAttribute('data-taskids') || '') : '';
-          clearDoneConfirmState();
-          await submitGroupedStatus(taskIdsJson, 'DONE', groupKey, '');
+          await handleDoneConfirmOption(panel, target);
+          return;
+        }
+
+        if (target.classList.contains('done-confirm-other-submit')) {
+          ev.preventDefault();
+          const panel = target.closest('.done-confirm-panel');
+          await submitDoneConfirmOther(panel);
           return;
         }
 
@@ -1149,12 +1193,6 @@
           return;
         }
 
-        if (target.classList.contains('btn-special')) {
-          ev.preventDefault();
-          const groupKey = target.getAttribute('data-group-key') || '';
-          const taskIdsJson = decodeURIComponent(target.getAttribute('data-taskids') || '');
-          await submitGroupedSpecial(taskIdsJson, groupKey);
-        }
       });
 
       driverActionDelegationBound = true;
@@ -1175,10 +1213,21 @@
       panel.setAttribute('data-group-key', key);
       panel.setAttribute('data-taskids', encodeURIComponent(taskIdsJson || '[]'));
       panel.innerHTML = `
-        <div class="done-confirm-title">請確認：這筆工作已完成？</div>
+        <div class="done-confirm-title">請選擇配送結果</div>
+        <div class="done-confirm-subtitle">選擇後會立即回報，請確認是這一站工作。</div>
         <div class="done-confirm-actions">
-          <button class="done-confirm-btn done-confirm-submit">確認完成</button>
+          <button class="done-confirm-btn done-confirm-option primary" data-action-type="DONE" data-note="">配送完成</button>
+          <button class="done-confirm-btn done-confirm-option" data-action-type="RESCHEDULED" data-note="聯繫後改期">客戶改期</button>
+          <button class="done-confirm-btn done-confirm-option" data-action-type="DROP_OFF" data-note="放門口">客戶不在，同意下貨</button>
+          <button class="done-confirm-btn done-confirm-option" data-action-type="CANCELLED" data-note="取消配送">客戶取消</button>
+          <button class="done-confirm-btn done-confirm-option" data-action-type="OTHER" data-other="1">其他狀況</button>
           <button class="done-confirm-btn done-confirm-cancel">取消</button>
+        </div>
+        <div class="done-other-box">
+          <textarea class="done-other-input" placeholder="請輸入其他狀況，例如：現場無法下貨、客戶要求改聯繫方式等"></textarea>
+          <div class="done-confirm-actions" style="margin-top:8px;">
+            <button class="done-confirm-btn done-confirm-submit done-confirm-other-submit">送出其他狀況</button>
+          </div>
         </div>
       `;
 
@@ -1190,6 +1239,39 @@
       }, DONE_CONFIRM_PANEL_TIMEOUT_MS);
     }
 
+    async function handleDoneConfirmOption(panel, button) {
+      if (!panel || !button) return;
+      if (button.getAttribute('data-other') === '1') {
+        const box = panel.querySelector('.done-other-box');
+        if (box) box.classList.add('show');
+        const input = panel.querySelector('.done-other-input');
+        if (input) input.focus();
+        return;
+      }
+
+      const groupKey = panel.getAttribute('data-group-key') || '';
+      const taskIdsJson = decodeURIComponent(panel.getAttribute('data-taskids') || '[]');
+      const actionType = button.getAttribute('data-action-type') || 'OTHER';
+      const note = button.getAttribute('data-note') || '';
+      clearDoneConfirmState();
+      await submitGroupedStatus(taskIdsJson, actionType, groupKey, note);
+    }
+
+    async function submitDoneConfirmOther(panel) {
+      if (!panel) return;
+      const groupKey = panel.getAttribute('data-group-key') || '';
+      const taskIdsJson = decodeURIComponent(panel.getAttribute('data-taskids') || '[]');
+      const input = panel.querySelector('.done-other-input');
+      const note = input ? String(input.value || '').trim() : '';
+      if (!note) {
+        alert('請輸入其他狀況說明');
+        if (input) input.focus();
+        return;
+      }
+      clearDoneConfirmState();
+      await submitGroupedStatus(taskIdsJson, 'OTHER', groupKey, note);
+    }
+
     function clearDoneConfirmState() {
       if (pendingDoneConfirmTimer) {
         clearTimeout(pendingDoneConfirmTimer);
@@ -1198,7 +1280,7 @@
       document.querySelectorAll('.done-confirm-panel').forEach(panel => panel.remove());
       document.querySelectorAll('.btn-done.confirming').forEach(btn => {
         btn.classList.remove('confirming');
-        btn.textContent = '完成配送';
+        btn.textContent = '配送完成';
       });
     }
 
@@ -1302,13 +1384,25 @@
       return postDriverActionWithSoftTimeout(payload, 1800);
     }
 
+
+    function getDriverLocalDisplayStatus_(actionType, note) {
+      switch (String(actionType || '').toUpperCase()) {
+        case 'DONE': return '已完成';
+        case 'DROP_OFF': return '放門口';
+        case 'RESCHEDULED': return '聯繫後改期';
+        case 'CANCELLED': return '取消配送';
+        case 'OTHER': return note || '特殊回報';
+        default: return note || '特殊回報';
+      }
+    }
+
     async function submitGroupedStatus(taskIdsJson, actionType, groupKey, note = '') {
       let taskIds = [];
       try { taskIds = JSON.parse(taskIdsJson); } catch (e) { alert('工作資料格式錯誤'); return; }
       if (window.__driverActionLock) return;
       window.__driverActionLock = true;
 
-      const displayStatus = actionType === 'DONE' ? '已完成' : (note || '特殊回報');
+      const displayStatus = getDriverLocalDisplayStatus_(actionType, note);
       const previousTasks = currentTasks.map(t => ({ ...t }));
       const previousCompletedGroups = { ...localCompletedGroups };
       const previousPendingStates = { ...pendingGroupStates };
@@ -1316,7 +1410,7 @@
       try {
         suppressAutoReloadUntil = Date.now() + 12000;
         markGroupDone(groupKey, displayStatus, true);
-        showSyncNotice((actionType === 'DONE' ? '已送出完成回報' : '已送出特殊回報') + '｜系統同步中');
+        showSyncNotice('已送出配送回報｜系統同步中');
         await submitGroupStatus(taskIds, actionType, note);
         setTimeout(() => { suppressAutoReloadUntil = 0; loadTasks(true); }, 5000);
       } catch (err) {
@@ -1329,51 +1423,6 @@
         setTimeout(() => { window.__driverActionLock = false; }, 800);
         hideOverlay();
       }
-    }
-
-    async function submitGroupedSpecial(taskIdsJson, groupKey) {
-      let taskIds = [];
-      try {
-        taskIds = JSON.parse(taskIdsJson);
-      } catch (e) {
-        alert('工作資料格式錯誤');
-        return;
-      }
-
-      const choice = prompt(
-        '請輸入特殊回報代碼：\n' +
-        '1 = 客戶同意放門口\n' +
-        '2 = 改送隔壁\n' +
-        '3 = 聯繫後改期\n' +
-        '4 = 客戶取消\n' +
-        '5 = 其他'
-      );
-      if (!choice) return;
-
-      let actionType = 'OTHER';
-      let note = '';
-
-      if (choice === '1') {
-        actionType = 'DROP_OFF';
-        note = '放門口';
-      } else if (choice === '2') {
-        actionType = 'NEIGHBOR';
-        note = '改送隔壁';
-      } else if (choice === '3') {
-        actionType = 'RESCHEDULED';
-        note = '聯繫後改期';
-      } else if (choice === '4') {
-        actionType = 'CANCELLED';
-        note = '取消配送';
-      } else if (choice === '5') {
-        actionType = 'OTHER';
-        note = prompt('請輸入補充說明') || '特殊回報';
-      } else {
-        alert('無效選項');
-        return;
-      }
-
-      await submitGroupedStatus(taskIdsJson, actionType, groupKey, note);
     }
 
     function markGroupDone(groupKey, note = '', syncPending = false) {
