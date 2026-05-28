@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CAESAR 司機工作</title>
-  <!-- v65：完成配送二段式防誤觸、已完成工作預設收合，提升司機頁操作體感 -->
+  <!-- v65.1：完成配送改為卡片內確認區塊，不使用系統彈窗 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     body {
@@ -261,6 +261,41 @@
     .btn-done.confirming {
       background: #15803d;
       box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.18);
+    }
+    .done-confirm-panel {
+      margin-top: 10px;
+      padding: 10px;
+      border-radius: 12px;
+      border: 1px solid #86efac;
+      background: #f0fdf4;
+      color: #14532d;
+    }
+    .done-confirm-title {
+      font-size: 15px;
+      font-weight: 900;
+      line-height: 1.5;
+      margin-bottom: 8px;
+    }
+    .done-confirm-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+    .done-confirm-btn {
+      border: none;
+      border-radius: 10px;
+      padding: 11px 8px;
+      font-size: 15px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+    .done-confirm-submit {
+      background: #16a34a;
+      color: #fff;
+    }
+    .done-confirm-cancel {
+      background: #e5e7eb;
+      color: #374151;
     }
     .btn-special {
       background: #d97706;
@@ -560,9 +595,8 @@
     let pageLoadingTimer10 = null;
     let pageLoadingTimer30 = null;
     let showCompletedJobs = false;
-    let pendingDoneConfirmKey = '';
     let pendingDoneConfirmTimer = null;
-    const DONE_CONFIRM_WINDOW_MS = 2500;
+    const DONE_CONFIRM_PANEL_TIMEOUT_MS = 15000;
 
     function getQueryParam(name) {
       const url = new URL(window.location.href);
@@ -1076,7 +1110,23 @@
           ev.preventDefault();
           const groupKey = target.getAttribute('data-group-key') || '';
           const taskIdsJson = decodeURIComponent(target.getAttribute('data-taskids') || '');
-          await handleDoneButtonConfirm(target, taskIdsJson, groupKey);
+          showDoneConfirmPanel(target, taskIdsJson, groupKey);
+          return;
+        }
+
+        if (target.classList.contains('done-confirm-submit')) {
+          ev.preventDefault();
+          const panel = target.closest('.done-confirm-panel');
+          const groupKey = panel ? (panel.getAttribute('data-group-key') || '') : '';
+          const taskIdsJson = panel ? decodeURIComponent(panel.getAttribute('data-taskids') || '') : '';
+          clearDoneConfirmState();
+          await submitGroupedStatus(taskIdsJson, 'DONE', groupKey, '');
+          return;
+        }
+
+        if (target.classList.contains('done-confirm-cancel')) {
+          ev.preventDefault();
+          clearDoneConfirmState();
           return;
         }
 
@@ -1110,25 +1160,34 @@
       driverActionDelegationBound = true;
     }
 
-    async function handleDoneButtonConfirm(button, taskIdsJson, groupKey) {
+    function showDoneConfirmPanel(button, taskIdsJson, groupKey) {
       const key = String(groupKey || '');
-      if (!key) return;
-
-      if (pendingDoneConfirmKey === key) {
-        clearDoneConfirmState();
-        await submitGroupedStatus(taskIdsJson, 'DONE', key, '');
-        return;
-      }
+      if (!key || !button) return;
 
       clearDoneConfirmState();
-      pendingDoneConfirmKey = key;
-      if (button) {
-        button.classList.add('confirming');
-        button.textContent = '再按一次確認完成';
-      }
+
+      const card = button.closest('.card');
+      const buttonRow = button.closest('.btn-row');
+      if (!card || !buttonRow) return;
+
+      const panel = document.createElement('div');
+      panel.className = 'done-confirm-panel';
+      panel.setAttribute('data-group-key', key);
+      panel.setAttribute('data-taskids', encodeURIComponent(taskIdsJson || '[]'));
+      panel.innerHTML = `
+        <div class="done-confirm-title">請確認：這筆工作已完成？</div>
+        <div class="done-confirm-actions">
+          <button class="done-confirm-btn done-confirm-submit">確認完成</button>
+          <button class="done-confirm-btn done-confirm-cancel">取消</button>
+        </div>
+      `;
+
+      buttonRow.insertAdjacentElement('afterend', panel);
+      try { panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (_) {}
+
       pendingDoneConfirmTimer = setTimeout(() => {
         clearDoneConfirmState();
-      }, DONE_CONFIRM_WINDOW_MS);
+      }, DONE_CONFIRM_PANEL_TIMEOUT_MS);
     }
 
     function clearDoneConfirmState() {
@@ -1136,7 +1195,7 @@
         clearTimeout(pendingDoneConfirmTimer);
         pendingDoneConfirmTimer = null;
       }
-      pendingDoneConfirmKey = '';
+      document.querySelectorAll('.done-confirm-panel').forEach(panel => panel.remove());
       document.querySelectorAll('.btn-done.confirming').forEach(btn => {
         btn.classList.remove('confirming');
         btn.textContent = '完成配送';
