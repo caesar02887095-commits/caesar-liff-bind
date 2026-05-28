@@ -1132,14 +1132,6 @@
         </div>
       `);
 
-      if (departureStarted && pendingGroups.length > 0 && completedList.length === 0) {
-        htmlParts.push(`
-          <div class="travel-connector">
-            <span>🚚 司機配送中</span>
-          </div>
-        `);
-      }
-
       if (completedList.length > 0) {
         htmlParts.push(`
           <button type="button" class="completed-toggle-card ${showCompletedJobs ? 'open' : ''}" id="completedToggleBtn">
@@ -1200,7 +1192,7 @@
                 <button class="btn btn-done" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">配送完成</button>
               </div>
               ${renderDraftPhotoGrid(group)}
-              <div class="photo-note">指定送達建議拍照，最多 2 張。</div>
+              ${!group.isStore ? `<div class="photo-note">指定送達建議拍照，最多 2 張。</div>` : ''}
             </div>
           `);
         });
