@@ -975,6 +975,19 @@
       `;
     }
 
+
+    function getCustomerFriendlyStatusText(taskStatus, fallbackText) {
+      const status = String(taskStatus || '').trim();
+      const fallback = String(fallbackText || '').trim();
+      if (status === '已完成') return '已完成配送';
+      if (status === '放門口') return '已依客戶同意完成下貨';
+      if (status === '聯繫後改期') return '已依客戶聯繫結果改期';
+      if (status === '取消配送') return '已依客戶通知取消本次配送';
+      if (status === '特殊回報') return '配送狀況已回報，請聯繫店家確認';
+      if (status === '改送隔壁') return '已依客戶同意完成配送';
+      return fallback || status;
+    }
+
     function getStatusInfo(order) {
       if (isSelfPickupOrder(order)) {
         return { text: '待自取', className: 'pickup' };
@@ -994,11 +1007,11 @@
       const timeSuffix = formatStatusTimeLabel(order);
 
       if (taskStatus === '已完成') {
-        return { text: taskStatusText || `送貨已完成${driverSuffix}${timeSuffix}`, className: 'done' };
+        return { text: getCustomerFriendlyStatusText(taskStatus, taskStatusText) + timeSuffix, className: 'done' };
       }
       if (taskStatus === '放門口' || taskStatus === '改送隔壁' || taskStatus === '聯繫後改期' || taskStatus === '取消配送' || taskStatus === '特殊回報') {
         return {
-          text: taskStatusText || taskStatus,
+          text: getCustomerFriendlyStatusText(taskStatus, taskStatusText),
           className: taskStatus === '取消配送' ? 'cancel' : 'warn'
         };
       }
