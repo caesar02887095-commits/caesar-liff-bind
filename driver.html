@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CAESAR 司機工作</title>
-  <!-- v68：司機頁拖拉排序與背景預估抵達時間更新 -->
+  <!-- v70.5：修正照片選檔後上傳期間按鈕未鎖定 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <style>
@@ -1292,7 +1292,7 @@
             <div class="display-name">${escapeHtml(doneText)}</div>
             ${item.syncPending ? `<div class="done-note">已送出｜系統同步中</div>` : ''}
             ${renderDraftPhotoGrid(item)}
-            ${canSupplement ? `<div class="btn-row" style="display:flex; margin-top:8px;"><button class="btn btn-photo btn-photo-upload" data-group-key="${escapeHtml(item.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(item.taskIds || [])))}">補傳照片${escapeHtml(photoText)}</button></div>` : ''}
+            ${canSupplement ? `<div class="btn-row" style="display:flex; margin-top:8px;"><button class="btn btn-photo btn-photo-upload" ${isUploadingPhotos ? 'disabled' : ''} data-group-key="${escapeHtml(item.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(item.taskIds || [])))}">${isUploadingPhotos ? '照片上傳中' : ('補傳照片' + escapeHtml(photoText))}</button></div>` : ''}
           </div>
         `);
       });
@@ -1327,7 +1327,7 @@
 
               <div class="btn-row driver-main-actions">
                 <button class="btn btn-nav" data-nav="${escapeHtml(navTarget)}">導航</button>
-                <button class="btn btn-photo btn-photo-upload" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">照片${(Number(group.photoCount || 0) + countLocalPhotoJobs_(group.key)) ? `(${Number(group.photoCount || 0) + countLocalPhotoJobs_(group.key)})` : ''}</button>
+                <button class="btn btn-photo btn-photo-upload" ${isUploadingPhotos ? 'disabled' : ''} data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">${isUploadingPhotos ? '照片上傳中' : `照片${(Number(group.photoCount || 0) + countLocalPhotoJobs_(group.key)) ? `(${Number(group.photoCount || 0) + countLocalPhotoJobs_(group.key)})` : ''}`}</button>
                 <button class="btn btn-done" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">配送完成</button>
               </div>
               ${renderDraftPhotoGrid(group)}
@@ -2077,6 +2077,8 @@
         renderTasks(currentTasks);
         showSyncWarning('照片上傳失敗，可在縮圖上按「重新上傳」。');
         return null;
+      } finally {
+        setPhotoUploadLocked_(false);
       }
     }
 
@@ -2139,9 +2141,8 @@
         renderTasks(currentTasks);
         startBackgroundPhotoUpload_(groupKey, compressedJobs);
       } catch (err) {
-        alert('照片處理失敗：' + (err.message || err));
-      } finally {
         setPhotoUploadLocked_(false);
+        alert('照片處理失敗：' + (err.message || err));
       }
     }
 
@@ -2156,6 +2157,7 @@
         alert('照片暫存已不存在，請重新選擇照片');
         return;
       }
+      setPhotoUploadLocked_(true);
       job.status = 'uploading';
       job.errorText = '';
       renderTasks(currentTasks);
