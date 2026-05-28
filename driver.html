@@ -496,6 +496,46 @@
       cursor: pointer;
       padding: 0;
     }
+    .photo-upload-badge {
+      position: absolute;
+      left: 6px;
+      bottom: 6px;
+      border-radius: 999px;
+      padding: 4px 8px;
+      font-size: 12px;
+      font-weight: 900;
+      line-height: 1;
+      color: #fff;
+      background: rgba(37, 99, 235, 0.88);
+    }
+    .photo-upload-badge.ok { background: rgba(22, 101, 52, 0.9); }
+    .photo-upload-badge.fail { background: rgba(153, 27, 27, 0.92); }
+    .photo-retry-btn {
+      position: absolute;
+      left: 6px;
+      right: 6px;
+      bottom: 6px;
+      border: none;
+      border-radius: 9px;
+      padding: 7px 8px;
+      font-size: 13px;
+      font-weight: 900;
+      cursor: pointer;
+      background: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fecaca;
+    }
+    .photo-upload-warning {
+      margin: 0 0 10px;
+      padding: 10px 12px;
+      border-radius: 12px;
+      border: 1px solid #fbbf24;
+      background: #fffbeb;
+      color: #92400e;
+      font-size: 15px;
+      font-weight: 900;
+      line-height: 1.55;
+    }
     .empty {
       text-align: center;
       color: #666;
@@ -783,6 +823,8 @@
     const PHOTO_UPLOAD_MAX_SIDE = 1024;
     const PHOTO_UPLOAD_JPEG_QUALITY = 0.65;
     let isUploadingPhotos = false;
+    let photoUploadJobs = {};
+    let photoUploadJobSeq = 1;
     let overlayPreviewUrls = [];
     let actionSuccessToastTimer = null;
     let driverActionDelegationBound = false;
@@ -796,6 +838,14 @@
     let isDriverSortMode = false;
     let isSavingDriverSort = false;
     let driverSortableInstance = null;
+
+    window.addEventListener('beforeunload', (event) => {
+      if (hasActivePhotoUploads_()) {
+        event.preventDefault();
+        event.returnValue = '照片仍在上傳中，完成前請勿關閉頁面';
+        return event.returnValue;
+      }
+    });
 
     function getQueryParam(name) {
       const url = new URL(window.location.href);
@@ -1149,6 +1199,7 @@
       updateDriverSortToolbar(pendingGroups.length);
 
       const htmlParts = [];
+      htmlParts.push(getPhotoUploadWarningHtml_());
 
       if (isDriverSortMode) {
         htmlParts.push(renderDriverSortMode(pendingGroups));
@@ -1193,7 +1244,9 @@
           ? `${item.label || ''} (${item.note})`
           : `${item.label || ''}`;
         const canSupplement = canSupplementPhoto(item);
-        const photoText = item.photoCount ? ` 已有${item.photoCount}張照片` : ' 可補照片';
+        const localPhotoCount = countLocalPhotoJobs_(item.key);
+        const totalPhotoCount = Number(item.photoCount || 0) + localPhotoCount;
+        const photoText = totalPhotoCount ? ` 已有${totalPhotoCount}張照片` : ' 可補照片';
 
         htmlParts.push(`
           <div class="card done">
@@ -1235,7 +1288,7 @@
 
               <div class="btn-row driver-main-actions">
                 <button class="btn btn-nav" data-nav="${escapeHtml(navTarget)}">導航</button>
-                <button class="btn btn-photo btn-photo-upload" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">照片${group.photoCount ? `(${group.photoCount})` : ''}</button>
+                <button class="btn btn-photo btn-photo-upload" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">照片${(Number(group.photoCount || 0) + countLocalPhotoJobs_(group.key)) ? `(${Number(group.photoCount || 0) + countLocalPhotoJobs_(group.key)})` : ''}</button>
                 <button class="btn btn-done" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">配送完成</button>
               </div>
               ${renderDraftPhotoGrid(group)}
@@ -1391,23 +1444,64 @@
     }
 
 
+    function getPhotoJobsForGroup_(groupKey) {
+      const key = String(groupKey || '');
+      const jobs = Array.isArray(photoUploadJobs[key]) ? photoUploadJobs[key] : [];
+      return jobs.filter(job => job && job.status !== 'uploaded');
+    }
+
+    function hasActivePhotoUploads_() {
+      return Object.values(photoUploadJobs || {}).some(list =>
+        Array.isArray(list) && list.some(job => job && job.status === 'uploading')
+      );
+    }
+
+    function hasFailedPhotoUploads_() {
+      return Object.values(photoUploadJobs || {}).some(list =>
+        Array.isArray(list) && list.some(job => job && job.status === 'failed')
+      );
+    }
+
+    function getPhotoUploadWarningHtml_() {
+      if (!hasActivePhotoUploads_()) return '';
+      return `<div class="photo-upload-warning">照片上傳中，完成前請勿關閉頁面</div>`;
+    }
+
+    function countLocalPhotoJobs_(groupKey) {
+      return getPhotoJobsForGroup_(groupKey).length;
+    }
+
     function renderDraftPhotoGrid(group) {
-      const photos = Array.isArray(group.draftPhotos) ? group.draftPhotos : [];
-      if (!photos.length) return '';
-      return `
-        <div class="photo-preview-grid">
-          ${photos.map((photo, idx) => `
+      const serverPhotos = Array.isArray(group.draftPhotos) ? group.draftPhotos : [];
+      const localJobs = getPhotoJobsForGroup_(group.key);
+      if (!serverPhotos.length && !localJobs.length) return '';
+
+      const serverHtml = serverPhotos.map((photo, idx) => `
             <div class="photo-thumb">
               <a href="${escapeHtml(photo.url || photo.previewUrl || '')}" target="_blank" rel="noopener">
                 <img loading="lazy" decoding="async" src="${escapeHtml(photo.previewUrl || photo.url || '')}" alt="draft-photo-${idx + 1}">
               </a>
+              <div class="photo-upload-badge ok">已上傳</div>
               <button class="photo-delete-btn btn-photo-delete"
                       data-group-key="${escapeHtml(group.key)}"
-                      data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}"
+                      data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds || [])))}"
                       data-photo-index="${idx}"
                       data-file-id="${escapeHtml(photo.fileId || '')}">×</button>
             </div>
-          `).join('')}
+          `).join('');
+
+      const localHtml = localJobs.map((job, idx) => `
+            <div class="photo-thumb">
+              <img loading="lazy" decoding="async" src="${escapeHtml(job.previewDataUrl || '')}" alt="local-photo-${idx + 1}">
+              ${job.status === 'failed'
+                ? `<button class="photo-retry-btn btn-photo-retry" data-group-key="${escapeHtml(group.key)}" data-local-id="${escapeHtml(job.localId || '')}">重新上傳</button>`
+                : `<div class="photo-upload-badge ${job.status === 'uploaded' ? 'ok' : ''}">${job.status === 'uploading' ? '上傳中' : '處理中'}</div>`}
+            </div>
+          `).join('');
+
+      return `
+        <div class="photo-preview-grid">
+          ${serverHtml}${localHtml}
         </div>
       `;
     }
@@ -1484,6 +1578,15 @@
           const groupKey = target.getAttribute('data-group-key') || '';
           const taskIdsJson = decodeURIComponent(target.getAttribute('data-taskids') || '[]');
           await chooseAndUploadPhotos(taskIdsJson, groupKey);
+          return;
+        }
+
+        if (target.classList.contains('btn-photo-retry')) {
+          ev.preventDefault();
+          ev.stopPropagation();
+          const groupKey = target.getAttribute('data-group-key') || '';
+          const localId = target.getAttribute('data-local-id') || '';
+          retryPhotoUpload_(groupKey, localId);
           return;
         }
 
@@ -1842,35 +1945,41 @@
       });
     }
 
-    async function uploadGroupPhotos(taskIds, groupKey) {
-      const group = groupedStopsCache.find(x => x.key === groupKey) || {};
-      const existingPhotos = Array.isArray(group.draftPhotos) ? group.draftPhotos : [];
-      if (existingPhotos.length >= 2) {
-        alert('最多只能上傳 2 張照片');
-        return null;
-      }
-      const remainCount = Math.max(0, 2 - existingPhotos.length);
-      const files = await chooseImageFiles_(remainCount);
-      if (!files.length) return null;
-      const picked = files.slice(0, remainCount);
-      if (!picked.length) {
-        alert('最多只能上傳 2 張照片');
-        return null;
-      }
-      showOverlay('照片處理中...');
-      suppressAutoReloadUntil = Date.now() + 15000;
-      try {
-        const compressedPhotos = [];
-        for (let i = 0; i < picked.length; i++) {
-          compressedPhotos.push(await compressImageFile_(picked[i]));
-        }
+    function getPhotoJobList_(groupKey) {
+      const key = String(groupKey || '');
+      if (!photoUploadJobs[key]) photoUploadJobs[key] = [];
+      return photoUploadJobs[key];
+    }
 
-        const previewUrls = compressedPhotos.map(photo => photo.previewDataUrl).filter(Boolean);
-        showOverlay('照片上傳中，請稍候...', previewUrls);
-        const photos = compressedPhotos.map(photo => ({
-          fileName: photo.fileName,
-          mimeType: photo.mimeType,
-          dataBase64: photo.dataBase64
+    function setPhotoJobStatus_(groupKey, localId, status, errorText = '') {
+      const list = getPhotoJobList_(groupKey);
+      const job = list.find(item => item && item.localId === localId);
+      if (!job) return;
+      job.status = status;
+      job.errorText = errorText || '';
+      renderTasks(currentTasks);
+    }
+
+    function removeUploadedPhotoJobs_(groupKey, localIds) {
+      const key = String(groupKey || '');
+      const idSet = new Set((Array.isArray(localIds) ? localIds : []).map(String));
+      if (!photoUploadJobs[key]) return;
+      photoUploadJobs[key] = photoUploadJobs[key].filter(job => !idSet.has(String(job.localId || '')));
+      if (!photoUploadJobs[key].length) delete photoUploadJobs[key];
+    }
+
+    async function uploadPhotoJobsToServer_(groupKey, jobs) {
+      const uploadJobs = (Array.isArray(jobs) ? jobs : []).filter(job => job && job.dataBase64);
+      if (!uploadJobs.length) return null;
+      uploadJobs.forEach(job => job.status = 'uploading');
+      renderTasks(currentTasks);
+
+      try {
+        const taskIds = uploadJobs[0].taskIds || [];
+        const photos = uploadJobs.map(job => ({
+          fileName: job.fileName,
+          mimeType: job.mimeType,
+          dataBase64: job.dataBase64
         }));
 
         const resp = await fetch(GAS_WEBAPP_URL, {
@@ -1882,28 +1991,98 @@
         let json = {};
         try { json = JSON.parse(text); } catch (e) { throw new Error(text || '照片上傳失敗'); }
         if (!json.ok) throw new Error(json.message || json.error || '照片上傳失敗');
-        showOverlay('照片已上傳，正在更新畫面...');
-        syncPhotoStateToGroup_(groupKey, Number(json.totalCount || (existingPhotos.length + photos.length)), Array.isArray(json.photos) ? json.photos : []);
+
+        syncPhotoStateToGroup_(groupKey, Number(json.totalCount || 0), Array.isArray(json.photos) ? json.photos : []);
+        removeUploadedPhotoJobs_(groupKey, uploadJobs.map(job => job.localId));
         renderTasks(currentTasks);
         return json;
-      } finally {
-        hideOverlay();
+      } catch (err) {
+        uploadJobs.forEach(job => {
+          job.status = 'failed';
+          job.errorText = err && err.message ? err.message : String(err || '照片上傳失敗');
+        });
+        renderTasks(currentTasks);
+        showSyncWarning('照片上傳失敗，可在縮圖上按「重新上傳」。');
+        return null;
       }
     }
 
+    function startBackgroundPhotoUpload_(groupKey, jobs) {
+      uploadPhotoJobsToServer_(groupKey, jobs).catch(err => {
+        const list = Array.isArray(jobs) ? jobs : [];
+        list.forEach(job => {
+          job.status = 'failed';
+          job.errorText = err && err.message ? err.message : String(err || '照片上傳失敗');
+        });
+        renderTasks(currentTasks);
+      });
+    }
+
     async function chooseAndUploadPhotos(taskIdsJson, groupKey) {
-      if (isUploadingPhotos) return;
       let taskIds = [];
       try { taskIds = JSON.parse(taskIdsJson); } catch (e) { alert('工作資料格式錯誤'); return; }
+
+      const group = groupedStopsCache.find(x => x.key === groupKey) || localCompletedGroups[groupKey] || {};
+      const existingPhotos = Array.isArray(group.draftPhotos) ? group.draftPhotos : [];
+      const localJobs = getPhotoJobsForGroup_(groupKey);
+      const remainCount = Math.max(0, 2 - existingPhotos.length - localJobs.length);
+      if (remainCount <= 0) {
+        alert('最多只能上傳 2 張照片');
+        return;
+      }
+
       setPhotoUploadLocked_(true);
+      suppressAutoReloadUntil = Date.now() + 20000;
       try {
-        await uploadGroupPhotos(taskIds, groupKey);
+        const files = await chooseImageFiles_(remainCount);
+        if (!files.length) return;
+        const picked = files.slice(0, remainCount);
+        if (!picked.length) return;
+
+        const compressedJobs = [];
+        for (let i = 0; i < picked.length; i++) {
+          const compressed = await compressImageFile_(picked[i]);
+          compressedJobs.push({
+            localId: 'local_' + (photoUploadJobSeq++),
+            status: 'uploading',
+            taskIds: taskIds,
+            createdAt: Date.now(),
+            fileName: compressed.fileName,
+            mimeType: compressed.mimeType,
+            dataBase64: compressed.dataBase64,
+            previewDataUrl: compressed.previewDataUrl,
+            errorText: ''
+          });
+        }
+
+        const list = getPhotoJobList_(groupKey);
+        compressedJobs.forEach(job => list.push(job));
+        renderTasks(currentTasks);
+        startBackgroundPhotoUpload_(groupKey, compressedJobs);
       } catch (err) {
-        alert('照片上傳失敗：' + (err.message || err));
+        alert('照片處理失敗：' + (err.message || err));
       } finally {
         setPhotoUploadLocked_(false);
       }
     }
+
+    function retryPhotoUpload_(groupKey, localId) {
+      const list = getPhotoJobList_(groupKey);
+      const job = list.find(item => item && item.localId === localId);
+      if (!job) {
+        alert('照片暫存已不存在，請重新選擇照片');
+        return;
+      }
+      if (!job.dataBase64) {
+        alert('照片暫存已不存在，請重新選擇照片');
+        return;
+      }
+      job.status = 'uploading';
+      job.errorText = '';
+      renderTasks(currentTasks);
+      startBackgroundPhotoUpload_(groupKey, [job]);
+    }
+
     async function deleteUploadedPhoto(taskIdsJson, groupKey, photoIndex, fileId = '') {
       let taskIds = [];
       try { taskIds = JSON.parse(taskIdsJson); } catch (e) { alert('工作資料格式錯誤'); return; }
