@@ -575,6 +575,12 @@
       z-index: 9000;
       pointer-events: none;
     }
+    .photo-upload-warning.fail {
+      border-color: #ef4444;
+      background: #fef2f2;
+      color: #991b1b;
+      box-shadow: 0 14px 34px rgba(127, 29, 29, 0.24);
+    }
     .empty {
       text-align: center;
       color: #666;
@@ -1511,8 +1517,13 @@
     }
 
     function getPhotoUploadWarningHtml_() {
-      if (!hasActivePhotoUploads_()) return '';
-      return `<div class="photo-upload-warning">照片上傳中，完成前請勿關閉頁面</div>`;
+      if (hasFailedPhotoUploads_()) {
+        return `<div class="photo-upload-warning fail">有照片上傳失敗，請點回該站重新上傳</div>`;
+      }
+      if (hasActivePhotoUploads_()) {
+        return `<div class="photo-upload-warning">照片上傳中，完成前請勿關閉頁面</div>`;
+      }
+      return '';
     }
 
     function countLocalPhotoJobs_(groupKey) {
