@@ -1932,10 +1932,35 @@
         input.type = 'file';
         input.accept = 'image/*';
         input.multiple = true;
+
+        let resolved = false;
+        const done = (files) => {
+          if (resolved) return;
+          resolved = true;
+          try { input.remove(); } catch (_) {}
+          resolve(Array.isArray(files) ? files : []);
+        };
+
         input.onchange = () => {
           const files = Array.from(input.files || []).slice(0, Math.max(1, maxCount || 2));
-          resolve(files);
+          done(files);
         };
+
+        input.oncancel = () => done([]);
+
+        // 部分手機瀏覽器取消選檔不會觸發 onchange / cancel。
+        // 回到頁面後若沒有檔案，主動回傳空陣列，避免照片按鈕卡在鎖定狀態。
+        const handleFocusBack = () => {
+          setTimeout(() => {
+            if (resolved) return;
+            const files = Array.from(input.files || []).slice(0, Math.max(1, maxCount || 2));
+            done(files);
+          }, 650);
+          window.removeEventListener('focus', handleFocusBack);
+        };
+        window.addEventListener('focus', handleFocusBack);
+
+        document.body.appendChild(input);
         input.click();
       });
     }
@@ -2079,14 +2104,20 @@
         return;
       }
 
-      setPhotoUploadLocked_(true);
       suppressAutoReloadUntil = Date.now() + 20000;
       try {
         const files = await chooseImageFiles_(remainCount);
-        if (!files.length) return;
+        if (!files.length) {
+          setPhotoUploadLocked_(false);
+          return;
+        }
         const picked = files.slice(0, remainCount);
-        if (!picked.length) return;
+        if (!picked.length) {
+          setPhotoUploadLocked_(false);
+          return;
+        }
 
+        setPhotoUploadLocked_(true);
         const compressedJobs = [];
         for (let i = 0; i < picked.length; i++) {
           const compressed = await compressImageFile_(picked[i]);
