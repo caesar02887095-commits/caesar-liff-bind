@@ -761,6 +761,19 @@
       return `${hh}:${mm}`;
     }
 
+
+    function getCustomerFriendlyStatusText(taskStatus, fallbackText) {
+      const status = String(taskStatus || '').trim();
+      const fallback = String(fallbackText || '').trim();
+      if (status === '已完成' || fallback === '已完成' || fallback === '送貨已完成') return '已完成配送';
+      if (status === '放門口' || fallback === '放門口' || fallback.includes('已放門口')) return '已依客戶同意完成下貨';
+      if (status === '聯繫後改期' || fallback === '聯繫後改期' || fallback.includes('已改期')) return '已依客戶聯繫結果改期';
+      if (status === '取消配送' || fallback === '取消配送' || fallback.includes('取消')) return '已依客戶通知取消本次配送';
+      if (status === '特殊回報' || fallback === '特殊回報' || fallback.includes('特殊回報')) return '配送狀況已回報，請聯繫店家確認';
+      if (status === '改送隔壁' || fallback === '改送隔壁' || fallback.includes('已改送隔壁')) return '已依客戶同意完成配送';
+      return fallback || status;
+    }
+
     function stripDriverFromCompletedStatusText(text) {
       return String(text || '')
         .replace(/｜司機[^｜]*/g, '')
@@ -780,18 +793,18 @@
       const driverSuffix = driverName ? `｜司機 ${driverName}` : '';
       const timeSuffix = formatDetailStatusTimeLabel(data);
 
-      if (step === 'DONE' || text === '送貨已完成' || text === '已完成' || text.includes('已放門口') || text.includes('已改送隔壁')) {
-        const cleanedText = stripDriverFromCompletedStatusText(text);
-        return { text: cleanedText || `送貨已完成${timeSuffix}`, className: 'done' };
+      if (step === 'DONE' || text === '送貨已完成' || text === '已完成') {
+        return { text: getCustomerFriendlyStatusText('已完成', text) + timeSuffix, className: 'done' };
       }
-      if (step === 'CANCEL') {
-        return { text: text || '配送已取消', className: 'cancel' };
+      if (step === 'CANCEL' || text === '取消配送' || text.includes('取消')) {
+        return { text: getCustomerFriendlyStatusText('取消配送', text), className: 'cancel' };
       }
-      if (step === 'DELAY') {
-        return { text: text || '聯繫後改期', className: 'warn' };
+      if (step === 'DELAY' || text === '聯繫後改期' || text.includes('已改期')) {
+        return { text: getCustomerFriendlyStatusText('聯繫後改期', text), className: 'warn' };
       }
-      if (text === '放門口' || text === '改送隔壁' || text === '特殊回報' || text.includes('已放門口') || text.includes('已改送隔壁') || text.includes('已改期')) {
-        return { text: text, className: 'warn' };
+      if (text === '放門口' || text === '改送隔壁' || text === '特殊回報' || text.includes('已放門口') || text.includes('已改送隔壁')) {
+        const statusKey = text.includes('放門口') ? '放門口' : (text.includes('改送隔壁') ? '改送隔壁' : '特殊回報');
+        return { text: getCustomerFriendlyStatusText(statusKey, text), className: 'warn' };
       }
       if (etaOverdue) {
         return { text: getCustomerEtaDelayTextClient(), className: 'warn' };
