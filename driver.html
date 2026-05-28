@@ -734,6 +734,7 @@
     let currentTasks = [];
     let currentBatchId = '';
     let departureStarted = false;
+    let serverDepartureStarted = false;
     let groupedStopsCache = [];
     const PHOTO_SUPPLEMENT_WINDOW_MIN = 10;
     let overlayPreviewUrls = [];
@@ -941,8 +942,8 @@
             delete localCompletedGroups[key];
           }
         });
-        const serverHasDeparted = currentTasks.some(task => String(task.etaText || '').trim() || ['已完成','放門口','改送隔壁','聯繫後改期','取消配送','特殊回報'].includes(String(task.status || '').trim()));
-        if (serverHasDeparted) pendingDeparture = false;
+        serverDepartureStarted = !!(json.data && json.data.departed);
+        if (serverDepartureStarted) pendingDeparture = false;
         if (isPerfDebugMode()) setPerfDebugText('API：' + apiElapsed + 'ms｜正在渲染司機工作...');
         const renderStartedAt = Date.now();
         renderTasks(currentTasks);
@@ -1073,11 +1074,7 @@
       const grouped = groupTasksByStop(tasks);
 
       const completedStatusSet = new Set(['已完成', '放門口', '改送隔壁', '聯繫後改期', '取消配送', '特殊回報']);
-      const serverDeparted = tasks.some(task => {
-        const status = String(task.status || '').trim();
-        const etaText = String(task.etaText || '').trim();
-        return !!etaText || completedStatusSet.has(status);
-      });
+      const serverDeparted = !!serverDepartureStarted;
       departureStarted = !!pendingDeparture || serverDeparted;
       const serverCompletedGroups = grouped.filter(g => completedStatusSet.has(String(g.status || '').trim()));
       cleanupLocalCompletedGroups();
