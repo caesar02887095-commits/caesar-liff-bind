@@ -31,7 +31,7 @@
       margin-bottom: 6px;
     }
     .sub {
-      font-size: 14px;
+      font-size: 15px;
       line-height: 1.55;
       opacity: 0.95;
     }
@@ -172,7 +172,7 @@
       color: #fff;
       border-radius: 999px;
       padding: 4px 9px;
-      font-size: 12px;
+      font-size: 13px;
       font-weight: bold;
       min-width: 20px;
       text-align: center;
@@ -182,14 +182,14 @@
       color: #333;
       border-radius: 999px;
       padding: 4px 9px;
-      font-size: 12px;
+      font-size: 13px;
     }
     .badge-right {
       background: #e5e7eb;
       color: #374151;
       border-radius: 10px;
       padding: 6px 9px;
-      font-size: 11px;
+      font-size: 12px;
       font-weight: bold;
       line-height: 1.45;
       text-align: right;
@@ -197,7 +197,7 @@
       word-break: break-word;
     }
     .display-name {
-      font-size: 19px;
+      font-size: 20px;
       font-weight: bold;
       line-height: 1.35;
       margin-bottom: 6px;
@@ -275,7 +275,7 @@
       color: #14532d;
     }
     .done-confirm-title {
-      font-size: 18px;
+      font-size: 20px;
       font-weight: 900;
       line-height: 1.5;
       margin-bottom: 10px;
@@ -637,7 +637,7 @@
     let pageLoadingTimer30 = null;
     let showCompletedJobs = false;
     let pendingDoneConfirmTimer = null;
-    const DONE_CONFIRM_PANEL_TIMEOUT_MS = 15000;
+    const DONE_CONFIRM_PANEL_TIMEOUT_MS = 90000;
 
     function getQueryParam(name) {
       const url = new URL(window.location.href);
@@ -946,7 +946,8 @@
     function getMainLabel(group) {
       const address = String(group.address || '').trim();
       const shopName = String(group.shopName || '').trim();
-      return group.isStore ? (shopName || '未填店家') : (address || shopName || '未填地址');
+      if (group.isStore) return shopName || '未填店家';
+      return '指定送達：' + (address || shopName || '未填地址');
     }
 
     function renderTasks(tasks) {
@@ -1054,15 +1055,6 @@
           const navTarget = getNavigationTarget(firstTask);
           const mainLabel = getMainLabel(group);
 
-          const addressBlock = !group.isStore
-            ? `
-              <div class="address-box">
-                <b>指定送達</b><br>
-                地址：${escapeHtml(firstTask.address || '未填')}
-              </div>
-            `
-            : '';
-
           htmlParts.push(`
             <div class="card" id="card-${escapeHtml(group.key)}">
               <div class="card-top">
@@ -1074,7 +1066,6 @@
               </div>
 
               <div class="display-name">${escapeHtml(mainLabel)}</div>
-              ${addressBlock}
 
               <div class="btn-row driver-main-actions">
                 <button class="btn btn-nav" data-nav="${escapeHtml(navTarget)}">導航</button>
