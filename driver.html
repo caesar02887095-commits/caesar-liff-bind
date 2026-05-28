@@ -641,6 +641,43 @@
       border: 1px solid #e5e7eb;
       background: #f3f4f6;
     }
+
+    .action-success-toast {
+      position: fixed;
+      left: 50%;
+      top: 50%;
+      transform: translate(-50%, -50%) scale(0.96);
+      z-index: 10000;
+      display: none;
+      min-width: 220px;
+      max-width: calc(100vw - 40px);
+      background: #ecfdf5;
+      border: 1px solid #86efac;
+      color: #166534;
+      border-radius: 16px;
+      padding: 16px 20px;
+      text-align: center;
+      box-shadow: 0 12px 34px rgba(15, 23, 42, 0.18);
+      font-weight: 900;
+      line-height: 1.5;
+      opacity: 0;
+      transition: opacity 0.18s ease, transform 0.18s ease;
+      pointer-events: none;
+    }
+    .action-success-toast.show {
+      display: block;
+      opacity: 1;
+      transform: translate(-50%, -50%) scale(1);
+    }
+    .action-success-main {
+      font-size: 20px;
+      margin-bottom: 2px;
+    }
+    .action-success-sub {
+      font-size: 15px;
+      color: #15803d;
+    }
+
     .manual-add-notice {
       display: none;
       background: #fffbeb;
@@ -714,6 +751,12 @@
     </div>
   </div>
 
+
+  <div class="action-success-toast" id="actionSuccessToast" role="status" aria-live="polite">
+    <div class="action-success-main" id="actionSuccessMain">回報成功</div>
+    <div class="action-success-sub" id="actionSuccessSub">畫面已更新</div>
+  </div>
+
   <div class="overlay" id="loadingOverlay">
     <div class="overlay-box">
       <div class="spinner"></div>
@@ -737,7 +780,11 @@
     let serverDepartureStarted = false;
     let groupedStopsCache = [];
     const PHOTO_SUPPLEMENT_WINDOW_MIN = 10;
+    const PHOTO_UPLOAD_MAX_SIDE = 1600;
+    const PHOTO_UPLOAD_JPEG_QUALITY = 0.8;
+    let isUploadingPhotos = false;
     let overlayPreviewUrls = [];
+    let actionSuccessToastTimer = null;
     let driverActionDelegationBound = false;
     // 已關閉固定時間輪詢：司機頁只在開頁、手動重新整理、切回頁面、操作後重新讀取。
     let suppressAutoReloadUntil = 0;
@@ -1433,6 +1480,7 @@
 
         if (target.classList.contains('btn-photo-upload')) {
           ev.preventDefault();
+          if (isUploadingPhotos) return;
           const groupKey = target.getAttribute('data-group-key') || '';
           const taskIdsJson = decodeURIComponent(target.getAttribute('data-taskids') || '[]');
           await chooseAndUploadPhotos(taskIdsJson, groupKey);
@@ -1670,6 +1718,7 @@
         markGroupDone(groupKey, displayStatus, true);
         showSyncNotice('已送出配送回報｜系統同步中');
         await submitGroupStatus(taskIds, actionType, note);
+        showActionSuccessToast('回報成功', '配送狀態已送出', 2800);
         setTimeout(() => { suppressAutoReloadUntil = 0; loadTasks(true); }, 5000);
       } catch (err) {
         currentTasks = previousTasks;
@@ -1741,38 +1790,56 @@
     }
 
     async function compressImageFile_(file) {
-      const dataUrl = await new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      });
-      const img = await new Promise((resolve, reject) => {
-        const image = new Image();
-        image.onload = () => resolve(image);
-        image.onerror = reject;
-        image.src = dataUrl;
-      });
-      const maxSide = 960;
-      let { width, height } = img;
-      if (width > height && width > maxSide) {
-        height = Math.round(height * (maxSide / width));
-        width = maxSide;
-      } else if (height >= width && height > maxSide) {
-        width = Math.round(width * (maxSide / height));
-        height = maxSide;
+      const sourceUrl = URL.createObjectURL(file);
+      try {
+        const img = await new Promise((resolve, reject) => {
+          const image = new Image();
+          image.onload = () => resolve(image);
+          image.onerror = reject;
+          image.src = sourceUrl;
+        });
+
+        const maxSide = PHOTO_UPLOAD_MAX_SIDE;
+        let { width, height } = img;
+        if (width > height && width > maxSide) {
+          height = Math.round(height * (maxSide / width));
+          width = maxSide;
+        } else if (height >= width && height > maxSide) {
+          width = Math.round(width * (maxSide / height));
+          height = maxSide;
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        const compressed = canvas.toDataURL('image/jpeg', PHOTO_UPLOAD_JPEG_QUALITY);
+
+        return {
+          fileName: file.name || 'photo.jpg',
+          mimeType: 'image/jpeg',
+          dataBase64: compressed.split(',')[1],
+          previewDataUrl: compressed
+        };
+      } finally {
+        try { URL.revokeObjectURL(sourceUrl); } catch (e) {}
       }
-      const canvas = document.createElement('canvas');
-      canvas.width = width;
-      canvas.height = height;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, width, height);
-      const compressed = canvas.toDataURL('image/jpeg', 0.65);
-      return {
-        fileName: file.name || 'photo.jpg',
-        mimeType: 'image/jpeg',
-        dataBase64: compressed.split(',')[1]
-      };
+    }
+
+    function setPhotoUploadLocked_(locked) {
+      isUploadingPhotos = !!locked;
+      document.querySelectorAll('.btn-photo-upload').forEach(btn => {
+        btn.disabled = !!locked;
+        if (locked) {
+          btn.setAttribute('data-original-text', btn.textContent || '照片');
+          btn.textContent = '照片處理中';
+        } else {
+          const original = btn.getAttribute('data-original-text');
+          if (original) btn.textContent = original;
+          btn.removeAttribute('data-original-text');
+        }
+      });
     }
 
     async function uploadGroupPhotos(taskIds, groupKey) {
@@ -1790,16 +1857,22 @@
         alert('最多只能上傳 2 張照片');
         return null;
       }
-      const previewUrls = picked.map(file => URL.createObjectURL(file));
-      showOverlay('已選取照片，正在準備上傳...', previewUrls);
-      suppressAutoReloadUntil = Date.now() + 5000;
+      showOverlay('照片處理中...');
+      suppressAutoReloadUntil = Date.now() + 15000;
       try {
-        const photos = [];
+        const compressedPhotos = [];
         for (let i = 0; i < picked.length; i++) {
-          showOverlay(`正在壓縮照片 ${i + 1}/${picked.length}...`);
-          photos.push(await compressImageFile_(picked[i]));
+          compressedPhotos.push(await compressImageFile_(picked[i]));
         }
-        showOverlay('正在上傳照片，請稍候...');
+
+        const previewUrls = compressedPhotos.map(photo => photo.previewDataUrl).filter(Boolean);
+        showOverlay('照片上傳中，請稍候...', previewUrls);
+        const photos = compressedPhotos.map(photo => ({
+          fileName: photo.fileName,
+          mimeType: photo.mimeType,
+          dataBase64: photo.dataBase64
+        }));
+
         const resp = await fetch(GAS_WEBAPP_URL, {
           method: 'POST',
           headers: { 'Content-Type': 'text/plain;charset=utf-8' },
@@ -1819,12 +1892,16 @@
     }
 
     async function chooseAndUploadPhotos(taskIdsJson, groupKey) {
+      if (isUploadingPhotos) return;
       let taskIds = [];
       try { taskIds = JSON.parse(taskIdsJson); } catch (e) { alert('工作資料格式錯誤'); return; }
+      setPhotoUploadLocked_(true);
       try {
         await uploadGroupPhotos(taskIds, groupKey);
       } catch (err) {
         alert('照片上傳失敗：' + (err.message || err));
+      } finally {
+        setPhotoUploadLocked_(false);
       }
     }
     async function deleteUploadedPhoto(taskIdsJson, groupKey, photoIndex, fileId = '') {
@@ -1931,6 +2008,28 @@
       if (pageLoadingTimer30) clearTimeout(pageLoadingTimer30);
       pageLoadingTimer10 = null;
       pageLoadingTimer30 = null;
+    }
+
+
+    function showActionSuccessToast(mainText, subText, durationMs) {
+      const toast = document.getElementById('actionSuccessToast');
+      const mainEl = document.getElementById('actionSuccessMain');
+      const subEl = document.getElementById('actionSuccessSub');
+      if (!toast || !mainEl || !subEl) return;
+
+      if (actionSuccessToastTimer) {
+        clearTimeout(actionSuccessToastTimer);
+        actionSuccessToastTimer = null;
+      }
+
+      mainEl.textContent = mainText || '回報成功';
+      subEl.textContent = subText || '畫面已更新';
+      toast.classList.add('show');
+
+      actionSuccessToastTimer = setTimeout(() => {
+        toast.classList.remove('show');
+        actionSuccessToastTimer = null;
+      }, Number(durationMs || 2600));
     }
 
     function showOverlay(text, previewUrls) {
