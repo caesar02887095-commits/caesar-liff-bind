@@ -4,8 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CAESAR 司機工作</title>
-  <!-- v67：司機頁三按鈕與多狀態回報 UX 改版 -->
+  <!-- v68：司機頁拖拉排序與背景預估抵達時間更新 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <style>
     body {
       margin: 0;
@@ -81,6 +82,106 @@
       cursor: pointer;
       white-space: nowrap;
     }
+    .driver-toolbar-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      align-items: center;
+    }
+    .driver-sort-btn {
+      border: none;
+      border-radius: 10px;
+      padding: 9px 12px;
+      font-size: 14px;
+      font-weight: 900;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+    .driver-sort-btn:disabled {
+      opacity: 0.58;
+      cursor: not-allowed;
+    }
+    .driver-sort-edit {
+      background: #c7d2fe;
+      color: #3730a3;
+    }
+    .driver-sort-save {
+      background: #16a34a;
+      color: #fff;
+      display: none;
+    }
+    .driver-sort-cancel {
+      background: #e5e7eb;
+      color: #374151;
+      display: none;
+    }
+    .driver-sort-mode .driver-sort-edit { display: none; }
+    .driver-sort-mode .driver-sort-save,
+    .driver-sort-mode .driver-sort-cancel { display: inline-flex; }
+    .driver-sort-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-top: 6px;
+    }
+    .driver-sort-row {
+      background: #fff;
+      border: 1px solid #dbe4ef;
+      border-radius: 12px;
+      padding: 10px 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      min-height: 48px;
+    }
+    .driver-sort-row .badge-sort {
+      flex-shrink: 0;
+    }
+    .driver-sort-label {
+      flex: 1;
+      min-width: 0;
+      font-size: 16px;
+      font-weight: 900;
+      color: #111827;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .driver-sort-meta {
+      flex-shrink: 0;
+      font-size: 13px;
+      color: #64748b;
+      font-weight: 800;
+      max-width: 34%;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .driver-sort-handle {
+      flex-shrink: 0;
+      color: #64748b;
+      font-size: 22px;
+      line-height: 1;
+      cursor: grab;
+      padding: 0 2px;
+      touch-action: none;
+      user-select: none;
+    }
+    .driver-sort-hint {
+      margin: 6px 0 10px;
+      padding: 9px 10px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      color: #475569;
+      font-size: 13px;
+      line-height: 1.5;
+      font-weight: 700;
+    }
+    .sortable-ghost { opacity: 0.35; }
+    .sortable-chosen { background: #eff6ff; border-color: #93c5fd; }
     .card {
       background: #fff;
       border-radius: 14px;
@@ -577,10 +678,15 @@
       <button class="tab-btn" id="tabPM" onclick="switchPeriod('下午')">下午工作</button>
     </div>
 
-    <div class="panel">
+    <div class="panel" id="driverToolbarPanel">
       <div class="status-bar">
         <div id="summaryText">讀取中...</div>
-        <button class="refresh-btn" onclick="loadTasks()">重新整理</button>
+        <div class="driver-toolbar-actions">
+          <button class="driver-sort-btn driver-sort-edit" id="driverSortEditBtn" onclick="enterDriverSortMode()">修改排序</button>
+          <button class="driver-sort-btn driver-sort-save" id="driverSortSaveBtn" onclick="saveDriverSortOrder()">儲存排序</button>
+          <button class="driver-sort-btn driver-sort-cancel" id="driverSortCancelBtn" onclick="cancelDriverSortMode()">取消排序</button>
+          <button class="refresh-btn" id="driverRefreshBtn" onclick="loadTasks()">重新整理</button>
+        </div>
       </div>
     </div>
 
@@ -639,6 +745,9 @@
     let showCompletedJobs = false;
     let pendingDoneConfirmTimer = null;
     const DONE_CONFIRM_PANEL_TIMEOUT_MS = 90000;
+    let isDriverSortMode = false;
+    let isSavingDriverSort = false;
+    let driverSortableInstance = null;
 
     function getQueryParam(name) {
       const url = new URL(window.location.href);
@@ -693,8 +802,13 @@
     }
 
     function switchPeriod(period) {
+      if (isSavingDriverSort) {
+        showSyncWarning('排序儲存中，請稍候。');
+        return;
+      }
       currentPeriod = period;
       showCompletedJobs = false;
+      isDriverSortMode = false;
       clearDoneConfirmState();
       setTabs();
       loadTasks();
@@ -784,6 +898,10 @@
 
     async function loadTasks(silent = false) {
       try {
+        if (isSavingDriverSort) {
+          if (!silent) showSyncWarning('排序儲存中，請稍候。');
+          return;
+        }
         if (silent && Date.now() < suppressAutoReloadUntil) return;
         clearError();
         if (!silent) {
@@ -980,9 +1098,20 @@
       groupedStopsCache = pendingGroups.slice();
 
       document.getElementById('summaryText').textContent =
-        `剩 ${pendingGroups.length} 站 / ${pendingGroups.reduce((sum, g) => sum + g.taskIds.length, 0)} 張待配送單`;
+        isDriverSortMode
+          ? `排序模式：${pendingGroups.length} 站未完成工作`
+          : `剩 ${pendingGroups.length} 站 / ${pendingGroups.reduce((sum, g) => sum + g.taskIds.length, 0)} 張待配送單`;
+
+      updateDriverSortToolbar(pendingGroups.length);
 
       const htmlParts = [];
+
+      if (isDriverSortMode) {
+        htmlParts.push(renderDriverSortMode(pendingGroups));
+        document.getElementById('taskContainer').innerHTML = htmlParts.join('');
+        initDriverSortable();
+        return;
+      }
 
       htmlParts.push(`
         <div class="card ${departureStarted ? 'done' : ''}" id="departure-card">
@@ -1085,6 +1214,147 @@
     }
 
 
+    function updateDriverSortToolbar(pendingCount) {
+      const panel = document.getElementById('driverToolbarPanel');
+      const editBtn = document.getElementById('driverSortEditBtn');
+      const saveBtn = document.getElementById('driverSortSaveBtn');
+      const cancelBtn = document.getElementById('driverSortCancelBtn');
+      const refreshBtn = document.getElementById('driverRefreshBtn');
+      if (panel) panel.classList.toggle('driver-sort-mode', !!isDriverSortMode);
+      if (editBtn) editBtn.disabled = isSavingDriverSort || Number(pendingCount || 0) <= 1;
+      if (saveBtn) {
+        saveBtn.disabled = isSavingDriverSort;
+        saveBtn.textContent = isSavingDriverSort ? '儲存中...' : '儲存排序';
+      }
+      if (cancelBtn) cancelBtn.disabled = isSavingDriverSort;
+      if (refreshBtn) refreshBtn.disabled = isSavingDriverSort;
+    }
+
+    function renderDriverSortMode(pendingGroups) {
+      const list = Array.isArray(pendingGroups) ? pendingGroups : [];
+      return `
+        <div class="driver-sort-hint">
+          拖曳右側把手調整順序。排序時只顯示未完成工作，已完成工作不參與排序。
+        </div>
+        <div class="driver-sort-list" id="driverSortList">
+          ${list.map((group, idx) => `
+            <div class="driver-sort-row" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds || [])))}" data-group-key="${escapeHtml(group.key || '')}">
+              <div class="badge-sort">${escapeHtml(String(idx + 1))}</div>
+              <div class="driver-sort-label">${escapeHtml(getMainLabel(group))}</div>
+              <div class="driver-sort-meta">${escapeHtml(group.routeGroup || '')}</div>
+              <div class="driver-sort-handle">☰</div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function initDriverSortable() {
+      if (driverSortableInstance) {
+        try { driverSortableInstance.destroy(); } catch (e) {}
+        driverSortableInstance = null;
+      }
+      const el = document.getElementById('driverSortList');
+      if (!el || typeof Sortable === 'undefined') return;
+      driverSortableInstance = Sortable.create(el, {
+        animation: 150,
+        handle: '.driver-sort-handle',
+        ghostClass: 'sortable-ghost',
+        chosenClass: 'sortable-chosen',
+        onEnd: () => renumberDriverSortRows()
+      });
+    }
+
+    function renumberDriverSortRows() {
+      const rows = Array.from(document.querySelectorAll('#driverSortList .driver-sort-row'));
+      rows.forEach((row, idx) => {
+        const badge = row.querySelector('.badge-sort');
+        if (badge) badge.textContent = String(idx + 1);
+      });
+    }
+
+    function enterDriverSortMode() {
+      if (isSavingDriverSort) return;
+      clearDoneConfirmState();
+      const pendingCount = groupedStopsCache.length;
+      if (pendingCount <= 1) {
+        showSyncWarning('目前未完成工作不足 2 站，不需要排序。');
+        return;
+      }
+      isDriverSortMode = true;
+      renderTasks(currentTasks);
+    }
+
+    function cancelDriverSortMode() {
+      if (isSavingDriverSort) return;
+      isDriverSortMode = false;
+      if (driverSortableInstance) {
+        try { driverSortableInstance.destroy(); } catch (e) {}
+        driverSortableInstance = null;
+      }
+      renderTasks(currentTasks);
+    }
+
+    async function saveDriverSortOrder() {
+      if (isSavingDriverSort) return;
+      const rows = Array.from(document.querySelectorAll('#driverSortList .driver-sort-row'));
+      if (!rows.length) return;
+
+      const orderedTaskIds = [];
+      rows.forEach(row => {
+        const raw = decodeURIComponent(row.getAttribute('data-taskids') || '[]');
+        try {
+          const ids = JSON.parse(raw);
+          if (Array.isArray(ids)) ids.forEach(id => { if (id) orderedTaskIds.push(id); });
+        } catch (e) {}
+      });
+
+      if (!orderedTaskIds.length) {
+        showSyncWarning('沒有可儲存的排序資料。');
+        return;
+      }
+
+      isSavingDriverSort = true;
+      updateDriverSortToolbar(rows.length);
+      suppressAutoReloadUntil = Date.now() + 12000;
+
+      try {
+        const resp = await fetch(GAS_WEBAPP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify({
+            action: 'save_driver_order_now',
+            driverName: currentDriverName,
+            period: currentPeriod,
+            routeDate: new Date().toISOString(),
+            orderedTaskIds
+          })
+        });
+        const text = await resp.text();
+        let json = {};
+        try { json = JSON.parse(text); } catch (e) { throw new Error(text || '排序儲存失敗'); }
+        if (!json.ok) throw new Error(json.message || json.error || '排序儲存失敗');
+
+        const orderMap = new Map();
+        orderedTaskIds.forEach((taskId, idx) => orderMap.set(String(taskId), idx + 1));
+        currentTasks = currentTasks.map(task => orderMap.has(String(task.taskId || ''))
+          ? { ...task, sortOrder: String(orderMap.get(String(task.taskId || ''))) }
+          : task
+        );
+
+        isDriverSortMode = false;
+        showSyncNotice(json.message || '排序已儲存。');
+        renderTasks(currentTasks);
+        setTimeout(() => { suppressAutoReloadUntil = 0; loadTasks(true); }, 5000);
+      } catch (err) {
+        showSyncWarning('排序儲存失敗：' + (err.message || err));
+      } finally {
+        isSavingDriverSort = false;
+        updateDriverSortToolbar(groupedStopsCache.length);
+      }
+    }
+
+
     function renderDraftPhotoGrid(group) {
       const photos = Array.isArray(group.draftPhotos) ? group.draftPhotos : [];
       if (!photos.length) return '';
@@ -1118,6 +1388,12 @@
       container.addEventListener('click', async (ev) => {
         const target = ev.target && ev.target.closest ? ev.target.closest('button') : null;
         if (!target) return;
+
+        if (isSavingDriverSort) {
+          ev.preventDefault();
+          showSyncWarning('排序儲存中，請稍候。');
+          return;
+        }
 
         if (target.id === 'btn-start-departure') {
           ev.preventDefault();
@@ -1323,6 +1599,7 @@
     }
 
     async function startDeparture() {
+      if (isSavingDriverSort) { showSyncWarning('排序儲存中，請稍候。'); return; }
       if (window.__driverActionLock) return;
       window.__driverActionLock = true;
       const previousDeparture = departureStarted;
