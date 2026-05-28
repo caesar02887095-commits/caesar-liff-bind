@@ -120,8 +120,8 @@
       box-shadow: 0 1px 4px rgba(0,0,0,0.04);
     }
     .order-card.self-pickup {
-      border-color: #f3d7a1;
-      background: #fffdf8;
+      border-color: #bfdbfe;
+      background: #f8fbff;
     }
     .order-title {
       font-size: 17px;
@@ -171,37 +171,42 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 10px;
+      gap: 8px;
       width: 100%;
-      min-height: 42px;
+      max-width: 100%;
+      box-sizing: border-box;
+      min-height: 40px;
       padding: 6px 8px;
       border-radius: 10px;
-      background: #fff7ed;
-      border: 1px solid #fed7aa;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      overflow: hidden;
     }
     .detail-summary-label {
       min-width: 0;
-      color: #7c2d12;
+      color: #1e3a8a;
       font-size: 17px;
       font-weight: 900;
       line-height: 1.4;
+      overflow-wrap: anywhere;
     }
     .detail-summary-action {
-      flex-shrink: 0;
+      flex: 0 0 auto;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      min-width: 78px;
-      min-height: 32px;
+      min-width: 68px;
+      min-height: 30px;
       border-radius: 999px;
-      border: 1px solid rgba(235, 161, 58, 0.85);
-      background: #fff;
-      color: #9a4f00;
-      padding: 6px 12px;
-      font-size: 15px;
+      border: 1px solid #93c5fd;
+      background: #ffffff;
+      color: #1d4ed8;
+      padding: 5px 9px;
+      font-size: 14px;
       font-weight: 900;
       line-height: 1;
       white-space: nowrap;
+      box-sizing: border-box;
     }
     .detail-summary-action::before { content: '查看 ▼'; }
     details.detail-block[open] .detail-summary-action::before { content: '收合 ▲'; }
@@ -393,15 +398,17 @@
     }
     .share-btn {
       flex: 1;
-      min-width: 120px;
+      min-width: 0;
+      max-width: 100%;
       border: none;
       border-radius: 10px;
       padding: 10px 12px;
       font-size: 16px;
       font-weight: bold;
       cursor: pointer;
-      background: #EBA13A;
-      color: #fff;
+      background: #dbeafe;
+      color: #1d4ed8;
+      box-sizing: border-box;
     }
 
     .btn:disabled,
