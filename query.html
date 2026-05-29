@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>凱撒衛浴查詢入口</title>
+  <!-- v71.2：新增配送摘要，自取卡片改淡紫色系 -->
   <!-- v71：客戶查詢頁 UI/UX 微調，訂單明細展開更明確、配送單號與欄位對齊 -->
   <!-- v65：自取訂單卡片外框微強化，維持低干擾提示 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -120,8 +121,38 @@
       box-shadow: 0 1px 4px rgba(0,0,0,0.04);
     }
     .order-card.self-pickup {
-      border-color: #bfdbfe;
-      background: #f8fbff;
+      border-color: #c4b5fd;
+      background: #f5f3ff;
+      box-shadow: 0 2px 10px rgba(91, 33, 182, 0.08);
+    }
+    .order-card.self-pickup .order-title {
+      background: #ede9fe;
+      border-left-color: #8b5cf6;
+      color: #4c1d95;
+    }
+    .delivery-summary-card {
+      background: #ffffff;
+      border: 1px solid #dbeafe;
+      border-radius: 14px;
+      padding: 12px;
+      margin-bottom: 12px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+    }
+    .delivery-summary-title {
+      font-size: 16px;
+      font-weight: 900;
+      color: #1f2937;
+      margin-bottom: 8px;
+    }
+    .delivery-summary-line {
+      font-size: 15px;
+      line-height: 1.7;
+      color: #334155;
+      font-weight: 800;
+      white-space: nowrap;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 3px 0;
     }
     .order-title {
       font-size: 17px;
@@ -693,6 +724,7 @@
           </div>
         `;
       } else {
+        html += renderDeliverySummary(orders);
         html += `
           <div class="card">
             <div class="status">訂單 / 配送查詢</div>
@@ -705,6 +737,75 @@
 
       document.getElementById('app').innerHTML = html;
       updateManualRefreshButton();
+    }
+
+    function renderDeliverySummary(orders) {
+      const summaryMap = {};
+      (Array.isArray(orders) ? orders : []).forEach(order => {
+        const etaFields = getCustomerEtaFieldsClient(order);
+        const dateText = normalizeSummaryDate_(etaFields.deliveryDateText || order.deliveryDateText || order.deliveryDate || '');
+        const timeText = normalizeSummaryPeriod_(etaFields.deliveryTime || order.deliveryTime || order.deliveryTimeText || '');
+        const key = (dateText || '未定日期') + '|' + (timeText || '未定時段');
+        if (!summaryMap[key]) {
+          summaryMap[key] = {
+            dateText: dateText || '未定日期',
+            timeText: timeText || '未定時段',
+            store: 0,
+            specified: 0,
+            pickup: 0
+          };
+        }
+        if (isSelfPickupOrder(order)) {
+          summaryMap[key].pickup++;
+        } else if (isSpecifiedDelivery(order.address || '')) {
+          summaryMap[key].specified++;
+        } else {
+          summaryMap[key].store++;
+        }
+      });
+
+      const list = Object.values(summaryMap).sort((a, b) => {
+        const d = String(a.dateText).localeCompare(String(b.dateText), 'zh-Hant');
+        if (d !== 0) return d;
+        return summaryPeriodSortValue_(a.timeText) - summaryPeriodSortValue_(b.timeText);
+      });
+
+      if (!list.length) return '';
+      return `
+        <div class="delivery-summary-card">
+          <div class="delivery-summary-title">配送摘要</div>
+          ${list.map(item => `
+            <div class="delivery-summary-line">${escapeHtml(item.dateText)} ${escapeHtml(item.timeText)}｜送店 ${item.store}｜指送 ${item.specified}｜自取 ${item.pickup}</div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    function normalizeSummaryDate_(value) {
+      const text = String(value || '').trim();
+      if (!text) return '';
+      let m = text.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+      if (m) return String(Number(m[2])).padStart(2, '0') + '/' + String(Number(m[3])).padStart(2, '0');
+      m = text.match(/^(\d{1,2})[\/\-](\d{1,2})/);
+      if (m) return String(Number(m[1])).padStart(2, '0') + '/' + String(Number(m[2])).padStart(2, '0');
+      return text;
+    }
+
+    function normalizeSummaryPeriod_(value) {
+      const text = String(value || '').trim();
+      if (!text) return '';
+      if (text.indexOf('上午') !== -1) return '上午';
+      if (text.indexOf('下午') !== -1) return '下午';
+      if (/\bAM\b/i.test(text)) return '上午';
+      if (/\bPM\b/i.test(text)) return '下午';
+      return text;
+    }
+
+    function summaryPeriodSortValue_(period) {
+      const text = String(period || '').trim();
+      if (text === '上午') return 1;
+      if (text === '下午') return 2;
+      return 9;
     }
 
     function renderManualRefreshCard() {
