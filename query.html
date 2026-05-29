@@ -1527,11 +1527,11 @@
         <div class="card">
           <div class="status warn">尚未開通查詢權限</div>
           <div class="muted">
-            請輸入你的 4 位客戶代號。<br>
-            例如 389，系統會自動補成 0389。<br>
-            送出後將進入待審查狀態。
+            可以送出 LINE 查詢權限申請。<br>
+            公司名稱與客戶編號都可以選填；不知道也沒關係，凱撒衛浴會協助查詢確認。
           </div>
-          <input id="clientCodeInput" class="input" type="text" inputmode="numeric" placeholder="請輸入客戶代號">
+          <input id="companyNameInput" class="input" type="text" placeholder="公司名稱（選填）">
+          <input id="clientCodeInput" class="input" type="text" inputmode="numeric" placeholder="客戶編號（選填，例如 389）">
           <button class="btn btn-primary" onclick="submitRequest()">送出申請</button>
         </div>
       `;
@@ -1542,7 +1542,7 @@
         <div class="card">
           <div class="status warn">申請審查中</div>
           <div class="muted">
-            你送出的申請客編為：<b>${escapeHtml(requestCode || '')}</b><br>
+            ${requestCode ? `你送出的申請客編為：<b>${escapeHtml(requestCode)}</b><br>` : ''}
             請等待凱撒衛浴確認開通。
           </div>
           <button class="btn btn-secondary" onclick="loadPortal()">重新整理</button>
@@ -1573,20 +1573,19 @@
     }
 
     async function submitRequest() {
-      const input = document.getElementById('clientCodeInput');
-      if (!input) return;
+      const codeInput = document.getElementById('clientCodeInput');
+      const companyInput = document.getElementById('companyNameInput');
+      if (!codeInput) return;
 
-      let code = String(input.value || '').replace(/[^\d]/g, '');
-      if (!code) {
-        alert('請輸入客戶代號');
-        return;
-      }
-      code = code.padStart(4, '0').slice(-4);
+      const rawCode = String(codeInput.value || '').replace(/[^\d]/g, '');
+      const code = rawCode ? rawCode.padStart(4, '0').slice(-4) : '';
+      const companyName = String(companyInput ? companyInput.value || '' : '').trim();
 
       const payload = {
         action: 'submit_customer_access_request',
         uid: currentUid,
         displayName: currentDisplayName,
+        companyName: companyName,
         requestClientCode: code
       };
 
