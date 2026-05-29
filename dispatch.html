@@ -11,6 +11,7 @@
   <!-- v72.1：返回上一步最多保留 5 步，並改為修改排序期間左側浮動按鈕 -->
   <!-- v72.2：左側返回鍵下移，並降低手機連點觸發放大的機率 -->
   <!-- v72.3：排車頁全頁套用防連點放大，避免連續點擊返回或操作按鈕時觸發縮放 -->
+  <!-- v72.4：移除攔截連續 touchend 的點擊節流，保留不限制連點速度的防縮放設定 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <style>
@@ -1488,15 +1489,8 @@
     }
 
     function setupPageZoomGuard() {
-      let lastTouchEndAt = 0;
-      document.addEventListener('touchend', function(e) {
-        const now = Date.now();
-        if (now - lastTouchEndAt <= 350) {
-          e.preventDefault();
-        }
-        lastTouchEndAt = now;
-      }, { passive: false });
-
+      // v72.4：不再攔截 touchend，避免正常連續點擊被節流。
+      // 防縮放主要交由 viewport、touch-action、user-select 與 gesturestart 處理。
       document.addEventListener('gesturestart', function(e) {
         e.preventDefault();
       }, { passive: false });
