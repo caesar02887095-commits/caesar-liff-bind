@@ -7,6 +7,8 @@
   <!-- v60.3：快捷分類按鈕手機/電腦皆四等分滿版，並改為低飽和溫和配色 -->
   <!-- v63：新增第五條路線「機動」；快捷分類按鈕維持市區 / 竹東 / 湖口 / 其他；請假系統暫緩 -->
   <!-- v65：儲存排車按鈕主動作強化；未儲存時更醒目，已儲存時降低干擾 -->
+  <!-- v72：調度快捷分類改為排序模式才顯示；新增「返回上一步」可回退最近一次排序 / 分類操作 -->
+  <!-- v72.1：返回上一步最多保留 5 步，並改為修改排序期間左側浮動按鈕 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <style>
@@ -132,6 +134,41 @@
     .btn-cancel {
       background: #e5e7eb;
       color: #374151;
+    }
+    .btn-undo {
+      background: #fef3c7;
+      color: #92400e;
+      border: 1px solid #fde68a;
+    }
+    .floating-undo-wrap {
+      display: none;
+      position: fixed;
+      left: max(8px, calc((100vw - 760px) / 2 + 8px));
+      top: 56vh;
+      z-index: 50;
+      pointer-events: none;
+    }
+    .floating-undo-wrap.show {
+      display: block;
+    }
+    .floating-undo-wrap .btn-undo {
+      pointer-events: auto;
+      width: 64px;
+      min-height: 74px;
+      padding: 10px 6px;
+      border-radius: 14px;
+      font-size: 15px;
+      font-weight: 900;
+      line-height: 1.25;
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.16);
+      writing-mode: horizontal-tb;
+      white-space: normal;
+    }
+    .floating-undo-wrap .btn-undo:disabled {
+      background: #f1f5f9;
+      color: #94a3b8;
+      border-color: #e2e8f0;
+      box-shadow: none;
     }
     .btn:disabled {
       opacity: 0.6;
@@ -474,6 +511,10 @@
 
     <div class="unsaved-notice" id="unsavedNotice">已有未儲存變更，請記得按「儲存排車」。</div>
 
+    <div class="floating-undo-wrap" id="undoSortFloating">
+      <button class="btn btn-undo" id="undoSortBtn" onclick="undoLastSortStep()">返回<br>上一步</button>
+    </div>
+
     <div class="page-loading-panel" id="pageLoadingPanel">
       <div class="page-loading-row">
         <div id="pageLoadingText">正在讀取排車資料...</div>
@@ -561,6 +602,7 @@
     const LOCAL_KEY_PREFIX = 'caesar_dispatch_board_snapshot_';
     const RETURN_URL_KEY = 'caesar_return_url';
     const RETURN_RESTORED_KEY = 'caesar_return_restored';
+    const SORT_UNDO_LIMIT = 5;
 
     let currentPeriod = getDefaultPeriod();
     let currentBatchId = '';
@@ -570,6 +612,9 @@
     let sortMode = false;
     let isSaving = false;
     let hasUnsavedChanges = false;
+    let sortUndoStack = [];
+    let sortInitialSnapshot = null;
+    let beforeDragSnapshot = null;
     let driverOptions = [...DEFAULT_DRIVER_OPTIONS];
     let pageLoadingTimer10 = null;
     let pageLoadingTimer30 = null;
@@ -753,6 +798,8 @@
 
     function switchPeriod(period) {
       currentPeriod = period;
+      sortMode = false;
+      resetSortUndoState_();
       setTabs();
       loadDispatchBoard();
     }
@@ -813,6 +860,7 @@
         currentBatchId = dispatchBoard.batchId || '';
         lastLoadedDispatchBoard = cloneDispatchBoard_(dispatchBoard);
         hasUnsavedChanges = false;
+        resetSortUndoState_();
         updateUnsavedNotice();
 
         // 2026-05-14 v3 修正：不再於開頁時套用 localStorage 排車快照。
@@ -908,7 +956,7 @@
           const deliveryTypeClass = isStoreStop(item) ? 'type-box' : 'type-box alert';
           const orderCount = getOrderCount(item);
           const addonBadge = item.isManualAdd ? '<span class="addon-badge">加單</span>' : '';
-          const quickActions = groupName === '調度' ? renderQuickRouteActions(item) : '';
+          const quickActions = (sortMode && groupName === '調度') ? renderQuickRouteActions(item) : '';
 
           return `
             <div class="row"
@@ -978,6 +1026,118 @@
       updateUnsavedNotice();
     }
 
+
+    function resetSortUndoState_() {
+      sortUndoStack = [];
+      sortInitialSnapshot = null;
+      beforeDragSnapshot = null;
+      updateSortActionButtons_();
+    }
+
+    function cloneSnapshot_(snapshot) {
+      return JSON.parse(JSON.stringify(snapshot || { period: currentPeriod, groups: {} }));
+    }
+
+    function snapshotSignature_(snapshot) {
+      const safe = snapshot || { groups: {} };
+      const groups = {};
+      GROUP_NAMES.forEach(groupName => {
+        const group = safe.groups && safe.groups[groupName] ? safe.groups[groupName] : { driverName: '', items: [] };
+        groups[groupName] = {
+          driverName: String(group.driverName || ''),
+          items: (Array.isArray(group.items) ? group.items : []).map(item => ({
+            stopKey: String(item.stopKey || ''),
+            taskIds: Array.isArray(item.taskIds) ? item.taskIds.map(x => String(x)) : []
+          }))
+        };
+      });
+      return JSON.stringify({ period: safe.period || currentPeriod, groups });
+    }
+
+    function pushSortUndoState_(snapshot) {
+      if (!sortMode) return;
+      const cloned = cloneSnapshot_(snapshot || buildSnapshotFromDOM());
+      const nextSignature = snapshotSignature_(cloned);
+      const last = sortUndoStack.length ? sortUndoStack[sortUndoStack.length - 1] : null;
+      if (last && snapshotSignature_(last) === nextSignature) return;
+      sortUndoStack.push(cloned);
+      if (sortUndoStack.length > SORT_UNDO_LIMIT) sortUndoStack.shift();
+      updateSortActionButtons_();
+    }
+
+    function updateSortActionButtons_() {
+      const sortBtn = document.getElementById('sortToggleBtn');
+      const cancelBtn = document.getElementById('cancelSortBtn');
+      const undoBtn = document.getElementById('undoSortBtn');
+      const undoFloating = document.getElementById('undoSortFloating');
+
+      if (sortBtn) sortBtn.style.display = sortMode ? 'none' : 'inline-block';
+      if (cancelBtn) cancelBtn.style.display = sortMode ? 'inline-block' : 'none';
+      if (undoFloating) undoFloating.classList.toggle('show', !!sortMode);
+      if (undoBtn) {
+        undoBtn.disabled = isSaving || sortUndoStack.length === 0;
+        undoBtn.innerHTML = sortUndoStack.length > 0 ? '返回<br>上一步' : '無<br>上一步';
+        undoBtn.title = `最多保留最近 ${SORT_UNDO_LIMIT} 步，目前可返回 ${sortUndoStack.length} 步`;
+      }
+    }
+
+    function applySnapshotToBoard_(snapshot) {
+      const safeSnapshot = cloneSnapshot_(snapshot);
+      const itemMap = new Map();
+
+      [lastLoadedDispatchBoard, dispatchBoard].forEach(board => {
+        const normalized = normalizeDispatchBoardGroups_(board || { groups: {} });
+        GROUP_NAMES.forEach(groupName => {
+          (normalized.groups[groupName] || []).forEach(item => {
+            const key = String(item && item.stopKey ? item.stopKey : '');
+            if (key) itemMap.set(key, { ...item });
+          });
+        });
+      });
+
+      const nextBoard = { ...(dispatchBoard || {}), groups: {} };
+      GROUP_NAMES.forEach(groupName => {
+        const group = safeSnapshot.groups && safeSnapshot.groups[groupName]
+          ? safeSnapshot.groups[groupName]
+          : { driverName: '', items: [] };
+        const driverName = String(group.driverName || '');
+        const items = Array.isArray(group.items) ? group.items : [];
+        nextBoard.groups[groupName] = items.map(snapshotItem => {
+          const key = String(snapshotItem.stopKey || '');
+          const source = itemMap.get(key) || { stopKey: key, taskIds: snapshotItem.taskIds || [] };
+          return {
+            ...source,
+            stopKey: key,
+            taskIds: Array.isArray(snapshotItem.taskIds) ? snapshotItem.taskIds : (source.taskIds || []),
+            routeGroup: groupName,
+            driverName: driverName || source.driverName || ''
+          };
+        });
+      });
+
+      dispatchBoard = normalizeDispatchBoardGroups_(nextBoard);
+    }
+
+    function updateUnsavedAfterUndo_() {
+      const current = buildSnapshotFromDOM();
+      if (sortInitialSnapshot && snapshotSignature_(current) === snapshotSignature_(sortInitialSnapshot)) {
+        clearLocalSnapshot(currentPeriod);
+        clearUnsavedChanges();
+      } else {
+        saveLocalSnapshot(current);
+        markUnsavedChanges();
+      }
+    }
+
+    function undoLastSortStep() {
+      if (!sortMode || isSaving || !sortUndoStack.length) return;
+      const previous = sortUndoStack.pop();
+      applySnapshotToBoard_(previous);
+      renderDispatchBoard();
+      updateUnsavedAfterUndo_();
+      updateSortActionButtons_();
+    }
+
     function updateUnsavedNotice() {
       const notice = document.getElementById('unsavedNotice');
       const saveBtn = document.getElementById('saveBtn');
@@ -987,12 +1147,17 @@
         saveBtn.classList.toggle('unsaved-active', !!hasUnsavedChanges);
         saveBtn.classList.toggle('clean-state', !hasUnsavedChanges);
       }
+      updateSortActionButtons_();
     }
 
     function moveStopToGroup(stopKey, targetGroup) {
+      if (!sortMode || isSaving) return;
+
       const key = String(stopKey || '');
       const target = String(targetGroup || '');
       if (!key || QUICK_ROUTE_GROUPS.indexOf(target) === -1) return;
+
+      pushSortUndoState_(buildSnapshotFromDOM());
 
       dispatchBoard = normalizeDispatchBoardGroups_(dispatchBoard || { groups: {} });
       const fromList = dispatchBoard.groups['調度'] || [];
@@ -1012,6 +1177,7 @@
       renderDispatchBoard();
       markUnsavedChanges();
       syncLocalBoardFromDOM();
+      updateSortActionButtons_();
     }
 
     function initSortables() {
@@ -1036,9 +1202,19 @@
           draggable: '.row',
           handle: '.drag-handle',
           disabled: false,
+          onStart: function () {
+            beforeDragSnapshot = buildSnapshotFromDOM();
+          },
           onEnd: function () {
+            if (beforeDragSnapshot) {
+              pushSortUndoState_(beforeDragSnapshot);
+              beforeDragSnapshot = null;
+            }
+            const currentSnapshot = buildSnapshotFromDOM();
+            applySnapshotToBoard_(currentSnapshot);
             markUnsavedChanges();
-            syncLocalBoardFromDOM();
+            saveLocalSnapshot(currentSnapshot);
+            updateSortActionButtons_();
           }
         });
         sortableRefs.push(sortable);
@@ -1047,18 +1223,17 @@
 
     function toggleSortMode() {
       sortMode = true;
-      document.getElementById('sortToggleBtn').style.display = 'none';
-      document.getElementById('cancelSortBtn').style.display = 'inline-block';
-      initSortables();
+      sortUndoStack = [];
+      sortInitialSnapshot = buildSnapshotFromDOM();
+      beforeDragSnapshot = null;
+      updateSortActionButtons_();
+      renderDispatchBoard();
       document.querySelectorAll('.drag-handle').forEach(el => el.classList.remove('disabled'));
     }
 
     function cancelSortMode() {
       sortMode = false;
-      document.getElementById('sortToggleBtn').style.display = 'inline-block';
-      document.getElementById('cancelSortBtn').style.display = 'none';
-      initSortables();
-      document.querySelectorAll('.drag-handle').forEach(el => el.classList.add('disabled'));
+      resetSortUndoState_();
 
       // 取消排序時回到目前從後端讀取的排車資料，不套用本次未儲存的拖拉 / 快捷分類變更。
       clearLocalSnapshot(currentPeriod);
@@ -1137,15 +1312,13 @@
         }
 
         sortMode = false;
-        document.getElementById('sortToggleBtn').style.display = 'inline-block';
-        document.getElementById('cancelSortBtn').style.display = 'none';
-        document.querySelectorAll('.drag-handle').forEach(el => el.classList.add('disabled'));
-        initSortables();
+        resetSortUndoState_();
 
         dispatchBoard = normalizeDispatchBoardGroups_(dispatchBoard || { groups: {} });
         lastLoadedDispatchBoard = cloneDispatchBoard_(dispatchBoard);
         clearLocalSnapshot(currentPeriod);
         clearUnsavedChanges();
+        renderDispatchBoard();
         document.getElementById('summaryText').textContent = json.message || '排車已儲存';
         alert(json.message || '排車看板已儲存');
       } catch (err) {
@@ -1162,6 +1335,7 @@
       const refreshBtn = document.getElementById('refreshBtn');
       const sortBtn = document.getElementById('sortToggleBtn');
       const cancelBtn = document.getElementById('cancelSortBtn');
+      const undoBtn = document.getElementById('undoSortBtn');
 
       if (saveBtn) {
         saveBtn.disabled = saving;
@@ -1172,6 +1346,7 @@
       if (refreshBtn) refreshBtn.disabled = saving;
       if (sortBtn) sortBtn.disabled = saving;
       if (cancelBtn) cancelBtn.disabled = saving;
+      if (undoBtn) undoBtn.disabled = saving || sortUndoStack.length === 0;
     }
 
     function collectGroup(groupName) {
