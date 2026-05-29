@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>凱撒衛浴查詢入口</title>
+  <!-- v71.8：移除店家名稱顯示，最後更新移至訂單 / 配送查詢標題列右側 -->
   <!-- v71.4：配送摘要字級放大，指送改為指定送貨 -->
   <!-- v71：客戶查詢頁 UI/UX 微調，訂單明細展開更明確、配送單號與欄位對齊 -->
   <!-- v65：自取訂單卡片外框微強化，維持低干擾提示 -->
@@ -78,6 +79,24 @@
       font-size: 15px;
       font-weight: bold;
       margin-bottom: 10px;
+    }
+    .section-title-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+    .section-title-row .status {
+      margin-bottom: 0;
+    }
+    .section-last-update {
+      flex: 0 0 auto;
+      font-size: 12px;
+      line-height: 1.4;
+      color: #64748b;
+      font-weight: 700;
+      white-space: nowrap;
     }
     .muted {
       color: #666;
@@ -766,15 +785,8 @@
 
     function renderApproved(data) {
       const orders = Array.isArray(data.orders) ? data.orders : [];
-      const customerName = data.customerName || '';
 
       let html = `
-        <div class="card">
-          <div class="muted">
-            店家名稱：<b>${escapeHtml(customerName || '')}</b><br>
-            最後更新：<b>${escapeHtml(formatLastUpdateTime())}</b>
-          </div>
-        </div>
         ${renderAnnouncement(data.announcement || '')}
       `;
 
@@ -789,7 +801,10 @@
         html += renderDeliverySummary(orders);
         html += `
           <div class="card">
-            <div class="status">訂單 / 配送查詢</div>
+            <div class="section-title-row">
+              <div class="status">訂單 / 配送查詢</div>
+              <div class="section-last-update">最後更新：${escapeHtml(formatLastUpdateTime())}</div>
+            </div>
             ${orders.map(order => renderOrderCard(order)).join('')}
           </div>
         `;
@@ -894,7 +909,6 @@
       return `
         <div class="card">
           <button class="btn btn-secondary" id="manualRefreshBtn" onclick="refreshPortalManually()">更新配送進度</button>
-          <div class="muted" style="margin-top:8px;text-align:center;">最後更新：${escapeHtml(formatLastUpdateTime())}</div>
         </div>
       `;
     }
