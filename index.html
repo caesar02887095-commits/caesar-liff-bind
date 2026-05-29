@@ -381,8 +381,8 @@
 
         if (result.ok) {
           setSuccess(
-            stripApiCodePrefix(result.message || "✅ 綁定成功"),
-            `${profile.displayName} 您好<br>系統已完成通知綁定，視窗即將關閉`
+            "驗證成功",
+            "已完成 LINE 綁定，之後可查詢配送進度。"
           );
 
           setTimeout(() => {
