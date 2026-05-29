@@ -10,14 +10,29 @@
   <!-- v72：調度快捷分類改為排序模式才顯示；新增「返回上一步」可回退最近一次排序 / 分類操作 -->
   <!-- v72.1：返回上一步最多保留 5 步，並改為修改排序期間左側浮動按鈕 -->
   <!-- v72.2：左側返回鍵下移，並降低手機連點觸發放大的機率 -->
+  <!-- v72.3：排車頁全頁套用防連點放大，避免連續點擊返回或操作按鈕時觸發縮放 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <style>
+    html {
+      touch-action: manipulation;
+      -webkit-text-size-adjust: 100%;
+    }
     body {
       margin: 0;
       font-family: Arial, "Microsoft JhengHei", sans-serif;
       background: #f5f6f8;
       color: #222;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+    }
+    body, button, a, .card, .route-box, .task-card, .quick-route-btn, .route-column, .route-list {
+      touch-action: manipulation;
+    }
+    button, .btn, .quick-route-btn, .undo-floating-btn, .drag-handle {
+      -webkit-user-select: none;
+      user-select: none;
+      -webkit-touch-callout: none;
     }
     .wrap {
       max-width: 760px;
@@ -1472,6 +1487,21 @@
       pageLoadingTimer30 = null;
     }
 
+    function setupPageZoomGuard() {
+      let lastTouchEndAt = 0;
+      document.addEventListener('touchend', function(e) {
+        const now = Date.now();
+        if (now - lastTouchEndAt <= 350) {
+          e.preventDefault();
+        }
+        lastTouchEndAt = now;
+      }, { passive: false });
+
+      document.addEventListener('gesturestart', function(e) {
+        e.preventDefault();
+      }, { passive: false });
+    }
+
     document.addEventListener('change', function(e) {
       const targetId = e.target && e.target.id ? e.target.id : '';
       if (GROUP_NAMES.some(name => targetId === `driver-${name}`)) {
@@ -1479,6 +1509,7 @@
       }
     });
 
+    setupPageZoomGuard();
     initPage();
   </script>
 </body>
