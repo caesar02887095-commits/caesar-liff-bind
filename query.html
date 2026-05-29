@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>凱撒衛浴查詢入口</title>
-  <!-- v71.2：新增配送摘要，自取卡片改淡紫色系 -->
+  <!-- v71.4：配送摘要字級放大，指送改為指定送貨 -->
   <!-- v71：客戶查詢頁 UI/UX 微調，訂單明細展開更明確、配送單號與欄位對齊 -->
   <!-- v65：自取訂單卡片外框微強化，維持低干擾提示 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -139,13 +139,13 @@
       box-shadow: 0 1px 4px rgba(0,0,0,0.04);
     }
     .delivery-summary-title {
-      font-size: 16px;
+      font-size: 17px;
       font-weight: 900;
       color: #1f2937;
       margin-bottom: 8px;
     }
     .delivery-summary-line {
-      font-size: 15px;
+      font-size: 17px;
       line-height: 1.7;
       color: #334155;
       font-weight: 800;
@@ -284,6 +284,51 @@
       margin-bottom: 4px;
       word-break: break-word;
     }
+    .detail-order-block {
+      margin-bottom: 10px;
+      padding-bottom: 8px;
+      border-bottom: 1px dashed #dbe4ef;
+    }
+    .detail-order-block:last-child {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+    .detail-order-no {
+      font-size: 16px;
+      font-weight: 900;
+      color: #334155;
+      margin-bottom: 6px;
+      line-height: 1.5;
+    }
+    .detail-item-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: baseline;
+      padding: 4px 0;
+      border-bottom: 1px solid rgba(226, 232, 240, 0.72);
+    }
+    .detail-item-row:last-child {
+      border-bottom: none;
+    }
+    .detail-item-model {
+      min-width: 0;
+      font-size: 18px;
+      line-height: 1.55;
+      font-weight: 750;
+      color: #1f2937;
+      word-break: break-word;
+    }
+    .detail-item-qty {
+      min-width: 42px;
+      text-align: right;
+      font-size: 18px;
+      line-height: 1.55;
+      font-weight: 900;
+      color: #0f172a;
+      white-space: nowrap;
+    }
     .photo-wrap { margin-top: 12px; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
     .photo-item { position: relative; border-radius: 10px; overflow: hidden; border: 1px solid #dbe4ef; background: #fff; display:block; text-decoration:none; }
     .photo-item img { width: 100%; display: block; aspect-ratio: 1 / 1; object-fit: cover; }
@@ -388,16 +433,34 @@
     .bad { color: #991b1b; }
 
     .announcement-card {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      padding: 0;
+      overflow: hidden;
       background: #fff7ed;
-      border: 1px solid #fdba74;
+      border: 1px solid #f59e0b;
       color: #9a3412;
     }
     .announcement-title {
-      font-size: 22px;
-      font-weight: bold;
-      margin-bottom: 6px;
+      flex: 0 0 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #fed7aa;
+      border-right: 1px solid #f59e0b;
+      color: #7c2d12;
+      font-size: 20px;
+      font-weight: 900;
+      line-height: 1.15;
+      letter-spacing: 2px;
+      writing-mode: vertical-rl;
+      text-orientation: upright;
     }
     .announcement-content {
+      flex: 1;
+      min-width: 0;
+      padding: 13px 14px;
       font-size: 22px;
       line-height: 1.7;
       white-space: pre-line;
@@ -775,7 +838,7 @@
         <div class="delivery-summary-card">
           <div class="delivery-summary-title">配送摘要</div>
           ${list.map(item => `
-            <div class="delivery-summary-line">${escapeHtml(item.dateText)} ${escapeHtml(item.timeText)}｜送店 ${item.store}｜指送 ${item.specified}｜自取 ${item.pickup}</div>
+            <div class="delivery-summary-line">${escapeHtml(item.dateText)} ${escapeHtml(item.timeText)}｜送店 ${item.store}｜指定送貨 ${item.specified}｜自取 ${item.pickup}</div>
           `).join('')}
         </div>
       `;
@@ -1047,6 +1110,61 @@
         : eta;
     }
 
+    function parseDetailLineForDisplay(line) {
+      const raw = String(line || '').trim();
+      if (!raw) return { orderNo: '', items: [] };
+
+      let orderNo = '';
+      let body = raw;
+      const dashIndex = raw.indexOf(' - ');
+      if (dashIndex >= 0) {
+        orderNo = raw.slice(0, dashIndex).trim();
+        body = raw.slice(dashIndex + 3).trim();
+      }
+
+      const items = body
+        .split(/\s{2,}|\s*\/\s*/)
+        .map(part => part.trim())
+        .filter(Boolean)
+        .map(part => {
+          const pieces = part.split(/[＊*×xX]/);
+          const model = String(pieces[0] || '').trim();
+          const qty = String(pieces.slice(1).join('*') || '').trim();
+          return { model, qty };
+        })
+        .filter(item => item.model);
+
+      if (!items.length && body) {
+        return { orderNo, fallback: body, items: [] };
+      }
+      return { orderNo, items };
+    }
+
+    function renderDetailLines(detailLines) {
+      if (!Array.isArray(detailLines) || !detailLines.length) {
+        return `<div class="detail-line">無明細資料</div>`;
+      }
+
+      return detailLines.map(line => {
+        const parsed = parseDetailLineForDisplay(line);
+        const orderTitle = parsed.orderNo
+          ? `<div class="detail-order-no">配送單號：${escapeHtml(parsed.orderNo)}</div>`
+          : '';
+
+        if (parsed.items && parsed.items.length) {
+          const itemHtml = parsed.items.map(item => `
+            <div class="detail-item-row">
+              <div class="detail-item-model">${escapeHtml(item.model)}</div>
+              <div class="detail-item-qty">× ${escapeHtml(item.qty || '0')}</div>
+            </div>
+          `).join('');
+          return `<div class="detail-order-block">${orderTitle}${itemHtml}</div>`;
+        }
+
+        return `<div class="detail-order-block">${orderTitle}<div class="detail-line">${escapeHtml(parsed.fallback || line)}</div></div>`;
+      }).join('');
+    }
+
     function renderOrderCard(order) {
       const canTrack = !!order.hasTracking;
       const mergedOrderNos = Array.isArray(order.orderNos) ? order.orderNos.filter(Boolean) : [];
@@ -1094,10 +1212,7 @@
               </div>
             </summary>
             <div class="detail-content-box">
-              ${detailLines.length
-                ? detailLines.map(line => `<div class="detail-line">${escapeHtml(line)}</div>`).join('')
-                : `<div class="detail-line">無明細資料</div>`
-              }
+              ${renderDetailLines(detailLines)}
             </div>
           </details>
 
