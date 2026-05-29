@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CAESAR 司機工作</title>
-  <!-- v70.5：修正照片選檔後上傳期間按鈕未鎖定 -->
+  <!-- v74：照片上限改 3 張，縮圖縮小為一排三張 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <style>
@@ -45,7 +45,7 @@
     .tab-btn {
       flex: 1;
       border: none;
-      border-radius: 10px;
+      border-radius: 8px;
       padding: 11px;
       font-size: 15px;
       font-weight: bold;
@@ -492,8 +492,8 @@
     .photo-preview-grid {
       margin-top: 10px;
       display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 8px;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      gap: 6px;
     }
     .photo-thumb {
       position: relative;
@@ -511,27 +511,27 @@
     }
     .photo-delete-btn {
       position: absolute;
-      top: 6px;
-      right: 6px;
-      width: 24px;
-      height: 24px;
+      top: 4px;
+      right: 4px;
+      width: 22px;
+      height: 22px;
       border: none;
       border-radius: 999px;
       background: rgba(17,24,39,0.78);
       color: #fff;
-      font-size: 16px;
-      line-height: 24px;
+      font-size: 15px;
+      line-height: 22px;
       text-align: center;
       cursor: pointer;
       padding: 0;
     }
     .photo-upload-badge {
       position: absolute;
-      left: 6px;
-      bottom: 6px;
+      left: 4px;
+      bottom: 4px;
       border-radius: 999px;
-      padding: 4px 8px;
-      font-size: 12px;
+      padding: 3px 6px;
+      font-size: 11px;
       font-weight: 900;
       line-height: 1;
       color: #fff;
@@ -541,13 +541,13 @@
     .photo-upload-badge.fail { background: rgba(153, 27, 27, 0.92); }
     .photo-retry-btn {
       position: absolute;
-      left: 6px;
-      right: 6px;
-      bottom: 6px;
+      left: 4px;
+      right: 4px;
+      bottom: 4px;
       border: none;
-      border-radius: 9px;
-      padding: 7px 8px;
-      font-size: 13px;
+      border-radius: 8px;
+      padding: 6px 6px;
+      font-size: 12px;
       font-weight: 900;
       cursor: pointer;
       background: #fee2e2;
@@ -1337,7 +1337,7 @@
                 <button class="btn btn-done" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">配送完成</button>
               </div>
               ${renderDraftPhotoGrid(group)}
-              ${!group.isStore ? `<div class="photo-note">指定送達建議拍照，最多 2 張。</div>` : ''}
+              ${!group.isStore ? `<div class="photo-note">指定送達建議拍照，最多 3 張。</div>` : ''}
             </div>
           `);
         });
@@ -2111,9 +2111,9 @@
       const group = groupedStopsCache.find(x => x.key === groupKey) || localCompletedGroups[groupKey] || {};
       const existingPhotos = Array.isArray(group.draftPhotos) ? group.draftPhotos : [];
       const localJobs = getPhotoJobsForGroup_(groupKey);
-      const remainCount = Math.max(0, 2 - existingPhotos.length - localJobs.length);
+      const remainCount = Math.max(0, 3 - existingPhotos.length - localJobs.length);
       if (remainCount <= 0) {
-        alert('最多只能上傳 2 張照片');
+        alert('最多只能上傳 3 張照片');
         return;
       }
 
