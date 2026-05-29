@@ -100,45 +100,10 @@
       flex: 1;
       min-width: 0;
     }
-    .photo-wrap {
-      margin-top: 10px;
-      display: grid;
-      grid-template-columns: repeat(3, 76px);
-      gap: 6px;
-      justify-content: start;
-      align-items: start;
-    }
-    .photo-item {
-      position: relative;
-      display: block;
-      width: 76px;
-      height: 76px;
-      border-radius: 10px;
-      overflow: hidden;
-      border: 1px solid #dbe4ef;
-      background: #fff;
-      text-decoration: none;
-    }
-    .photo-item img {
-      width: 100%;
-      height: 100%;
-      display: block;
-      object-fit: cover;
-    }
-    .photo-badge {
-      position: absolute;
-      right: 4px;
-      bottom: 4px;
-      border-radius: 999px;
-      padding: 2px 5px;
-      font-size: 10px;
-      line-height: 1.2;
-      color: #fff;
-      background: rgba(17,24,39,0.7);
-      text-align: center;
-      font-weight: 800;
-    }
-    .photo-link { display:block; padding:4px 6px; font-size:11px; color:#1d4ed8; text-align:center; text-decoration:none; }
+    .photo-wrap { margin-top: 12px; display:flex; gap:8px; flex-wrap:wrap; }
+    .photo-item { width: calc(50% - 4px); border-radius: 10px; overflow: hidden; border: 1px solid #dbe4ef; background:#fff; }
+    .photo-item img { width:100%; display:block; aspect-ratio:4 / 3; object-fit:cover; }
+    .photo-link { display:block; padding:6px 8px; font-size:12px; color:#1d4ed8; text-align:center; text-decoration:none; }
     .items {
       margin-top: 8px;
       padding-top: 8px;
@@ -641,7 +606,7 @@
       const etaText = getCustomerEtaDisplayTextClient(etaFields.etaText, etaFields.deliveryDateText, etaFields.deliveryTime, etaFields.taskStatusText);
       const etaOverdue = isCustomerEtaOverdueClient(etaFields.etaText, etaFields.deliveryDateText, etaFields.deliveryTime, etaFields.taskStatusText);
       const showEta = !!etaText && !etaOverdue && !isCompletedStatusData(data);
-      const photos = Array.isArray(data.photos) ? data.photos.slice(0, 3) : [];
+      const photos = Array.isArray(data.photos) ? data.photos : [];
       const statusInfo = getDetailStatusInfo(data);
       const placeText = isSpecifiedDelivery(data.address)
         ? '指定送達'
