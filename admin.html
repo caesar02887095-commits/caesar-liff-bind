@@ -411,6 +411,77 @@
       padding: 10px 6px 18px;
     }
 
+
+
+    .pending-line-box {
+      margin-top: 12px;
+      border: 1px solid #bfdbfe;
+      background: #eff6ff;
+      border-radius: 14px;
+      padding: 12px;
+    }
+
+    .pending-line-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+
+    .pending-line-title {
+      font-size: 15px;
+      font-weight: 900;
+      color: #1e3a8a;
+    }
+
+    .pending-line-count {
+      border-radius: 999px;
+      background: #dbeafe;
+      color: #1d4ed8;
+      padding: 4px 9px;
+      font-size: 12px;
+      font-weight: 900;
+      white-space: nowrap;
+    }
+
+    .pending-line-list {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr);
+      gap: 6px;
+    }
+
+    .pending-line-item {
+      background: #fff;
+      border: 1px solid #dbeafe;
+      border-radius: 10px;
+      padding: 8px 10px;
+      color: #1f2937;
+      font-size: 14px;
+      font-weight: 800;
+      line-height: 1.45;
+      word-break: break-word;
+    }
+
+    .pending-line-empty {
+      color: #64748b;
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.6;
+    }
+
+    .pending-line-refresh {
+      border: none;
+      border-radius: 999px;
+      background: #dbeafe;
+      color: #1d4ed8;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+    }
+
     @media (max-width: 700px) {
       .tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
       .issue-summary { grid-template-columns: minmax(0, 1fr); }
@@ -452,6 +523,14 @@
       <div id="panel-system" class="card">
         <div class="result-title">系統狀況</div>
         <div class="muted">這裡會顯示需要注意的系統問題，例如背景同步失敗、系統排程卡住、或查詢速度異常。若沒有紅色錯誤，通常代表系統可以正常使用。</div>
+
+        <div class="pending-line-box" id="pendingLineBox">
+          <div class="pending-line-head">
+            <div class="pending-line-title">待審查 LINE 申請</div>
+            <button class="pending-line-refresh" type="button" onclick="loadPendingLineRequests()">重新整理</button>
+          </div>
+          <div class="pending-line-empty">讀取中...</div>
+        </div>
         <div class="btn-row">
           <button class="btn btn-primary" onclick="loadAdminSystemIssues()">重新整理系統狀況</button>
           <button class="btn btn-secondary" onclick="runAdminSystemLogCleanup()">清理舊紀錄</button>
@@ -566,6 +645,7 @@
         document.getElementById('panel-' + name).style.display = name === tab ? 'block' : 'none';
       });
       clearResult();
+      if (tab === 'system') loadPendingLineRequests();
     }
 
     async function fetchJson(url) {
@@ -656,6 +736,7 @@
         document.getElementById('authPanel').style.display = 'none';
         document.getElementById('mainPanel').style.display = 'block';
         await loadDriverOptions();
+        await loadPendingLineRequests();
         await loadAdminSystemIssues();
       } catch (err) {
         document.getElementById('adminInfo').textContent = '管理員權限驗證失敗';
@@ -781,6 +862,59 @@
         : '';
 
       return summaryHtml + mainHtml + slowHtml;
+    }
+
+
+
+    function renderPendingLineRequests(data) {
+      const box = document.getElementById('pendingLineBox');
+      if (!box) return;
+      const list = Array.isArray(data.requests) ? data.requests : [];
+      const count = Number(data.count || list.length || 0);
+      const body = count > 0
+        ? `<div class="pending-line-list">${list.map(item => `
+            <div class="pending-line-item">${escapeHtml(item.displayName || '未提供名稱')} / ${escapeHtml(item.requestClientCode || '未填客編')}</div>
+          `).join('')}</div>`
+        : '<div class="pending-line-empty">目前沒有待審查申請。</div>';
+
+      box.innerHTML = `
+        <div class="pending-line-head">
+          <div class="pending-line-title">待審查 LINE 申請</div>
+          <span class="pending-line-count">${escapeHtml(count)} 筆</span>
+          <button class="pending-line-refresh" type="button" onclick="loadPendingLineRequests()">重新整理</button>
+        </div>
+        ${body}
+      `;
+    }
+
+    async function loadPendingLineRequests() {
+      const box = document.getElementById('pendingLineBox');
+      if (box) {
+        box.innerHTML = `
+          <div class="pending-line-head">
+            <div class="pending-line-title">待審查 LINE 申請</div>
+            <button class="pending-line-refresh" type="button" onclick="loadPendingLineRequests()">重新整理</button>
+          </div>
+          <div class="pending-line-empty">讀取中...</div>
+        `;
+      }
+      try {
+        const url = `${GAS_WEBAPP_URL}?action=get_admin_pending_line_requests` +
+          `&adminUid=${encodeURIComponent(currentAdminUid)}` +
+          `&ts=${Date.now()}`;
+        const data = await fetchJson(url);
+        renderPendingLineRequests(data);
+      } catch (err) {
+        if (box) {
+          box.innerHTML = `
+            <div class="pending-line-head">
+              <div class="pending-line-title">待審查 LINE 申請</div>
+              <button class="pending-line-refresh" type="button" onclick="loadPendingLineRequests()">重新整理</button>
+            </div>
+            <div class="status bad" style="margin:0;">讀取失敗：${escapeHtml(err.message || err)}</div>
+          `;
+        }
+      }
     }
 
     async function loadAdminSystemIssues() {
