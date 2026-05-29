@@ -44,7 +44,7 @@
     }
 
     h2 {
-      color: var(--caesar-orange);
+      color: #111827;
       letter-spacing: 4px;
       margin: 0 0 18px;
       font-size: 24px;
@@ -256,6 +256,10 @@
       }
     }
 
+    function stripApiCodePrefix(message) {
+      return String(message || "").replace(/^\s*\[[A-Z]+-\d+-\d+\]\s*/, "");
+    }
+
     async function main() {
       try {
         const urlParams = new URLSearchParams(window.location.search);
@@ -332,7 +336,7 @@
 
         if (result.ok) {
           setSuccess(
-            result.message || "✅ 綁定成功",
+            stripApiCodePrefix(result.message || "✅ 綁定成功"),
             `${profile.displayName} 您好<br>系統已完成通知綁定，視窗即將關閉`
           );
 
