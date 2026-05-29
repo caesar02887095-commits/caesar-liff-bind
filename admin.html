@@ -898,7 +898,9 @@
       const countText = count > 0 ? `目前有 ${count} 筆` : '0 筆';
       const body = count > 0
         ? `<div class="pending-line-list">${list.map(item => `
-            <div class="pending-line-item">${escapeHtml(item.displayName || '未提供名稱')} / ${escapeHtml(item.requestClientCode || '未填客編')}</div>
+            <div class="pending-line-item">
+              ${escapeHtml(item.displayName || '未提供名稱')} / ${escapeHtml(item.companyName || '未填公司')} / ${escapeHtml(item.requestClientCode || '未填客編')}
+            </div>
           `).join('')}</div>`
         : '<div class="pending-line-empty">目前沒有待審查申請。</div>';
 
