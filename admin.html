@@ -421,6 +421,12 @@
       padding: 12px;
     }
 
+    .pending-line-box.has-pending {
+      border: 2px solid #f59e0b;
+      background: #fffbeb;
+      box-shadow: 0 8px 18px rgba(245, 158, 11, 0.16);
+    }
+
     .pending-line-head {
       display: flex;
       align-items: center;
@@ -436,6 +442,10 @@
       color: #1e3a8a;
     }
 
+    .pending-line-box.has-pending .pending-line-title {
+      color: #92400e;
+    }
+
     .pending-line-count {
       border-radius: 999px;
       background: #dbeafe;
@@ -444,6 +454,13 @@
       font-size: 12px;
       font-weight: 900;
       white-space: nowrap;
+    }
+
+    .pending-line-box.has-pending .pending-line-count {
+      background: #f59e0b;
+      color: #fff;
+      font-size: 13px;
+      padding: 5px 10px;
     }
 
     .pending-line-list {
@@ -462,6 +479,12 @@
       font-weight: 800;
       line-height: 1.45;
       word-break: break-word;
+    }
+
+    .pending-line-box.has-pending .pending-line-item {
+      border-color: #fcd34d;
+      font-size: 15px;
+      color: #78350f;
     }
 
     .pending-line-empty {
@@ -871,6 +894,8 @@
       if (!box) return;
       const list = Array.isArray(data.requests) ? data.requests : [];
       const count = Number(data.count || list.length || 0);
+      box.classList.toggle('has-pending', count > 0);
+      const countText = count > 0 ? `目前有 ${count} 筆` : '0 筆';
       const body = count > 0
         ? `<div class="pending-line-list">${list.map(item => `
             <div class="pending-line-item">${escapeHtml(item.displayName || '未提供名稱')} / ${escapeHtml(item.requestClientCode || '未填客編')}</div>
@@ -880,7 +905,7 @@
       box.innerHTML = `
         <div class="pending-line-head">
           <div class="pending-line-title">待審查 LINE 申請</div>
-          <span class="pending-line-count">${escapeHtml(count)} 筆</span>
+          <span class="pending-line-count">${escapeHtml(countText)}</span>
           <button class="pending-line-refresh" type="button" onclick="loadPendingLineRequests()">重新整理</button>
         </div>
         ${body}
@@ -890,6 +915,7 @@
     async function loadPendingLineRequests() {
       const box = document.getElementById('pendingLineBox');
       if (box) {
+        box.classList.remove('has-pending');
         box.innerHTML = `
           <div class="pending-line-head">
             <div class="pending-line-title">待審查 LINE 申請</div>
@@ -906,6 +932,7 @@
         renderPendingLineRequests(data);
       } catch (err) {
         if (box) {
+          box.classList.remove('has-pending');
           box.innerHTML = `
             <div class="pending-line-head">
               <div class="pending-line-title">待審查 LINE 申請</div>
