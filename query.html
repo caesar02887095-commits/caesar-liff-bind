@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>凱撒衛浴查詢入口</title>
+  <!-- v73.13：LINE 查詢權限申請送出中按鈕加入轉圈回饋 -->
   <!-- v71.8：移除店家名稱顯示，最後更新移至訂單 / 配送查詢標題列右側 -->
   <!-- v71.4：配送摘要字級放大，指送改為指定送貨 -->
   <!-- v71：客戶查詢頁 UI/UX 微調，訂單明細展開更明確、配送單號與欄位對齊 -->
@@ -524,9 +525,26 @@
       box-sizing: border-box;
     }
 
+
+    .btn-inline-loading {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+    .btn-spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid rgba(255,255,255,0.55);
+      border-top-color: #ffffff;
+      border-radius: 50%;
+      animation: spin 0.75s linear infinite;
+      flex: 0 0 auto;
+    }
+
     .btn:disabled,
     .share-btn:disabled {
-      opacity: 0.55;
+      opacity: 0.72;
       cursor: not-allowed;
       pointer-events: none;
     }
@@ -572,6 +590,7 @@
     let manualRefreshTimer = null;
     let manualRefreshInFlight = false;
     let shareProgressInFlight = false;
+    let requestSubmitInFlight = false;
     let loadingTimers = [];
 
     function startPortalLoadingSequence() {
@@ -1532,7 +1551,7 @@
           </div>
           <input id="companyNameInput" class="input" type="text" placeholder="公司名稱（選填）">
           <input id="clientCodeInput" class="input" type="text" inputmode="numeric" placeholder="客戶編號（選填，例如 389）">
-          <button class="btn btn-primary" onclick="submitRequest()">送出申請</button>
+          <button class="btn btn-primary" id="requestSubmitBtn" onclick="submitRequest()">送出申請</button>
         </div>
       `;
     }
@@ -1572,7 +1591,20 @@
       `;
     }
 
+    function setRequestSubmitLoading(isLoading) {
+      requestSubmitInFlight = !!isLoading;
+      const btn = document.getElementById('requestSubmitBtn');
+      if (!btn) return;
+
+      btn.disabled = !!isLoading;
+      btn.innerHTML = isLoading
+        ? '<span class="btn-inline-loading"><span class="btn-spinner"></span><span>申請送出中...</span></span>'
+        : '送出申請';
+    }
+
     async function submitRequest() {
+      if (requestSubmitInFlight) return;
+
       const codeInput = document.getElementById('clientCodeInput');
       const companyInput = document.getElementById('companyNameInput');
       if (!codeInput) return;
@@ -1589,27 +1621,37 @@
         requestClientCode: code
       };
 
-      const resp = await fetch(GAS_WEBAPP_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-        body: JSON.stringify(payload)
-      });
+      setRequestSubmitLoading(true);
 
-      const text = await resp.text();
-      let json = {};
       try {
-        json = JSON.parse(text);
+        const resp = await fetch(GAS_WEBAPP_URL, {
+          method: 'POST',
+          headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+          body: JSON.stringify(payload)
+        });
+
+        const text = await resp.text();
+        let json = {};
+        try {
+          json = JSON.parse(text);
+        } catch (e) {
+          alert(text || '送出申請失敗');
+          setRequestSubmitLoading(false);
+          return;
+        }
+
+        if (!json.ok) {
+          alert(json.message || json.error || '送出申請失敗');
+          setRequestSubmitLoading(false);
+          return;
+        }
+
+        renderPending(code);
       } catch (e) {
-        alert(text || '送出申請失敗');
-        return;
+        console.error('submitRequest failed:', e);
+        alert('送出申請失敗，請稍後再試。');
+        setRequestSubmitLoading(false);
       }
-
-      if (!json.ok) {
-        alert(json.message || json.error || '送出申請失敗');
-        return;
-      }
-
-      renderPending(code);
     }
 
     function formatDeliveryDisplay(dateText, periodText) {
