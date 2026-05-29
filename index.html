@@ -25,13 +25,19 @@
       background: var(--bg);
       color: var(--text);
       text-align: center;
-      display: flex;
-      justify-content: center;
-      align-items: center;
       min-height: 100vh;
       margin: 0;
       padding: 18px;
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
+    }
+
+    .auth-page {
+      min-height: calc(100vh - 36px);
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 14px;
     }
 
     #card {
@@ -43,10 +49,43 @@
       box-shadow: var(--shadow);
     }
 
+    .brand-head {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 18px;
+    }
+
+    .brand-logo {
+      width: 108px;
+      max-width: 42vw;
+      height: auto;
+      object-fit: contain;
+      display: block;
+    }
+
+    .brand-subtitle {
+      color: var(--muted);
+      font-size: 14px;
+      font-weight: 800;
+      letter-spacing: 0.04em;
+      margin-top: -4px;
+    }
+
+    .footer {
+      width: min(92vw, 480px);
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.7;
+      text-align: center;
+    }
+
     h2 {
       color: #111827;
       letter-spacing: 4px;
-      margin: 0 0 18px;
+      margin: 0;
       font-size: 24px;
       font-weight: 900;
     }
@@ -132,12 +171,23 @@
       white-space: pre-wrap;
       word-break: break-word;
     }
+
+    @media (max-width: 480px) {
+      #card { padding: 24px 20px; }
+      .brand-logo { width: 96px; }
+      h2 { font-size: 22px; }
+    }
   </style>
 </head>
 <body>
-  <div id="card">
-    <h2>CAESAR</h2>
-    <div class="progress-wrap" id="progressWrap">
+  <main class="auth-page">
+    <div id="card">
+      <div class="brand-head">
+        <img class="brand-logo" src="LOGO.png" alt="CAESAR" />
+        <h2>CAESAR</h2>
+        <div class="brand-subtitle">凱撒衛浴配送服務</div>
+      </div>
+      <div class="progress-wrap" id="progressWrap">
       <div class="progress-row">
         <span id="progressLabel">正在驗證身分</span>
         <span id="progressPercent">0%</span>
@@ -145,9 +195,15 @@
       <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
     </div>
     <p id="msg">正在驗證身分，請稍候...</p>
-    <div id="detail" class="sub"></div>
-    <div id="debug" class="debug" style="display:none;"></div>
-  </div>
+      <div id="detail" class="sub"></div>
+      <div id="debug" class="debug" style="display:none;"></div>
+    </div>
+    <footer class="footer">
+      凱撒衛浴｜配送查詢與 LINE 綁定服務<br />
+      新竹縣竹北市環北路一段278號<br />
+      本頁僅供客戶配送查詢與通知綁定使用
+    </footer>
+  </main>
 
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script>
