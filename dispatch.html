@@ -2,13 +2,14 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>CAESAR 排車頁</title>
   <!-- v60.3：快捷分類按鈕手機/電腦皆四等分滿版，並改為低飽和溫和配色 -->
   <!-- v63：新增第五條路線「機動」；快捷分類按鈕維持市區 / 竹東 / 湖口 / 其他；請假系統暫緩 -->
   <!-- v65：儲存排車按鈕主動作強化；未儲存時更醒目，已儲存時降低干擾 -->
   <!-- v72：調度快捷分類改為排序模式才顯示；新增「返回上一步」可回退最近一次排序 / 分類操作 -->
   <!-- v72.1：返回上一步最多保留 5 步，並改為修改排序期間左側浮動按鈕 -->
+  <!-- v72.2：左側返回鍵下移，並降低手機連點觸發放大的機率 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <style>
@@ -87,6 +88,10 @@
       cursor: pointer;
       background: #dbeafe;
       color: #1d4ed8;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
     }
     .toolbar {
       display: flex;
@@ -107,6 +112,10 @@
       font-size: 16px;
       font-weight: bold;
       cursor: pointer;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
     }
     .btn-save {
       background: #16a34a;
@@ -144,7 +153,7 @@
       display: none;
       position: fixed;
       left: max(8px, calc((100vw - 760px) / 2 + 8px));
-      top: 56vh;
+      top: 68vh;
       z-index: 50;
       pointer-events: none;
     }
@@ -163,6 +172,9 @@
       box-shadow: 0 6px 18px rgba(15, 23, 42, 0.16);
       writing-mode: horizontal-tb;
       white-space: normal;
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
     }
     .floating-undo-wrap .btn-undo:disabled {
       background: #f1f5f9;
