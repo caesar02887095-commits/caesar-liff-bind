@@ -109,6 +109,19 @@
       font-weight: 800;
     }
 
+    .card-status {
+      margin-top: 9px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 700;
+      line-height: 1.45;
+    }
+
+    .card.warning .card-status {
+      color: #92400e;
+      font-weight: 900;
+    }
+
     .card:hover {
       transform: translateY(-1px);
       border-color: rgba(242, 140, 40, 0.45);
@@ -160,6 +173,54 @@
     }
 
 
+    .portal-alert {
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-top: 14px;
+      padding: 14px 16px;
+      border-radius: 16px;
+      border: 1px solid #f59e0b;
+      background: #fffbeb;
+      color: #92400e;
+      box-shadow: var(--shadow);
+      font-weight: 900;
+      line-height: 1.45;
+    }
+
+    .portal-alert.show { display: flex; }
+
+    .portal-alert-main {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .portal-alert-title {
+      font-size: 16px;
+    }
+
+    .portal-alert-sub {
+      font-size: 13px;
+      color: #b45309;
+      font-weight: 800;
+    }
+
+    .portal-alert-action {
+      flex-shrink: 0;
+      border: 1px solid #f59e0b;
+      background: #fff7ed;
+      color: #92400e;
+      border-radius: 999px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 900;
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
 
     .footer {
       margin-top: 20px;
@@ -174,6 +235,8 @@
       .brand-title h1 { font-size: 20px; }
       .logo { width: 92px; }
       .card { min-height: 130px; }
+      .portal-alert { align-items: flex-start; flex-direction: column; }
+      .portal-alert-action { width: 100%; text-align: center; }
     }
   </style>
 </head>
@@ -186,6 +249,14 @@
       </div>
       <img class="logo" src="LOGO.png" alt="CAESAR" />
     </header>
+
+    <div class="portal-alert" id="lineReviewAlert">
+      <div class="portal-alert-main">
+        <div class="portal-alert-title" id="lineReviewAlertTitle">有 LINE 申請需要審查</div>
+        <div class="portal-alert-sub" id="lineReviewAlertSub">請進入管理頁查看待審查名單。</div>
+      </div>
+      <a class="portal-alert-action" href="admin.html?v=admin-v73-1">查看管理頁 →</a>
+    </div>
 
 
     <section class="section grid">
@@ -217,12 +288,13 @@
         <div class="card-action">進入查詢頁 →</div>
       </a>
 
-      <a class="card" href="admin.html?v=admin-v58">
+      <a class="card" id="adminCard" href="admin.html?v=admin-v73-1">
         <div class="card-title-row">
           <h2>系統管理</h2>
-          <span class="card-tag">管理</span>
+          <span class="card-tag" id="adminTag">管理</span>
         </div>
         <p>管理員只讀查看系統異常、客戶配送與司機工作，不提供修改功能。</p>
+        <div class="card-status" id="lineReviewStatus">LINE 審查：讀取中</div>
         <div class="card-action">進入管理頁 →</div>
       </a>
     </section>
@@ -308,7 +380,52 @@
       }
     }
 
+    async function loadLineReviewStatus() {
+      const card = document.getElementById('adminCard');
+      const tag = document.getElementById('adminTag');
+      const status = document.getElementById('lineReviewStatus');
+      const alertBox = document.getElementById('lineReviewAlert');
+      const alertTitle = document.getElementById('lineReviewAlertTitle');
+      const alertSub = document.getElementById('lineReviewAlertSub');
+      if (!card || !tag || !status) return;
+
+      try {
+        const resp = await fetch(`${GAS_WEBAPP_URL}?action=get_pending_line_request_status&ts=${Date.now()}`, { cache: 'no-store' });
+        const json = await resp.json();
+        const data = json && json.data ? json.data : {};
+        const count = Number(data.count || 0);
+
+        if (count > 0) {
+          card.classList.add('warning');
+          tag.textContent = '待審查';
+          status.textContent = `LINE 待審：${count} 筆`;
+          if (alertBox) alertBox.classList.add('show');
+          if (alertTitle) alertTitle.textContent = `有 ${count} 筆 LINE 申請需要審查`;
+          if (alertSub) alertSub.textContent = '請進入管理頁查看顯示名稱與申請客編。';
+        } else {
+          card.classList.remove('warning');
+          tag.textContent = '管理';
+          status.textContent = 'LINE 審查：0 筆';
+          if (alertBox) alertBox.classList.remove('show');
+        }
+      } catch (err) {
+        console.warn('loadLineReviewStatus failed', err);
+        card.classList.remove('warning');
+        tag.textContent = '管理';
+        status.textContent = 'LINE 審查：讀取失敗';
+        if (alertBox) {
+          alertBox.classList.add('show');
+          alertBox.style.background = '#fef2f2';
+          alertBox.style.borderColor = '#fecaca';
+          alertBox.style.color = '#991b1b';
+        }
+        if (alertTitle) alertTitle.textContent = 'LINE 審查狀態讀取失敗';
+        if (alertSub) alertSub.textContent = '請進入管理頁確認，或檢查程式碼.gs 是否已更新到 v73.4。';
+      }
+    }
+
     loadManualAddStatus();
+    loadLineReviewStatus();
   </script>
 
 </body>
