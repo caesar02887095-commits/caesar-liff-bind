@@ -5,100 +5,145 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CAESAR 凱撒衛浴</title>
   <style>
+    :root {
+      --caesar-orange: #f28c28;
+      --caesar-gray: #3f3f46;
+      --bg: #f7f7f8;
+      --card: #ffffff;
+      --text: #1f2937;
+      --muted: #6b7280;
+      --line: #e5e7eb;
+      --shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+      --success: #15803d;
+      --error: #b91c1c;
+      --warn: #92400e;
+    }
+
+    * { box-sizing: border-box; }
+
     body {
-      background: #121212;
-      color: white;
+      background: var(--bg);
+      color: var(--text);
       text-align: center;
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
+      min-height: 100vh;
       margin: 0;
-      font-family: sans-serif;
+      padding: 18px;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", "Microsoft JhengHei", sans-serif;
     }
 
     #card {
-      padding: 40px;
-      border-radius: 15px;
-      background: #1e1e1e;
-      border: 1px solid #333;
-      width: 85%;
-      max-width: 460px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      padding: 28px 24px;
+      border-radius: 20px;
+      background: var(--card);
+      border: 1px solid var(--line);
+      width: min(92vw, 480px);
+      box-shadow: var(--shadow);
     }
 
     h2 {
-      color: #EBA13A;
-      letter-spacing: 5px;
-      margin-bottom: 20px;
+      color: var(--caesar-orange);
+      letter-spacing: 4px;
+      margin: 0 0 18px;
+      font-size: 24px;
+      font-weight: 900;
     }
 
-    #loader {
-      border: 3px solid #333;
-      border-top: 3px solid #EBA13A;
-      border-radius: 50%;
-      width: 30px;
-      height: 30px;
-      animation: spin 1s linear infinite;
-      margin: 20px auto;
+    .progress-wrap {
+      margin: 12px 0 16px;
+    }
+
+    .progress-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin-bottom: 8px;
+      color: var(--muted);
+      font-size: 13px;
+      font-weight: 800;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 12px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      overflow: hidden;
+      border: 1px solid #d1d5db;
+    }
+
+    .progress-fill {
+      width: 8%;
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #f59e0b, var(--caesar-orange));
+      transition: width .22s ease;
     }
 
     p {
-      color: #BBBBBB;
+      color: var(--text);
       line-height: 1.7;
       white-space: pre-line;
       word-break: break-word;
+      margin: 8px 0 0;
+      font-size: 16px;
+      font-weight: 800;
     }
 
     .success {
-      color: #2ecc71;
-      font-weight: bold;
+      color: var(--success);
+      font-weight: 900;
       font-size: 18px;
     }
 
     .error {
-      color: #ff6b6b;
-      font-weight: bold;
+      color: var(--error);
+      font-weight: 900;
       font-size: 17px;
     }
 
     .warn {
-      color: #ffcf4d;
-      font-weight: bold;
+      color: var(--warn);
+      font-weight: 900;
       font-size: 17px;
     }
 
     .sub {
-      color: #999;
+      color: var(--muted);
       font-size: 14px;
       margin-top: 12px;
       white-space: pre-line;
       word-break: break-word;
+      line-height: 1.65;
     }
 
     .debug {
-      color: #888;
+      color: #4b5563;
       font-size: 12px;
       margin-top: 14px;
       text-align: left;
-      background: #151515;
-      border: 1px solid #2a2a2a;
-      border-radius: 8px;
+      background: #f9fafb;
+      border: 1px solid var(--line);
+      border-radius: 10px;
       padding: 12px;
       white-space: pre-wrap;
       word-break: break-word;
-    }
-
-    @keyframes spin {
-      0% { transform: rotate(0deg); }
-      100% { transform: rotate(360deg); }
     }
   </style>
 </head>
 <body>
   <div id="card">
     <h2>CAESAR</h2>
-    <div id="loader"></div>
+    <div class="progress-wrap" id="progressWrap">
+      <div class="progress-row">
+        <span id="progressLabel">正在驗證身分</span>
+        <span id="progressPercent">0%</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+    </div>
     <p id="msg">正在驗證身分，請稍候...</p>
     <div id="detail" class="sub"></div>
     <div id="debug" class="debug" style="display:none;"></div>
@@ -125,13 +170,36 @@
     let currentStep = "未開始";
     let DEBUG_MODE = false;
 
+    function updateProgress(percent, label) {
+      const safePercent = Math.max(0, Math.min(100, Number(percent || 0)));
+      const fill = document.getElementById("progressFill");
+      const percentEl = document.getElementById("progressPercent");
+      const labelEl = document.getElementById("progressLabel");
+      if (fill) fill.style.width = safePercent + "%";
+      if (percentEl) percentEl.textContent = safePercent + "%";
+      if (labelEl && label) labelEl.textContent = label;
+    }
+
+    function inferProgressFromStep(stepText) {
+      const text = String(stepText || '');
+      if (text.includes('步驟 1/5')) return { percent: 12, label: '檢查環境' };
+      if (text.includes('步驟 2/5')) return { percent: 30, label: '初始化 LINE' };
+      if (text.includes('尚未登入')) return { percent: 38, label: '導向登入' };
+      if (text.includes('步驟 3/5')) return { percent: 52, label: '取得 LINE 資料' };
+      if (text.includes('步驟 4/5')) return { percent: 72, label: '送出驗證' };
+      if (text.includes('步驟 5/5')) return { percent: 90, label: '解析回應' };
+      return { percent: 8, label: '正在驗證身分' };
+    }
+
     function setStep(stepText) {
       currentStep = stepText;
+      const progress = inferProgressFromStep(stepText);
+      updateProgress(progress.percent, progress.label);
       document.getElementById("msg").innerHTML = stepText;
     }
 
     function setSuccess(titleHtml, detailHtml = "") {
-      document.getElementById("loader").style.display = "none";
+      updateProgress(100, "完成");
       const msg = document.getElementById("msg");
       msg.innerHTML = titleHtml;
       msg.className = "success";
@@ -143,7 +211,7 @@
     }
 
     function setWarn(titleHtml, detailHtml = "", debugText = "") {
-      document.getElementById("loader").style.display = "none";
+      updateProgress(100, "需要確認");
       const msg = document.getElementById("msg");
       msg.innerHTML = titleHtml;
       msg.className = "warn";
@@ -160,7 +228,7 @@
     }
 
     function setError(titleHtml, detailHtml = "", debugText = "") {
-      document.getElementById("loader").style.display = "none";
+      updateProgress(100, "驗證失敗");
       const msg = document.getElementById("msg");
       msg.innerHTML = titleHtml;
       msg.className = "error";
