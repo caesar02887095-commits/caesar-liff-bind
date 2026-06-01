@@ -1403,7 +1403,7 @@
 
           ${canShareProgress ? `
             <div class="share-row">
-              <button class="share-btn" onclick="openShareProgress('${escapeJs(order.orderNo || '')}')">分享送貨進度</button>
+              <button class="share-btn" onclick="openShareProgress('${escapeJs(order.orderNo || '')}')">分享送貨進度連結</button>
             </div>
           ` : ''}
         </div>
@@ -1616,7 +1616,7 @@
     function updateShareProgressButtons(disabled) {
       document.querySelectorAll('.share-btn').forEach(btn => {
         btn.disabled = !!disabled;
-        btn.textContent = disabled ? '產生分享內容中...' : '分享送貨進度';
+        btn.textContent = disabled ? '產生分享內容中...' : '分享送貨進度連結';
       });
     }
 
