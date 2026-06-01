@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>凱撒衛浴查詢入口</title>
+  <!-- v75：客戶查詢頁新增配送進度條與聯絡凱撒衛浴撥號按鈕 -->
   <!-- v73.13：LINE 查詢權限申請送出中按鈕加入轉圈回饋 -->
   <!-- v71.8：移除店家名稱顯示，最後更新移至訂單 / 配送查詢標題列右側 -->
   <!-- v71.4：配送摘要字級放大，指送改為指定送貨 -->
@@ -382,6 +383,68 @@
       line-height: 1.2;
       padding: 3px 6px;
       border-radius: 999px;
+    }
+
+    .delivery-progress {
+      margin: 12px 0 10px;
+      padding: 10px 10px 8px;
+      background: #fffaf0;
+      border: 1px solid #fde6bd;
+      border-radius: 12px;
+    }
+    .delivery-progress-track {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 7px;
+    }
+    .delivery-progress-seg {
+      height: 7px;
+      border-radius: 999px;
+      background: #e5e7eb;
+      overflow: hidden;
+    }
+    .delivery-progress-seg.active {
+      background: #EBA13A;
+    }
+    .delivery-progress-labels {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 6px;
+      font-size: 12px;
+      line-height: 1.35;
+      color: #94a3b8;
+      font-weight: 800;
+      text-align: center;
+    }
+    .delivery-progress-label.active {
+      color: #9a5a00;
+    }
+    .contact-card {
+      background: #ffffff;
+      border: 1px solid #d8dee8;
+    }
+    .contact-btn {
+      display: block;
+      width: 100%;
+      box-sizing: border-box;
+      text-align: center;
+      text-decoration: none;
+      border-radius: 12px;
+      padding: 13px 12px;
+      font-size: 17px;
+      line-height: 1.3;
+      font-weight: 900;
+      background: #111827;
+      color: #ffffff;
+    }
+    .contact-hint {
+      margin-top: 8px;
+      text-align: center;
+      font-size: 13px;
+      color: #64748b;
+      line-height: 1.5;
     }
     .status-pill {
       margin-top: 12px;
@@ -860,6 +923,7 @@
       }
 
       html += renderManualRefreshCard();
+      html += renderContactCard();
 
       document.getElementById('app').innerHTML = html;
       updateManualRefreshButton();
@@ -958,6 +1022,15 @@
       return `
         <div class="card">
           <button class="btn btn-secondary" id="manualRefreshBtn" onclick="refreshPortalManually()">更新配送進度</button>
+        </div>
+      `;
+    }
+
+    function renderContactCard() {
+      return `
+        <div class="card contact-card">
+          <a class="contact-btn" href="tel:035530523">聯絡凱撒衛浴</a>
+          <div class="contact-hint">電話：03-5530523</div>
         </div>
       `;
     }
@@ -1202,6 +1275,34 @@
       return { orderNo, items };
     }
 
+    function getDeliveryProgressStep(order, etaText) {
+      if (isSelfPickupOrder(order)) return 0;
+
+      const status = String((order && order.taskStatus) || '').trim();
+      if (status === '已完成' || status === '放門口' || status === '改送隔壁') return 4;
+      if (status === '聯繫後改期' || status === '取消配送' || status === '特殊回報') return order && order.hasTracking ? 2 : 1;
+      if (etaText || status === '配送中') return 3;
+      if (order && order.hasTracking) return 2;
+      return 1;
+    }
+
+    function renderDeliveryProgress(order, etaText) {
+      const step = getDeliveryProgressStep(order, etaText);
+      if (!step) return '';
+
+      const labels = ['訂單已受理', '已排入路線', '配送中', '已送達'];
+      return `
+        <div class="delivery-progress" aria-label="配送進度">
+          <div class="delivery-progress-track">
+            ${labels.map((_, idx) => `<div class="delivery-progress-seg ${idx < step ? 'active' : ''}"></div>`).join('')}
+          </div>
+          <div class="delivery-progress-labels">
+            ${labels.map((label, idx) => `<div class="delivery-progress-label ${idx < step ? 'active' : ''}">${label}</div>`).join('')}
+          </div>
+        </div>
+      `;
+    }
+
     function renderDetailLines(detailLines) {
       if (!Array.isArray(detailLines) || !detailLines.length) {
         return `<div class="detail-line">無明細資料</div>`;
@@ -1265,6 +1366,8 @@
             ${formatPhoneForDisplay(order.phone) ? `<div class="info-row"><span class="info-label">電　　話：</span><span class="info-value">${escapeHtml(formatPhoneForDisplay(order.phone))}</span></div>` : ''}
             <div class="info-row"><span class="info-label">送貨時間：</span><span class="info-value">${escapeHtml(formatDeliveryDisplay(etaFields.deliveryDateText || order.deliveryDateText, etaFields.deliveryTime || order.deliveryTime))}</span></div>
           `}
+
+          ${!isSelfPickup ? renderDeliveryProgress(order, etaText) : ''}
 
           <details class="detail-block">
             <summary>
