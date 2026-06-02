@@ -728,6 +728,47 @@
       loadPortal().catch(err => renderMessage('載入失敗：' + ((err && err.message) ? err.message : err), 'bad'));
     }
 
+
+    function stringifyLiffError_(err) {
+      if (!err) return '';
+      if (typeof err === 'string') return err;
+      if (err.message) return err.message;
+      if (err.stack) return err.stack;
+      try { return JSON.stringify(err); } catch (e) { return String(err); }
+    }
+
+    function isLiffTokenExpiredError_(err) {
+      const text = stringifyLiffError_(err).toLowerCase();
+      return text.includes('access token expired') ||
+        text.includes('token expired') ||
+        text.includes('invalid access token') ||
+        text.includes('expired token');
+    }
+
+    function retryLineVerification() {
+      try {
+        sessionStorage.removeItem(RETURN_RESTORED_KEY);
+        prepareLoginRedirect_();
+        if (typeof liff !== 'undefined' && liff.isLoggedIn && liff.isLoggedIn()) {
+          try { liff.logout(); } catch (e) {}
+        }
+      } catch (e) {}
+      window.location.reload();
+    }
+
+    function renderTokenExpiredMessage_() {
+      stopLoadingSequence();
+      document.getElementById('app').innerHTML = `
+        <div class="card">
+          <div class="status warn">登入狀態已過期</div>
+          <div class="muted" style="margin-top:10px; line-height:1.8;">
+            LINE 驗證資訊已過期，請重新驗證後再查詢配送進度。
+          </div>
+          <button class="btn btn-primary" style="margin-top:14px;" onclick="retryLineVerification()">重新驗證</button>
+        </div>
+      `;
+    }
+
     async function initPage() {
       try {
         startPortalLoadingSequence();
@@ -756,6 +797,10 @@
 
         await loadPortal();
       } catch (err) {
+        if (isLiffTokenExpiredError_(err)) {
+          renderTokenExpiredMessage_();
+          return;
+        }
         renderMessage('載入失敗：' + (err.message || err), 'bad');
       }
     }
