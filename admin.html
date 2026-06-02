@@ -729,6 +729,41 @@
       }
     }
 
+
+    function stringifyLiffError_(err) {
+      if (!err) return '';
+      if (typeof err === 'string') return err;
+      if (err.message) return err.message;
+      if (err.stack) return err.stack;
+      try { return JSON.stringify(err); } catch (e) { return String(err); }
+    }
+
+    function isLiffTokenExpiredError_(err) {
+      const text = stringifyLiffError_(err).toLowerCase();
+      return text.includes('access token expired') ||
+        text.includes('token expired') ||
+        text.includes('invalid access token') ||
+        text.includes('expired token');
+    }
+
+    function retryAdminLineVerification() {
+      try {
+        if (typeof liff !== 'undefined' && liff.isLoggedIn && liff.isLoggedIn()) {
+          try { liff.logout(); } catch (e) {}
+        }
+      } catch (e) {}
+      window.location.reload();
+    }
+
+    function renderAdminTokenExpiredMessage_() {
+      document.getElementById('adminInfo').textContent = '管理員權限驗證失效';
+      renderAuthMessage(`
+        登入狀態已過期<br>
+        <span style="display:block; margin-top:8px; color:#6b7280; font-size:14px; font-weight:700;">LINE 驗證資訊已過期，請重新驗證後再進入系統管理。</span>
+        <button class="btn btn-primary" style="margin-top:14px;" onclick="retryAdminLineVerification()">重新驗證</button>
+      `, 'warn');
+    }
+
     async function initPage() {
       setDefaults();
 
@@ -762,6 +797,10 @@
         await loadPendingLineRequests();
         await loadAdminSystemIssues();
       } catch (err) {
+        if (isLiffTokenExpiredError_(err)) {
+          renderAdminTokenExpiredMessage_();
+          return;
+        }
         document.getElementById('adminInfo').textContent = '管理員權限驗證失敗';
         renderAuthMessage('初始化失敗：' + escapeHtml(err.message || err), 'bad');
       }
