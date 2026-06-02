@@ -151,6 +151,20 @@
       line-height: 1.65;
     }
 
+
+
+    .retry-btn {
+      margin-top: 14px;
+      width: 100%;
+      border: 0;
+      border-radius: 12px;
+      padding: 12px 16px;
+      background: var(--caesar-orange);
+      color: #ffffff;
+      font-size: 16px;
+      font-weight: 900;
+      cursor: pointer;
+    }
     .debug {
       color: #4b5563;
       font-size: 12px;
@@ -301,6 +315,37 @@
       }
     }
 
+
+    function isLiffTokenExpiredError(err) {
+      const text = stringifyError(err).toLowerCase();
+      return text.includes('access token expired') ||
+        text.includes('token expired') ||
+        text.includes('invalid access token') ||
+        text.includes('expired token');
+    }
+
+    function retryLineVerification() {
+      try {
+        if (typeof liff !== "undefined" && liff.isLoggedIn && liff.isLoggedIn()) {
+          try { liff.logout(); } catch (_) {}
+        }
+      } catch (_) {}
+      window.location.reload();
+    }
+
+    function setTokenExpired() {
+      updateProgress(100, "需要重新驗證");
+      const msg = document.getElementById("msg");
+      msg.innerHTML = "登入狀態已過期";
+      msg.className = "warn";
+      document.getElementById("detail").innerHTML =
+        "LINE 驗證資訊已過期，請重新驗證後再繼續使用。" +
+        '<button class="retry-btn" onclick="retryLineVerification()">重新驗證</button>';
+      const debugEl = document.getElementById("debug");
+      debugEl.style.display = "none";
+      debugEl.textContent = "";
+    }
+
     function stripApiCodePrefix(message) {
       return String(message || "").replace(/^\s*\[[A-Z]+-\d+-\d+\]\s*/, "");
     }
@@ -406,6 +451,11 @@
         );
 
       } catch (err) {
+        if (isLiffTokenExpiredError(err)) {
+          setTokenExpired();
+          return;
+        }
+
         const detail = stringifyError(err);
 
         setError(
