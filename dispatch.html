@@ -12,6 +12,7 @@
   <!-- v72.2：左側返回鍵下移，並降低手機連點觸發放大的機率 -->
   <!-- v72.3：排車頁全頁套用防連點放大，避免連續點擊返回或操作按鈕時觸發縮放 -->
   <!-- v72.4：移除攔截連續 touchend 的點擊節流，保留不限制連點速度的防縮放設定 -->
+  <!-- v75.25：調度快捷分類按鈕加入觸覺回饋與按下視覺回饋，提升修改排序時的按鍵確認感 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <style>
@@ -234,6 +235,7 @@
       color: #334155;
       white-space: nowrap;
       box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+      transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.08s ease;
     }
     .quick-route-btn.city {
       background: #eef6ff;
@@ -257,6 +259,12 @@
     }
     .quick-route-btn:hover {
       filter: brightness(0.985);
+    }
+    .quick-route-btn:active,
+    .quick-route-btn.tap-active {
+      transform: scale(0.96);
+      box-shadow: inset 0 2px 5px rgba(15, 23, 42, 0.16);
+      filter: brightness(0.97);
     }
 
     .group-block {
@@ -1015,7 +1023,7 @@
       return `
         <div class="quick-route-actions" aria-label="快捷分類">
           ${QUICK_ROUTE_GROUPS.map(groupName => `
-            <button type="button" class="quick-route-btn ${getQuickRouteButtonClass_(groupName)}" data-target-group="${escapeHtml(groupName)}" data-stop-key="${escapeHtml(stopKey)}" onclick="moveStopToGroup(this.getAttribute('data-stop-key'), this.getAttribute('data-target-group'))">${escapeHtml(groupName)}</button>
+            <button type="button" class="quick-route-btn ${getQuickRouteButtonClass_(groupName)}" data-target-group="${escapeHtml(groupName)}" data-stop-key="${escapeHtml(stopKey)}" onclick="moveStopToGroup(this.getAttribute('data-stop-key'), this.getAttribute('data-target-group'), this)">${escapeHtml(groupName)}</button>
           `).join('')}
         </div>
       `;
@@ -1178,8 +1186,25 @@
       updateSortActionButtons_();
     }
 
-    function moveStopToGroup(stopKey, targetGroup) {
+    function triggerDispatchTapFeedback_(buttonEl) {
+      // v75.25：排車頁快捷分類按鈕回饋。
+      // 支援的手機會輕微震動；不支援時仍保留按下縮放 / 陰影回饋。
+      try {
+        if (navigator && typeof navigator.vibrate === 'function') {
+          navigator.vibrate(12);
+        }
+      } catch (e) {}
+
+      if (!buttonEl || !buttonEl.classList) return;
+      buttonEl.classList.add('tap-active');
+      window.setTimeout(function () {
+        try { buttonEl.classList.remove('tap-active'); } catch (e) {}
+      }, 140);
+    }
+
+    function moveStopToGroup(stopKey, targetGroup, sourceButton) {
       if (!sortMode || isSaving) return;
+      triggerDispatchTapFeedback_(sourceButton);
 
       const key = String(stopKey || '');
       const target = String(targetGroup || '');
