@@ -293,6 +293,92 @@
     .unsaved-notice.show {
       display: block;
     }
+    .save-status-panel {
+      display: none;
+      position: fixed;
+      left: 14px;
+      right: 14px;
+      bottom: calc(18px + env(safe-area-inset-bottom));
+      z-index: 80;
+      background: #ffffff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      box-shadow: 0 12px 34px rgba(15, 23, 42, 0.18);
+      padding: 14px 14px 13px;
+      max-width: 560px;
+      margin: 0 auto;
+    }
+    .save-status-panel.show {
+      display: block;
+    }
+    .save-status-title {
+      font-size: 17px;
+      font-weight: 950;
+      color: #0f172a;
+      line-height: 1.35;
+    }
+    .save-status-note {
+      margin-top: 4px;
+      font-size: 14px;
+      font-weight: 800;
+      color: #64748b;
+      line-height: 1.5;
+    }
+    .save-progress-bar {
+      height: 9px;
+      border-radius: 999px;
+      overflow: hidden;
+      background: #e2e8f0;
+      margin-top: 11px;
+    }
+    .save-progress-fill {
+      height: 100%;
+      width: 0%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, #f59e0b, #d97706);
+      transition: width 0.22s ease;
+    }
+    .save-status-panel.error {
+      border-color: #fecaca;
+      background: #fffafa;
+    }
+    .save-status-panel.error .save-status-title {
+      color: #991b1b;
+    }
+    .save-status-panel.error .save-progress-fill {
+      width: 100%;
+      background: #ef4444;
+    }
+    .save-status-panel.success {
+      border-color: #bbf7d0;
+      background: #f7fef9;
+    }
+    .save-status-panel.success .save-status-title {
+      color: #166534;
+    }
+    .save-status-panel.success .save-progress-fill {
+      width: 100%;
+      background: #22c55e;
+    }
+    .save-retry-btn {
+      display: none;
+      width: 100%;
+      margin-top: 12px;
+      border: 0;
+      border-radius: 12px;
+      padding: 13px 12px;
+      background: #991b1b;
+      color: #ffffff;
+      font-size: 17px;
+      font-weight: 950;
+      cursor: pointer;
+      touch-action: manipulation;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    .save-status-panel.error .save-retry-btn {
+      display: block;
+    }
     .quick-route-actions {
       display: grid;
       grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -790,6 +876,15 @@
     <div class="unsaved-notice" id="unsavedNotice">已有未儲存變更，請記得按「儲存排車」。</div>
     <div class="route-move-toast" id="routeMoveToast">已加入路線</div>
 
+    <div class="save-status-panel" id="saveStatusPanel" aria-live="polite">
+      <div class="save-status-title" id="saveStatusTitle">正在儲存排車...</div>
+      <div class="save-status-note" id="saveStatusNote">請稍候，系統正在寫入路線與順序。</div>
+      <div class="save-progress-bar" aria-hidden="true">
+        <div class="save-progress-fill" id="saveProgressFill"></div>
+      </div>
+      <button type="button" class="save-retry-btn" id="saveRetryBtn" onclick="retrySaveDispatchBoard()">重新儲存</button>
+    </div>
+
     <div class="floating-undo-wrap" id="undoSortFloating">
       <button class="btn btn-undo" id="undoSortBtn" onclick="undoLastSortStep()">返回<br>上一步</button>
     </div>
@@ -891,6 +986,8 @@
     let sortMode = false;
     let isSaving = false;
     let hasUnsavedChanges = false;
+    let lastSavePayload = null;
+    let saveProgressTimer = null;
     let sortUndoStack = [];
     let sortInitialSnapshot = null;
     let beforeDragSnapshot = null;
@@ -1667,24 +1764,84 @@
       };
     }
 
-    async function saveDispatchBoard() {
-      if (isSaving) return;
-
+    function buildDispatchSavePayload_() {
       const groups = GROUP_NAMES.reduce((out, groupName) => {
         out[groupName] = collectGroup(groupName);
         return out;
       }, {});
 
-      const payload = {
+      return {
         action: 'save_dispatch_board',
         period: currentPeriod,
         groups: groups
       };
+    }
 
-      // v3 起不再依賴 localStorage 保存跨頁排車快照，避免清空 / 重產後畫面沿用舊位置。
+    function clearSaveProgressTimer_() {
+      if (saveProgressTimer) {
+        window.clearTimeout(saveProgressTimer);
+        saveProgressTimer = null;
+      }
+    }
+
+    function showSaveStatus_(mode, title, note) {
+      const panel = document.getElementById('saveStatusPanel');
+      const titleEl = document.getElementById('saveStatusTitle');
+      const noteEl = document.getElementById('saveStatusNote');
+      const fill = document.getElementById('saveProgressFill');
+      if (!panel) return;
+
+      clearSaveProgressTimer_();
+      panel.classList.remove('error', 'success');
+      panel.classList.add('show');
+      if (mode) panel.classList.add(mode);
+
+      if (titleEl) titleEl.textContent = title || '正在儲存排車...';
+      if (noteEl) noteEl.textContent = note || '請稍候，系統正在寫入路線與順序。';
+
+      if (fill) {
+        if (mode === 'error' || mode === 'success') {
+          fill.style.width = '100%';
+        } else {
+          fill.style.width = '18%';
+          saveProgressTimer = window.setTimeout(function () {
+            try { fill.style.width = '72%'; } catch (e) {}
+          }, 120);
+        }
+      }
+    }
+
+    function hideSaveStatus_(delayMs) {
+      const panel = document.getElementById('saveStatusPanel');
+      clearSaveProgressTimer_();
+      window.setTimeout(function () {
+        try {
+          if (panel) {
+            panel.classList.remove('show', 'error', 'success');
+          }
+        } catch (e) {}
+      }, delayMs || 0);
+    }
+
+    async function saveDispatchBoard() {
+      if (isSaving) return;
+      lastSavePayload = buildDispatchSavePayload_();
+      await submitDispatchSave_(lastSavePayload);
+    }
+
+    async function retrySaveDispatchBoard() {
+      if (isSaving) return;
+      const payload = lastSavePayload || buildDispatchSavePayload_();
+      lastSavePayload = payload;
+      await submitDispatchSave_(payload);
+    }
+
+    async function submitDispatchSave_(payload) {
+      if (!payload || isSaving) return;
 
       isSaving = true;
       setSavingState(true);
+      showSaveStatus_('saving', '正在儲存排車...', '請稍候，系統正在寫入路線與順序。');
 
       try {
         const resp = await fetch(GAS_WEBAPP_URL, {
@@ -1698,13 +1855,11 @@
         try {
           json = JSON.parse(text);
         } catch (e) {
-          alert(text || '儲存排車失敗');
-          return;
+          throw new Error(text || '儲存排車失敗');
         }
 
         if (!json.ok) {
-          alert(json.message || json.error || '儲存排車失敗');
-          return;
+          throw new Error(json.message || json.error || '儲存排車失敗');
         }
 
         sortMode = false;
@@ -1716,10 +1871,13 @@
         clearUnsavedChanges();
         renderDispatchBoard();
         document.getElementById('summaryText').textContent = json.message || '排車已儲存';
-        alert(json.message || '排車看板已儲存');
+        showSaveStatus_('success', '排車已儲存', '路線與順序已更新。');
+        hideSaveStatus_(900);
       } catch (err) {
         console.error(err);
-        alert('儲存排車失敗');
+        // v75.35：儲存失敗時不清除目前前端排序、不退出修改排序、不清空返回上一步。
+        // 排車人可直接按「重新儲存」再次送出同一份畫面排序。
+        showSaveStatus_('error', '儲存失敗，排車尚未更新。', '請不要重新整理頁面，直接按「重新儲存」再次嘗試。');
       } finally {
         isSaving = false;
         setSavingState(false);
