@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>送貨進度</title>
+  <!-- v75.39：分享/追蹤詳情頁不顯示配送照片，避免分享頁外流照片資訊。 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <style>
     body {
@@ -100,10 +101,6 @@
       flex: 1;
       min-width: 0;
     }
-    .photo-wrap { margin-top: 12px; display:flex; gap:8px; flex-wrap:wrap; }
-    .photo-item { width: calc(50% - 4px); border-radius: 10px; overflow: hidden; border: 1px solid #dbe4ef; background:#fff; }
-    .photo-item img { width:100%; display:block; aspect-ratio:4 / 3; object-fit:cover; }
-    .photo-link { display:block; padding:6px 8px; font-size:12px; color:#1d4ed8; text-align:center; text-decoration:none; }
     .items {
       margin-top: 8px;
       padding-top: 8px;
@@ -606,10 +603,9 @@
       const etaText = getCustomerEtaDisplayTextClient(etaFields.etaText, etaFields.deliveryDateText, etaFields.deliveryTime, etaFields.taskStatusText);
       const etaOverdue = isCustomerEtaOverdueClient(etaFields.etaText, etaFields.deliveryDateText, etaFields.deliveryTime, etaFields.taskStatusText);
       const showEta = !!etaText && !etaOverdue && !isCompletedStatusData(data);
-      const photos = Array.isArray(data.photos) ? data.photos : [];
       const statusInfo = getDetailStatusInfo(data);
       const placeText = isSpecifiedDelivery(data.address)
-        ? '指定送達'
+        ? '指定送貨'
         : escapeHtml(data.storeName || '');
 
       document.getElementById('app').innerHTML = `
@@ -631,7 +627,6 @@
           ` : ''}
           ${renderEtaDebugBoxClient(data)}
 
-          ${photos.length ? `<div class="photo-wrap">${photos.map((photo, idx) => `<a class="photo-item" href="${escapeHtml(photo.url || '')}" target="_blank"><img src="${escapeHtml(photo.previewUrl || photo.url || '')}" alt="送達照片${idx + 1}"><span class="photo-badge">照片${idx + 1}</span></a>`).join('')}</div>` : ''}
           <div class="items">
             ${items.map(item => `• ${escapeHtml(item.model || '')} x${escapeHtml(item.qty || '')}`).join('<br>')}
           </div>
