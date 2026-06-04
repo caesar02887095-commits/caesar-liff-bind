@@ -275,21 +275,21 @@
     }
 
     .row.route-move-enter {
-      animation: routeMoveEnterUpStrong 0.46s cubic-bezier(0.16, 1, 0.3, 1) both;
+      animation: routeMoveEnterUpStrong 0.72s cubic-bezier(0.16, 1, 0.3, 1) both;
       transform-origin: center bottom;
       will-change: transform, opacity, box-shadow, background-color;
-      border: 1px solid rgba(220, 171, 0, 0.42);
+      border: 2px solid rgba(220, 171, 0, 0.70);
     }
     @keyframes routeMoveEnterUpStrong {
       0% {
-        opacity: 0.16;
-        transform: translateY(44px) scale(0.985);
+        opacity: 0.05;
+        transform: translateY(72px) scale(0.965);
         background: #fffbeb;
-        box-shadow: 0 16px 28px rgba(15, 23, 42, 0.13);
+        box-shadow: 0 20px 34px rgba(15, 23, 42, 0.18);
       }
       55% {
         opacity: 1;
-        transform: translateY(-4px) scale(1.006);
+        transform: translateY(-8px) scale(1.012);
         background: #fffbeb;
         box-shadow: 0 10px 18px rgba(15, 23, 42, 0.10);
       }
@@ -299,6 +299,35 @@
         background: #fff;
         box-shadow: 0 2px 8px rgba(0,0,0,0.05);
       }
+    }
+
+    .route-move-toast {
+      position: fixed;
+      left: 50%;
+      bottom: 86px;
+      transform: translate(-50%, 34px);
+      z-index: 80;
+      min-width: 168px;
+      max-width: calc(100vw - 48px);
+      padding: 12px 18px;
+      border-radius: 999px;
+      background: #111827;
+      color: #fff;
+      font-size: 17px;
+      font-weight: 800;
+      text-align: center;
+      box-shadow: 0 14px 28px rgba(15, 23, 42, 0.24);
+      opacity: 0;
+      pointer-events: none;
+    }
+    .route-move-toast.show {
+      animation: routeToastSlideUp 1.15s ease-out both;
+    }
+    @keyframes routeToastSlideUp {
+      0% { opacity: 0; transform: translate(-50%, 38px); }
+      18% { opacity: 1; transform: translate(-50%, 0); }
+      76% { opacity: 1; transform: translate(-50%, 0); }
+      100% { opacity: 0; transform: translate(-50%, -18px); }
     }
 
     .group-block {
@@ -551,23 +580,29 @@
     @media (max-width: 520px) {
       .toolbar {
         top: 6px;
-        padding: 10px;
+        padding: 8px 8px;
         gap: 6px;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      #summaryText {
+        display: none;
       }
       .toolbar-right {
         width: 100%;
-        display: grid;
-        grid-template-columns: repeat(2, minmax(0, 1fr));
-        gap: 8px;
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 6px;
       }
       .toolbar-right .btn {
-        width: 100%;
-        padding: 10px 8px;
-        font-size: 15px;
-      }
-      #summaryText {
-        font-size: 15px;
-        line-height: 1.45;
+        flex: 1 1 0;
+        min-width: 0;
+        width: auto;
+        padding: 8px 4px;
+        font-size: 13px;
+        line-height: 1.25;
+        white-space: nowrap;
       }
     }
 
@@ -603,6 +638,7 @@
     </div>
 
     <div class="unsaved-notice" id="unsavedNotice">已有未儲存變更，請記得按「儲存排車」。</div>
+    <div class="route-move-toast" id="routeMoveToast">已加入路線</div>
 
     <div class="floating-undo-wrap" id="undoSortFloating">
       <button class="btn btn-undo" id="undoSortBtn" onclick="undoLastSortStep()">返回<br>上一步</button>
@@ -1078,7 +1114,7 @@
           const movedRow = document.querySelector(`.row.route-move-enter[data-stop-key="${cssEscape_(animatedKey)}"]`);
           if (movedRow) movedRow.classList.remove('route-move-enter');
           if (pendingRouteMoveAnimationStopKey === animatedKey) pendingRouteMoveAnimationStopKey = '';
-        }, 540);
+        }, 820);
       }
 
       initSortables();
@@ -1270,6 +1306,18 @@
       }, 140);
     }
 
+    function showRouteMoveToast_(targetGroup) {
+      const toast = document.getElementById('routeMoveToast');
+      if (!toast) return;
+      toast.textContent = `已加入${targetGroup}`;
+      toast.classList.remove('show');
+      void toast.offsetWidth;
+      toast.classList.add('show');
+      window.setTimeout(function () {
+        toast.classList.remove('show');
+      }, 1200);
+    }
+
     function moveStopToGroup(stopKey, targetGroup, sourceButton) {
       if (!sortMode || isSaving) return;
       triggerDispatchTapFeedback_(sourceButton);
@@ -1297,6 +1345,7 @@
       pendingRouteMoveAnimationStopKey = key;
 
       renderDispatchBoard();
+      showRouteMoveToast_(target);
       markUnsavedChanges();
       syncLocalBoardFromDOM();
       updateSortActionButtons_();
