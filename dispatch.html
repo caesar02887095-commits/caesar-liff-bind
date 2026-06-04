@@ -301,6 +301,29 @@
       }
     }
 
+
+    .group-list.route-target-pulse {
+      animation: routeTargetPulseStrong 1.35s ease-out both;
+      border-color: rgba(220, 171, 0, 0.85);
+    }
+    @keyframes routeTargetPulseStrong {
+      0% {
+        background: #fff7d6;
+        box-shadow: 0 0 0 0 rgba(220, 171, 0, 0.45), 0 12px 28px rgba(15, 23, 42, 0.16);
+        transform: translateY(8px);
+      }
+      22% {
+        background: #fff7d6;
+        box-shadow: 0 0 0 6px rgba(220, 171, 0, 0.20), 0 10px 24px rgba(15, 23, 42, 0.12);
+        transform: translateY(0);
+      }
+      100% {
+        background: #fff;
+        box-shadow: none;
+        transform: translateY(0);
+      }
+    }
+
     .route-move-toast {
       position: fixed;
       left: 50%;
@@ -745,6 +768,8 @@
     let sortInitialSnapshot = null;
     let beforeDragSnapshot = null;
     let pendingRouteMoveAnimationStopKey = '';
+    let pendingRouteMoveTargetGroup = '';
+    let routeMoveToastTimer = null;
     let driverOptions = [...DEFAULT_DRIVER_OPTIONS];
     let pageLoadingTimer10 = null;
     let pageLoadingTimer30 = null;
@@ -1060,6 +1085,9 @@
 
       GROUP_NAMES.forEach(groupName => {
         const box = document.getElementById(`group-${groupName}`);
+        if (box && box.classList) {
+          box.classList.toggle('route-target-pulse', String(groupName) === String(pendingRouteMoveTargetGroup || ''));
+        }
         const list = Array.isArray(groups[groupName]) ? groups[groupName] : [];
         const countBox = document.getElementById(`count-${groupName}`);
         const driverSelect = document.getElementById(`driver-${groupName}`);
@@ -1108,13 +1136,21 @@
         }).join('');
       });
 
-      if (pendingRouteMoveAnimationStopKey) {
+      if (pendingRouteMoveAnimationStopKey || pendingRouteMoveTargetGroup) {
         const animatedKey = pendingRouteMoveAnimationStopKey;
+        const animatedGroup = pendingRouteMoveTargetGroup;
         window.setTimeout(function () {
-          const movedRow = document.querySelector(`.row.route-move-enter[data-stop-key="${cssEscape_(animatedKey)}"]`);
-          if (movedRow) movedRow.classList.remove('route-move-enter');
-          if (pendingRouteMoveAnimationStopKey === animatedKey) pendingRouteMoveAnimationStopKey = '';
-        }, 820);
+          if (animatedKey) {
+            const movedRow = document.querySelector(`.row.route-move-enter[data-stop-key="${cssEscape_(animatedKey)}"]`);
+            if (movedRow) movedRow.classList.remove('route-move-enter');
+            if (pendingRouteMoveAnimationStopKey === animatedKey) pendingRouteMoveAnimationStopKey = '';
+          }
+          if (animatedGroup) {
+            const targetBox = document.getElementById(`group-${animatedGroup}`);
+            if (targetBox) targetBox.classList.remove('route-target-pulse');
+            if (pendingRouteMoveTargetGroup === animatedGroup) pendingRouteMoveTargetGroup = '';
+          }
+        }, 1380);
       }
 
       initSortables();
@@ -1283,7 +1319,7 @@
       const saveBtn = document.getElementById('saveBtn');
       if (notice) notice.classList.toggle('show', !!hasUnsavedChanges);
       if (saveBtn && !isSaving) {
-        saveBtn.textContent = hasUnsavedChanges ? '儲存排車（有未儲存變更）' : '儲存排車';
+        saveBtn.textContent = '儲存排車';
         saveBtn.classList.toggle('unsaved-active', !!hasUnsavedChanges);
         saveBtn.classList.toggle('clean-state', !hasUnsavedChanges);
       }
@@ -1309,29 +1345,34 @@
     function showRouteMoveToast_(targetGroup) {
       const toast = document.getElementById('routeMoveToast');
       if (!toast) return;
-      toast.textContent = `已加入${targetGroup}`;
+      if (routeMoveToastTimer) {
+        window.clearTimeout(routeMoveToastTimer);
+        routeMoveToastTimer = null;
+      }
+      toast.textContent = `已加入 ${targetGroup}`;
       toast.classList.remove('show');
       void toast.offsetWidth;
       toast.classList.add('show');
-      window.setTimeout(function () {
+      routeMoveToastTimer = window.setTimeout(function () {
         toast.classList.remove('show');
-      }, 1200);
+        routeMoveToastTimer = null;
+      }, 1250);
     }
 
     function moveStopToGroup(stopKey, targetGroup, sourceButton) {
       if (!sortMode || isSaving) return;
-      triggerDispatchTapFeedback_(sourceButton);
 
       const key = String(stopKey || '');
       const target = String(targetGroup || '');
       if (!key || QUICK_ROUTE_GROUPS.indexOf(target) === -1) return;
 
-      pushSortUndoState_(buildSnapshotFromDOM());
-
       dispatchBoard = normalizeDispatchBoardGroups_(dispatchBoard || { groups: {} });
       const fromList = dispatchBoard.groups['調度'] || [];
       const index = fromList.findIndex(item => String(item.stopKey || '') === key);
       if (index < 0) return;
+
+      triggerDispatchTapFeedback_(sourceButton);
+      pushSortUndoState_(buildSnapshotFromDOM());
 
       const item = fromList.splice(index, 1)[0];
       item.routeGroup = target;
@@ -1343,6 +1384,7 @@
       dispatchBoard.groups[target] = dispatchBoard.groups[target] || [];
       dispatchBoard.groups[target].push(item);
       pendingRouteMoveAnimationStopKey = key;
+      pendingRouteMoveTargetGroup = target;
 
       renderDispatchBoard();
       showRouteMoveToast_(target);
@@ -1510,7 +1552,7 @@
 
       if (saveBtn) {
         saveBtn.disabled = saving;
-        saveBtn.textContent = saving ? '儲存中...' : (hasUnsavedChanges ? '儲存排車（有未儲存變更）' : '儲存排車');
+        saveBtn.textContent = saving ? '儲存中...' : '儲存排車';
         saveBtn.classList.toggle('unsaved-active', !saving && !!hasUnsavedChanges);
         saveBtn.classList.toggle('clean-state', !saving && !hasUnsavedChanges);
       }
