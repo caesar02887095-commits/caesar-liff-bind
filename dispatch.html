@@ -124,6 +124,61 @@
       border: 1px solid rgba(226, 232, 240, 0.95);
       box-shadow: 0 6px 18px rgba(15, 23, 42, 0.10);
     }
+
+    .sticky-dispatch-actions {
+      position: sticky;
+      top: 8px;
+      z-index: 45;
+      margin-bottom: 12px;
+    }
+    .sticky-dispatch-actions .toolbar {
+      position: static;
+      top: auto;
+      z-index: auto;
+      margin-bottom: 8px;
+    }
+    .route-jump-panel {
+      background: #fff;
+      border: 1px solid rgba(226, 232, 240, 0.95);
+      border-radius: 12px;
+      padding: 8px;
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
+      overflow-x: auto;
+      overflow-y: hidden;
+      -webkit-overflow-scrolling: touch;
+    }
+    .route-jump-row {
+      display: flex;
+      flex-wrap: nowrap;
+      gap: 8px;
+      min-width: max-content;
+    }
+    .route-jump-btn {
+      flex: 0 0 auto;
+      border: 1px solid #dbe4ef;
+      border-radius: 999px;
+      padding: 8px 13px;
+      min-width: 66px;
+      background: #f8fafc;
+      color: #334155;
+      font-size: 15px;
+      font-weight: 900;
+      line-height: 1.2;
+      white-space: nowrap;
+      cursor: pointer;
+      touch-action: manipulation;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      -webkit-user-select: none;
+      transition: transform 0.12s ease, background 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+    }
+    .route-jump-btn:active,
+    .route-jump-btn.tap-active {
+      transform: scale(0.96);
+      background: #fff7ed;
+      color: #92400e;
+      box-shadow: 0 0 0 3px rgba(235, 161, 58, 0.16);
+    }
     .toolbar-right {
       display: flex;
       gap: 8px;
@@ -378,6 +433,9 @@
     .group-block {
       margin-bottom: 14px;
     }
+    .group-block {
+      scroll-margin-top: 150px;
+    }
     .group-head {
       display: flex;
       justify-content: space-between;
@@ -623,6 +681,24 @@
       }
     }
     @media (max-width: 520px) {
+
+      .sticky-dispatch-actions {
+        top: 6px;
+      }
+      .sticky-dispatch-actions .toolbar {
+        margin-bottom: 6px;
+      }
+      .route-jump-panel {
+        padding: 7px;
+      }
+      .route-jump-row {
+        gap: 6px;
+      }
+      .route-jump-btn {
+        min-width: 60px;
+        padding: 8px 10px;
+        font-size: 14px;
+      }
       .toolbar {
         top: 6px;
         padding: 8px 8px;
@@ -634,7 +710,7 @@
       #summaryText {
         display: none;
       }
-      .toolbar-right {
+    .toolbar-right {
         width: 100%;
         display: flex;
         flex-wrap: nowrap;
@@ -672,13 +748,24 @@
       </div>
     </div>
 
-    <div class="toolbar">
-      <div id="summaryText">讀取中...</div>
-      <div class="toolbar-right">
-        <button class="btn btn-sort" id="sortToggleBtn" onclick="toggleSortMode()">修改排序</button>
-        <button class="btn btn-save" id="saveBtn" onclick="saveDispatchBoard()">儲存排車</button>
-        <button class="btn btn-cancel" id="cancelSortBtn" onclick="cancelSortMode()" style="display:none;">取消排序</button>
-        <button class="btn btn-refresh" id="refreshBtn" onclick="loadDispatchBoard()">重新整理</button>
+    <div class="sticky-dispatch-actions" aria-label="固定排車工具列">
+      <div class="toolbar">
+        <div id="summaryText">讀取中...</div>
+        <div class="toolbar-right">
+          <button class="btn btn-sort" id="sortToggleBtn" onclick="toggleSortMode()">修改排序</button>
+          <button class="btn btn-save" id="saveBtn" onclick="saveDispatchBoard()">儲存排車</button>
+          <button class="btn btn-cancel" id="cancelSortBtn" onclick="cancelSortMode()" style="display:none;">取消排序</button>
+          <button class="btn btn-refresh" id="refreshBtn" onclick="loadDispatchBoard()">重新整理</button>
+        </div>
+      </div>
+      <div class="route-jump-panel" aria-label="路線快捷導覽">
+        <div class="route-jump-row">
+          <button type="button" class="route-jump-btn" onclick="scrollToRouteGroup('市區', this)">市區</button>
+          <button type="button" class="route-jump-btn" onclick="scrollToRouteGroup('竹東', this)">竹東</button>
+          <button type="button" class="route-jump-btn" onclick="scrollToRouteGroup('湖口', this)">湖口</button>
+          <button type="button" class="route-jump-btn" onclick="scrollToRouteGroup('其他', this)">其他</button>
+          <button type="button" class="route-jump-btn" onclick="scrollToRouteGroup('機動', this)">機動</button>
+        </div>
       </div>
     </div>
 
@@ -1388,6 +1475,48 @@
         toast.classList.remove('show');
         routeMoveToastTimer = null;
       }, 1250);
+    }
+
+
+
+    function scrollToRouteGroup(groupName, sourceButton) {
+      const name = String(groupName || '');
+      if (!name) return;
+
+      try {
+        if (navigator && typeof navigator.vibrate === 'function') {
+          navigator.vibrate(8);
+        }
+      } catch (e) {}
+
+      if (sourceButton && sourceButton.classList) {
+        sourceButton.classList.add('tap-active');
+        window.setTimeout(function () {
+          try { sourceButton.classList.remove('tap-active'); } catch (e) {}
+        }, 160);
+      }
+
+      const list = document.getElementById(`group-${name}`);
+      const block = list ? list.closest('.group-block') : null;
+      if (!block) return;
+
+      try {
+        block.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      } catch (e) {
+        block.scrollIntoView(true);
+      }
+
+      // 捷徑導覽後，輕微標示目標路線，避免長頁面滑動後使用者找不到位置。
+      try {
+        if (list && list.classList) {
+          list.classList.remove('route-target-pulse');
+          void list.offsetWidth;
+          list.classList.add('route-target-pulse');
+          window.setTimeout(function () {
+            try { list.classList.remove('route-target-pulse'); } catch (e) {}
+          }, 1200);
+        }
+      } catch (e) {}
     }
 
     function moveStopToGroup(stopKey, targetGroup, sourceButton) {
