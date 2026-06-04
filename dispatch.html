@@ -138,46 +138,48 @@
       margin-bottom: 8px;
     }
     .route-jump-panel {
-      background: #fff;
-      border: 1px solid rgba(226, 232, 240, 0.95);
-      border-radius: 12px;
-      padding: 8px;
-      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.08);
-      overflow-x: auto;
-      overflow-y: hidden;
-      -webkit-overflow-scrolling: touch;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      padding: 2px 0 0;
+      box-shadow: none;
+      overflow: hidden;
     }
     .route-jump-row {
       display: flex;
       flex-wrap: nowrap;
-      gap: 8px;
-      min-width: max-content;
+      gap: 0;
+      width: 100%;
+      min-width: 0;
+      align-items: stretch;
     }
     .route-jump-btn {
-      flex: 0 0 auto;
-      border: 1px solid #dbe4ef;
-      border-radius: 999px;
-      padding: 8px 13px;
-      min-width: 66px;
-      background: #f8fafc;
-      color: #334155;
+      flex: 1 1 0;
+      min-width: 0;
+      border: none;
+      border-radius: 0;
+      padding: 8px 2px 7px;
+      background: transparent;
+      color: #475569;
       font-size: 15px;
       font-weight: 900;
       line-height: 1.2;
       white-space: nowrap;
+      text-align: center;
       cursor: pointer;
       touch-action: manipulation;
       -webkit-tap-highlight-color: transparent;
       user-select: none;
       -webkit-user-select: none;
-      transition: transform 0.12s ease, background 0.12s ease, color 0.12s ease, box-shadow 0.12s ease;
+      border-bottom: 2px solid transparent;
+      transition: transform 0.12s ease, color 0.12s ease, border-color 0.12s ease, background 0.12s ease;
     }
     .route-jump-btn:active,
     .route-jump-btn.tap-active {
-      transform: scale(0.96);
-      background: #fff7ed;
+      transform: translateY(1px);
       color: #92400e;
-      box-shadow: 0 0 0 3px rgba(235, 161, 58, 0.16);
+      border-bottom-color: #dcab00;
+      background: rgba(220, 171, 0, 0.08);
     }
     .toolbar-right {
       display: flex;
@@ -689,14 +691,14 @@
         margin-bottom: 6px;
       }
       .route-jump-panel {
-        padding: 7px;
+        padding: 1px 0 0;
       }
       .route-jump-row {
-        gap: 6px;
+        gap: 0;
       }
       .route-jump-btn {
-        min-width: 60px;
-        padding: 8px 10px;
+        min-width: 0;
+        padding: 8px 1px 7px;
         font-size: 14px;
       }
       .toolbar {
