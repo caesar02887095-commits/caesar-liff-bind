@@ -269,18 +269,29 @@
     }
 
     .row.route-move-enter {
-      animation: routeMoveEnterUp 0.22s ease-out both;
+      animation: routeMoveEnterUpStrong 0.46s cubic-bezier(0.16, 1, 0.3, 1) both;
+      transform-origin: center bottom;
+      will-change: transform, opacity, box-shadow, background-color;
+      border: 1px solid rgba(220, 171, 0, 0.42);
     }
-    @keyframes routeMoveEnterUp {
-      from {
-        opacity: 0;
-        transform: translateY(18px);
-        box-shadow: 0 0 0 rgba(15, 23, 42, 0);
+    @keyframes routeMoveEnterUpStrong {
+      0% {
+        opacity: 0.16;
+        transform: translateY(44px) scale(0.985);
+        background: #fffbeb;
+        box-shadow: 0 16px 28px rgba(15, 23, 42, 0.13);
       }
-      to {
+      55% {
         opacity: 1;
-        transform: translateY(0);
-        box-shadow: 0 2px 7px rgba(15, 23, 42, 0.05);
+        transform: translateY(-4px) scale(1.006);
+        background: #fffbeb;
+        box-shadow: 0 10px 18px rgba(15, 23, 42, 0.10);
+      }
+      100% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+        background: #fff;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
       }
     }
 
@@ -1033,9 +1044,12 @@
       });
 
       if (pendingRouteMoveAnimationStopKey) {
+        const animatedKey = pendingRouteMoveAnimationStopKey;
         window.setTimeout(function () {
-          pendingRouteMoveAnimationStopKey = '';
-        }, 260);
+          const movedRow = document.querySelector(`.row.route-move-enter[data-stop-key="${cssEscape_(animatedKey)}"]`);
+          if (movedRow) movedRow.classList.remove('route-move-enter');
+          if (pendingRouteMoveAnimationStopKey === animatedKey) pendingRouteMoveAnimationStopKey = '';
+        }, 540);
       }
 
       initSortables();
@@ -1489,6 +1503,14 @@
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;')
         .replace(/'/g, '&#39;');
+    }
+
+    function cssEscape_(value) {
+      const text = String(value || '');
+      if (window.CSS && typeof window.CSS.escape === 'function') {
+        return window.CSS.escape(text);
+      }
+      return text.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
     }
 
     function showPageProgress(text, percent, note) {
