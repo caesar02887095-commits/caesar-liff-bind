@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CAESAR 司機工作</title>
   <!-- v74：照片上限改 3 張，縮圖縮小為一排三張 -->
+  <!-- v75.39：統一外顯用語為「指定送貨」。 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <style>
@@ -1209,7 +1210,7 @@
       const address = String(group.address || '').trim();
       const shopName = String(group.shopName || '').trim();
       if (group.isStore) return shopName || '未填店家';
-      return '指定送達：' + (address || shopName || '未填地址');
+      return '指定送貨：' + (address || shopName || '未填地址');
     }
 
     function renderTasks(tasks) {
@@ -1325,7 +1326,7 @@
                 <button class="btn btn-photo btn-photo-upload" ${isUploadingPhotos ? 'disabled' : ''} data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">${isUploadingPhotos ? '照片上傳中' : `照片${(Number(group.photoCount || 0) + countLocalPhotoJobs_(group.key)) ? `(${Number(group.photoCount || 0) + countLocalPhotoJobs_(group.key)})` : ''}`}</button>
                 <button class="btn btn-done" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">配送完成</button>
               </div>` : ``;
-          const photoNoteHtml = (isNextStop && !group.isStore) ? `<div class="photo-note">指定送達建議拍照，最多 3 張。</div>` : '';
+          const photoNoteHtml = (isNextStop && !group.isStore) ? `<div class="photo-note">指定送貨建議拍照，最多 3 張。</div>` : '';
 
           htmlParts.push(`
             <div class="card" id="card-${escapeHtml(group.key)}">
