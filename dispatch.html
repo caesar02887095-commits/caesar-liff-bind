@@ -130,20 +130,31 @@
       top: 8px;
       z-index: 45;
       margin-bottom: 12px;
+      background: #fff;
+      border: 1px solid rgba(226, 232, 240, 0.95);
+      border-radius: 12px;
+      padding: 10px 12px 8px;
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.10);
     }
     .sticky-dispatch-actions .toolbar {
       position: static;
       top: auto;
       z-index: auto;
-      margin-bottom: 8px;
+      margin-bottom: 6px;
+      padding: 0;
+      background: transparent;
+      border: none;
+      border-radius: 0;
+      box-shadow: none;
     }
     .route-jump-panel {
       background: transparent;
       border: none;
       border-radius: 0;
-      padding: 2px 0 0;
+      padding: 3px 0 0;
       box-shadow: none;
       overflow: hidden;
+      border-top: 1px solid rgba(226, 232, 240, 0.75);
     }
     .route-jump-row {
       display: flex;
@@ -686,12 +697,13 @@
 
       .sticky-dispatch-actions {
         top: 6px;
+        padding: 8px 8px 6px;
       }
       .sticky-dispatch-actions .toolbar {
         margin-bottom: 6px;
       }
       .route-jump-panel {
-        padding: 1px 0 0;
+        padding: 2px 0 0;
       }
       .route-jump-row {
         gap: 0;
@@ -708,6 +720,10 @@
         flex-wrap: nowrap;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
+      }
+      .sticky-dispatch-actions .toolbar {
+        padding: 0;
+        overflow-x: visible;
       }
       #summaryText {
         display: none;
