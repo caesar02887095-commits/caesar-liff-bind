@@ -14,6 +14,7 @@
   <!-- v72.4：移除攔截連續 touchend 的點擊節流，保留不限制連點速度的防縮放設定 -->
   <!-- v75.25：調度快捷分類按鈕加入觸覺回饋與按下視覺回饋，提升修改排序時的按鍵確認感 -->
   <!-- v75.26：快捷分類後移入目標路線的站點加入上滑出現動畫，避免看起來像閃現 -->
+  <!-- v75.28：排車頁工具列改為下滑時固定在上方，方便長頁面操作修改排序與儲存排車 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <style>
@@ -117,6 +118,11 @@
       justify-content: space-between;
       align-items: center;
       flex-wrap: wrap;
+      position: sticky;
+      top: 8px;
+      z-index: 45;
+      border: 1px solid rgba(226, 232, 240, 0.95);
+      box-shadow: 0 6px 18px rgba(15, 23, 42, 0.10);
     }
     .toolbar-right {
       display: flex;
@@ -542,6 +548,29 @@
         letter-spacing: 0.12em;
       }
     }
+    @media (max-width: 520px) {
+      .toolbar {
+        top: 6px;
+        padding: 10px;
+        gap: 6px;
+      }
+      .toolbar-right {
+        width: 100%;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .toolbar-right .btn {
+        width: 100%;
+        padding: 10px 8px;
+        font-size: 15px;
+      }
+      #summaryText {
+        font-size: 15px;
+        line-height: 1.45;
+      }
+    }
+
   </style>
 </head>
 <body>
