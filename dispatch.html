@@ -301,6 +301,28 @@
       }
     }
 
+    .row.dispatch-shift-enter {
+      animation: dispatchShiftEnterUp 0.52s cubic-bezier(0.16, 1, 0.3, 1) both;
+      will-change: transform, background-color, box-shadow;
+    }
+    @keyframes dispatchShiftEnterUp {
+      0% {
+        transform: translateY(78px);
+        background: #fff8db;
+        box-shadow: 0 14px 26px rgba(15, 23, 42, 0.14);
+      }
+      52% {
+        transform: translateY(-5px);
+        background: #fff8db;
+        box-shadow: 0 8px 18px rgba(15, 23, 42, 0.10);
+      }
+      100% {
+        transform: translateY(0);
+        background: #fff;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+      }
+    }
+
 
     .group-list.route-target-pulse {
       animation: routeTargetPulseStrong 1.35s ease-out both;
@@ -769,6 +791,7 @@
     let beforeDragSnapshot = null;
     let pendingRouteMoveAnimationStopKey = '';
     let pendingRouteMoveTargetGroup = '';
+    let pendingDispatchShiftAnimationStopKey = '';
     let routeMoveToastTimer = null;
     let driverOptions = [...DEFAULT_DRIVER_OPTIONS];
     let pageLoadingTimer10 = null;
@@ -1115,10 +1138,12 @@
           const orderCount = getOrderCount(item);
           const addonBadge = item.isManualAdd ? '<span class="addon-badge">加單</span>' : '';
           const quickActions = (sortMode && groupName === '調度') ? renderQuickRouteActions(item) : '';
-          const rowEnterClass = String(item.stopKey || '') === pendingRouteMoveAnimationStopKey ? ' route-move-enter' : '';
+          const stopKeyText = String(item.stopKey || '');
+          const rowEnterClass = stopKeyText === pendingRouteMoveAnimationStopKey ? ' route-move-enter' : '';
+          const dispatchShiftClass = (groupName === '調度' && stopKeyText === pendingDispatchShiftAnimationStopKey) ? ' dispatch-shift-enter' : '';
 
           return `
-            <div class="row${rowEnterClass}"
+            <div class="row${rowEnterClass}${dispatchShiftClass}"
                  data-stop-key="${escapeHtml(item.stopKey)}"
                  data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(item.taskIds || [])))}">
               <div class="row-main">
@@ -1136,9 +1161,10 @@
         }).join('');
       });
 
-      if (pendingRouteMoveAnimationStopKey || pendingRouteMoveTargetGroup) {
+      if (pendingRouteMoveAnimationStopKey || pendingRouteMoveTargetGroup || pendingDispatchShiftAnimationStopKey) {
         const animatedKey = pendingRouteMoveAnimationStopKey;
         const animatedGroup = pendingRouteMoveTargetGroup;
+        const shiftedKey = pendingDispatchShiftAnimationStopKey;
         window.setTimeout(function () {
           if (animatedKey) {
             const movedRow = document.querySelector(`.row.route-move-enter[data-stop-key="${cssEscape_(animatedKey)}"]`);
@@ -1149,6 +1175,11 @@
             const targetBox = document.getElementById(`group-${animatedGroup}`);
             if (targetBox) targetBox.classList.remove('route-target-pulse');
             if (pendingRouteMoveTargetGroup === animatedGroup) pendingRouteMoveTargetGroup = '';
+          }
+          if (shiftedKey) {
+            const shiftedRow = document.querySelector(`.row.dispatch-shift-enter[data-stop-key="${cssEscape_(shiftedKey)}"]`);
+            if (shiftedRow) shiftedRow.classList.remove('dispatch-shift-enter');
+            if (pendingDispatchShiftAnimationStopKey === shiftedKey) pendingDispatchShiftAnimationStopKey = '';
           }
         }, 1380);
       }
@@ -1374,6 +1405,10 @@
       triggerDispatchTapFeedback_(sourceButton);
       pushSortUndoState_(buildSnapshotFromDOM());
 
+      // v75.31：記錄被移走後會補上來的下一筆，讓調度清單有明確的上滑補位感。
+      const nextDispatchItem = fromList[index + 1] || null;
+      const nextDispatchKey = nextDispatchItem ? String(nextDispatchItem.stopKey || '') : '';
+
       const item = fromList.splice(index, 1)[0];
       item.routeGroup = target;
 
@@ -1385,6 +1420,7 @@
       dispatchBoard.groups[target].push(item);
       pendingRouteMoveAnimationStopKey = key;
       pendingRouteMoveTargetGroup = target;
+      pendingDispatchShiftAnimationStopKey = nextDispatchKey;
 
       renderDispatchBoard();
       showRouteMoveToast_(target);
