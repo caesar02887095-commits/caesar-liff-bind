@@ -13,6 +13,7 @@
   <!-- v72.3：排車頁全頁套用防連點放大，避免連續點擊返回或操作按鈕時觸發縮放 -->
   <!-- v72.4：移除攔截連續 touchend 的點擊節流，保留不限制連點速度的防縮放設定 -->
   <!-- v75.25：調度快捷分類按鈕加入觸覺回饋與按下視覺回饋，提升修改排序時的按鍵確認感 -->
+  <!-- v75.26：快捷分類後移入目標路線的站點加入上滑出現動畫，避免看起來像閃現 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <style>
@@ -265,6 +266,22 @@
       transform: scale(0.96);
       box-shadow: inset 0 2px 5px rgba(15, 23, 42, 0.16);
       filter: brightness(0.97);
+    }
+
+    .row.route-move-enter {
+      animation: routeMoveEnterUp 0.22s ease-out both;
+    }
+    @keyframes routeMoveEnterUp {
+      from {
+        opacity: 0;
+        transform: translateY(18px);
+        box-shadow: 0 0 0 rgba(15, 23, 42, 0);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+        box-shadow: 0 2px 7px rgba(15, 23, 42, 0.05);
+      }
     }
 
     .group-block {
@@ -651,6 +668,7 @@
     let sortUndoStack = [];
     let sortInitialSnapshot = null;
     let beforeDragSnapshot = null;
+    let pendingRouteMoveAnimationStopKey = '';
     let driverOptions = [...DEFAULT_DRIVER_OPTIONS];
     let pageLoadingTimer10 = null;
     let pageLoadingTimer30 = null;
@@ -993,9 +1011,10 @@
           const orderCount = getOrderCount(item);
           const addonBadge = item.isManualAdd ? '<span class="addon-badge">加單</span>' : '';
           const quickActions = (sortMode && groupName === '調度') ? renderQuickRouteActions(item) : '';
+          const rowEnterClass = String(item.stopKey || '') === pendingRouteMoveAnimationStopKey ? ' route-move-enter' : '';
 
           return `
-            <div class="row"
+            <div class="row${rowEnterClass}"
                  data-stop-key="${escapeHtml(item.stopKey)}"
                  data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(item.taskIds || [])))}">
               <div class="row-main">
@@ -1012,6 +1031,12 @@
           `;
         }).join('');
       });
+
+      if (pendingRouteMoveAnimationStopKey) {
+        window.setTimeout(function () {
+          pendingRouteMoveAnimationStopKey = '';
+        }, 260);
+      }
 
       initSortables();
     }
@@ -1226,6 +1251,7 @@
 
       dispatchBoard.groups[target] = dispatchBoard.groups[target] || [];
       dispatchBoard.groups[target].push(item);
+      pendingRouteMoveAnimationStopKey = key;
 
       renderDispatchBoard();
       markUnsavedChanges();
