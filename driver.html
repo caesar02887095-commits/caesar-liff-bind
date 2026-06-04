@@ -242,16 +242,6 @@
       color: #4b5563;
       line-height: 1.5;
     }
-    .future-stop-note {
-      margin-top: 10px;
-      padding: 8px 10px;
-      border-radius: 10px;
-      background: #f8fafc;
-      border: 1px dashed #cbd5e1;
-      color: #64748b;
-      font-size: 13px;
-      line-height: 1.5;
-    }
     .completed-summary-card {
       background: #f8fafc;
       border: 1px dashed #cbd5e1;
@@ -1334,8 +1324,7 @@
                 <button class="btn btn-nav" data-nav="${escapeHtml(navTarget)}">導航</button>
                 <button class="btn btn-photo btn-photo-upload" ${isUploadingPhotos ? 'disabled' : ''} data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">${isUploadingPhotos ? '照片上傳中' : `照片${(Number(group.photoCount || 0) + countLocalPhotoJobs_(group.key)) ? `(${Number(group.photoCount || 0) + countLocalPhotoJobs_(group.key)})` : ''}`}</button>
                 <button class="btn btn-done" data-group-key="${escapeHtml(group.key)}" data-taskids="${escapeHtml(encodeURIComponent(JSON.stringify(group.taskIds)))}">配送完成</button>
-              </div>` : `
-              <div class="future-stop-note">下一站之後的工作先保留查看，請完成前一站後再操作。</div>`;
+              </div>` : ``;
           const photoNoteHtml = (isNextStop && !group.isStore) ? `<div class="photo-note">指定送達建議拍照，最多 3 張。</div>` : '';
 
           htmlParts.push(`
