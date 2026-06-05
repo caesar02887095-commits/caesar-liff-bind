@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>凱撒衛浴查詢入口</title>
+  <!-- v75.49：分享追蹤連結加入 tracking-v75-49 版本參數，避免手機快取仍讀舊追蹤頁。 -->
   <!-- v75.48：LINE App external 環境新增 line.me/R/share URL Scheme 分享，流程為 LIFF 內建分享 → LINE URL Scheme → 系統分享 → 複製備援。 -->
   <!-- v75.47：移除一般備援面板常駐診斷內容；診斷僅在網址帶 debugShare=1 時顯示，避免客戶誤會。 -->
   <!-- v75.46：分享流程改為 LINE 內建分享 → 手機系統分享 → 複製備援，避免 external LIFF 環境導致分享失敗。 -->
@@ -1820,6 +1821,7 @@
       const url = new URL('tracking-detail.html', window.location.href);
       url.search = '';
       url.hash = '';
+      url.searchParams.set('v', 'tracking-v75-49');
       url.searchParams.set('shareToken', token || '');
       return url.toString();
     }
