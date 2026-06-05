@@ -4,6 +4,8 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>凱撒衛浴查詢入口</title>
+  <!-- v75.48：LINE App external 環境新增 line.me/R/share URL Scheme 分享，流程為 LIFF 內建分享 → LINE URL Scheme → 系統分享 → 複製備援。 -->
+  <!-- v75.47：移除一般備援面板常駐診斷內容；診斷僅在網址帶 debugShare=1 時顯示，避免客戶誤會。 -->
   <!-- v75.46：分享流程改為 LINE 內建分享 → 手機系統分享 → 複製備援，避免 external LIFF 環境導致分享失敗。 -->
   <!-- v75.45：LINE 內建分享不可用時，顯示 LIFF/LINE 環境診斷資訊，方便判斷 shareTargetPicker 失效原因。 -->
   <!-- v75.44：LINE 內建分享不可用時，提供「重新登入」讓使用者重取 LIFF 狀態。 -->
@@ -781,14 +783,13 @@
   <div class="share-fallback-overlay" id="shareFallbackOverlay" onclick="closeShareFallbackPanel(event)">
     <div class="share-fallback-panel" onclick="event.stopPropagation()">
       <div class="share-fallback-title">分享內容已產生</div>
-      <div class="share-fallback-note" id="shareFallbackNote">若 LINE 內建分享沒有開啟，請使用下方按鈕複製，或長按文字手動選取。</div>
+      <div class="share-fallback-note" id="shareFallbackNote">若剛才取消分享或手機沒有完成分享，請使用下方按鈕複製，或長按文字手動選取後貼到 LINE。</div>
       <textarea class="share-fallback-textarea" id="shareFallbackText" readonly></textarea>
       <div class="share-diagnostic-box" id="shareDiagnosticBox"></div>
       <div class="share-fallback-actions">
         <button class="btn btn-primary" onclick="copyShareTextFromPanel()">複製完整文字</button>
         <button class="btn btn-secondary" onclick="copyShareUrlFromPanel()">只複製連結</button>
         <button class="btn btn-secondary" onclick="reloginLine()">重新登入</button>
-        <button class="btn btn-secondary" onclick="copyShareDiagnosticFromPanel()">複製診斷資訊</button>
       </div>
       <button class="btn btn-secondary share-fallback-close" onclick="closeShareFallbackPanel()">關閉</button>
       <div class="share-copy-status" id="shareCopyStatus"></div>
@@ -1849,6 +1850,19 @@
       return /Android|iPhone|iPad|iPod/i.test(ua);
     }
 
+    function isLineAppEnvironment_() {
+      const ua = navigator.userAgent || '';
+      return /Line\//i.test(ua);
+    }
+
+    function shareViaLineUrlScheme_(shareText) {
+      const text = shareText || '';
+      if (!text) return false;
+      const url = 'https://line.me/R/share?text=' + encodeURIComponent(text);
+      window.location.href = url;
+      return true;
+    }
+
     async function shareViaSystem() {
       if (!currentSharePayload) return;
 
@@ -1856,9 +1870,9 @@
       const shareUrl = currentSharePayload.url || '';
       const nativeShareText = buildNativeShareText_(currentSharePayload);
 
-      // v75.46：分享流程改為「LINE 內建分享 → 手機系統分享 → 複製備援」。
+      // v75.48：分享流程改為「LIFF 內建分享 → LINE URL Scheme → 手機系統分享 → 複製備援」。
       // 若頁面是 external LIFF / GitHub Pages 直開，liff.isInClient() 會是 false，
-      // 此時即使 shareTargetPicker 顯示可用，實際呼叫仍可能失敗，因此只在真正 LIFF 內嵌環境優先使用。
+      // 此時優先改走 LINE 官方 line.me/R/share URL Scheme，避免卡在 shareTargetPicker。
       try {
         const canUseLinePicker =
           typeof liff !== 'undefined' &&
@@ -1882,10 +1896,15 @@
         }
       } catch (e) {
         lastShareTargetPickerError = stringifyLiffError_(e) || String(e || '');
-        console.warn('LINE shareTargetPicker failed, fallback to native share:', e);
+        console.warn('LINE shareTargetPicker failed, fallback to LINE URL Scheme:', e);
       }
 
-      // 手機環境優先用一般系統分享，讓使用者可選 LINE、訊息或其他 App。
+      // LINE App 但不是 LIFF 內嵌環境時，使用官方 line.me/R/share URL Scheme 開啟 LINE 分享。
+      if (isMobileShareEnvironment_() && isLineAppEnvironment_()) {
+        if (shareViaLineUrlScheme_(shareText)) return;
+      }
+
+      // 其他手機環境再用一般系統分享，讓使用者可選 LINE、訊息或其他 App。
       try {
         if (isMobileShareEnvironment_() && navigator.share) {
           await navigator.share({
@@ -1906,7 +1925,7 @@
         return;
       }
 
-      await showManualShareFallback_('手機分享未完成。\n請使用下方按鈕複製，或長按文字手動選取後貼到 LINE。');
+      await showManualShareFallback_('手機分享未完成。\n若剛才按了取消，代表尚未送出；請重新分享，或使用下方按鈕複製後貼到 LINE。');
     }
 
     async function copyShareLink(showManualOnFail) {
@@ -1954,7 +1973,7 @@
         try { context = liff.getContext(); } catch (err) { context = null; }
       }
 
-      lines.push('【CAESAR LINE 分享診斷 v75.46】');
+      lines.push('【CAESAR LINE 分享診斷 v75.47】');
       lines.push('LIFF ID：' + LIFF_ID);
       lines.push('目前網址：' + window.location.href);
       lines.push('User Agent：' + ua);
@@ -2001,6 +2020,15 @@
       return lines.join('\n');
     }
 
+    function isShareDebugEnabled_() {
+      try {
+        const params = new URLSearchParams(window.location.search || '');
+        return params.get('debugShare') === '1' || params.get('shareDebug') === '1';
+      } catch (e) {
+        return false;
+      }
+    }
+
     function showShareFallbackPanel_(note, statusText) {
       const overlay = document.getElementById('shareFallbackOverlay');
       const textarea = document.getElementById('shareFallbackText');
@@ -2012,8 +2040,13 @@
       if (noteEl) noteEl.textContent = note || '請複製下方分享內容。';
       if (statusEl) statusEl.textContent = statusText || '';
       if (diagnosticEl) {
-        diagnosticEl.textContent = buildLineShareDiagnosticText_();
-        diagnosticEl.classList.add('show');
+        if (isShareDebugEnabled_()) {
+          diagnosticEl.textContent = buildLineShareDiagnosticText_();
+          diagnosticEl.classList.add('show');
+        } else {
+          diagnosticEl.textContent = '';
+          diagnosticEl.classList.remove('show');
+        }
       }
       overlay.classList.add('show');
       setTimeout(() => {
