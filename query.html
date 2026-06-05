@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>凱撒衛浴查詢入口</title>
+  <!-- v75.44：LINE 內建分享不可用時，提供「重新登入」讓使用者重取 LIFF 狀態。 -->
   <!-- v75.43：分享送貨進度主流程改用 LINE LIFF shareTargetPicker，複製面板僅作備援。 -->
   <!-- v75.42：修正 v75.41 分享備援字串換行造成查詢頁 JavaScript 語法錯誤。 -->
   <!-- v75.41：手機分享送貨進度曾改為 title/text/url 原生分享，v75.43 已改回 LINE 內建分享為主。 -->
@@ -717,6 +718,23 @@
       color: #166534;
       font-weight: 900;
     }
+
+    .line-relogin-btn {
+      border: 1px solid #cbd5e1;
+      border-radius: 999px;
+      padding: 5px 10px;
+      margin-left: 8px;
+      background: #ffffff;
+      color: #475569;
+      font-size: 12px;
+      font-weight: 900;
+      cursor: pointer;
+      white-space: nowrap;
+      vertical-align: middle;
+    }
+    .line-relogin-btn:active {
+      transform: translateY(1px);
+    }
   </style>
 </head>
 <body>
@@ -749,6 +767,7 @@
       <div class="share-fallback-actions">
         <button class="btn btn-primary" onclick="copyShareTextFromPanel()">複製完整文字</button>
         <button class="btn btn-secondary" onclick="copyShareUrlFromPanel()">只複製連結</button>
+        <button class="btn btn-secondary" onclick="reloginLine()">重新登入</button>
       </div>
       <button class="btn btn-secondary share-fallback-close" onclick="closeShareFallbackPanel()">關閉</button>
       <div class="share-copy-status" id="shareCopyStatus"></div>
@@ -844,6 +863,27 @@
       window.location.reload();
     }
 
+
+    function reloginLine() {
+      try {
+        closeShareFallbackPanel();
+      } catch (e) {}
+      try {
+        sessionStorage.removeItem(RETURN_RESTORED_KEY);
+        prepareLoginRedirect_();
+        if (typeof liff !== 'undefined' && typeof liff.isLoggedIn === 'function' && liff.isLoggedIn()) {
+          try { liff.logout(); } catch (logoutErr) {}
+        }
+        if (typeof liff !== 'undefined' && typeof liff.login === 'function') {
+          liff.login({ redirectUri: window.location.href });
+          return;
+        }
+      } catch (err) {
+        console.warn('reloginLine failed, fallback to reload:', err);
+      }
+      window.location.reload();
+    }
+
     function renderTokenExpiredMessage_() {
       stopLoadingSequence();
       document.getElementById('app').innerHTML = `
@@ -881,7 +921,7 @@
         currentDisplayName = profile.displayName || '';
 
         document.getElementById('userInfo').innerHTML =
-          `LINE 使用者：<b>${escapeHtml(currentDisplayName || '未辨識')}</b>`;
+          `LINE 使用者：<b>${escapeHtml(currentDisplayName || '未辨識')}</b><button class="line-relogin-btn" onclick="reloginLine()" type="button">重新登入</button>`;
 
         await loadPortal();
       } catch (err) {
@@ -1822,7 +1862,7 @@
         return;
       }
 
-      await showManualShareFallback_('LINE 內建分享沒有開啟。\n請使用下方按鈕複製，或長按文字手動選取後貼到 LINE。');
+      await showManualShareFallback_('LINE 內建分享沒有開啟。\n可先按「重新登入」後再試；急用時請使用下方按鈕複製，或長按文字手動選取後貼到 LINE。');
     }
 
     async function copyShareLink(showManualOnFail) {
