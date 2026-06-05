@@ -256,12 +256,12 @@
         <div class="portal-alert-title" id="lineReviewAlertTitle">有 LINE 申請需要審查</div>
         <div class="portal-alert-sub" id="lineReviewAlertSub">請進入管理頁查看待審查名單。</div>
       </div>
-      <a class="portal-alert-action" href="admin.html?v=admin-v73-1">查看管理頁 →</a>
+      <a class="portal-alert-action" href="admin.html?v=admin-v75-49">查看管理頁 →</a>
     </div>
 
 
     <section class="section grid">
-      <a class="card" id="dispatchCard" href="dispatch.html?v=dispatch-v4">
+      <a class="card" id="dispatchCard" href="dispatch.html?v=dispatch-v75-49">
         <div class="card-title-row">
           <h2>排車管理</h2>
           <span class="card-tag" id="dispatchTag">內部</span>
@@ -271,7 +271,7 @@
         <div class="card-action">進入排車頁 →</div>
       </a>
 
-      <a class="card" href="driver.html?v=driver-auth">
+      <a class="card" href="driver.html?v=driver-v75-49">
         <div class="card-title-row">
           <h2>司機工作</h2>
           <span class="card-tag">司機</span>
@@ -280,7 +280,7 @@
         <div class="card-action">進入司機頁 →</div>
       </a>
 
-      <a class="card" href="query.html?v=query-v52">
+      <a class="card" href="query.html?v=query-v75-49">
         <div class="card-title-row">
           <h2>配送查詢</h2>
           <span class="card-tag">客戶</span>
@@ -289,7 +289,7 @@
         <div class="card-action">進入查詢頁 →</div>
       </a>
 
-      <a class="card" id="adminCard" href="admin.html?v=admin-v73-1">
+      <a class="card" id="adminCard" href="admin.html?v=admin-v75-49">
         <div class="card-title-row">
           <h2>系統管理</h2>
           <span class="card-tag" id="adminTag">管理</span>
@@ -392,7 +392,17 @@
 
       try {
         const resp = await fetch(`${GAS_WEBAPP_URL}?action=get_pending_line_request_status&ts=${Date.now()}`, { cache: 'no-store' });
-        const json = await resp.json();
+        if (!resp.ok) throw new Error('HTTP ' + resp.status);
+        const text = await resp.text();
+        let json = null;
+        try {
+          json = JSON.parse(text);
+        } catch (parseErr) {
+          throw new Error('GAS 回應不是 JSON：' + text.substring(0, 80));
+        }
+        if (!json || json.ok === false) {
+          throw new Error((json && (json.message || json.error)) || 'GAS 回傳失敗');
+        }
         const data = json && json.data ? json.data : {};
         const count = Number(data.count || 0);
 
@@ -421,7 +431,7 @@
           alertBox.style.color = '#991b1b';
         }
         if (alertTitle) alertTitle.textContent = 'LINE 審查狀態讀取失敗';
-        if (alertSub) alertSub.textContent = '請進入管理頁確認，或檢查程式碼.gs 是否已更新到 v73.4。';
+        if (alertSub) alertSub.textContent = '請進入管理頁確認；若仍失敗，請檢查程式碼.gs 是否為 v75.39 以上、GAS Web App 是否重新部署、LINE_DB 表頭是否正常。';
       }
     }
 
