@@ -4,8 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>凱撒衛浴配送系統入口</title>
-  <!-- v75.39：檔頭版本校正；沿用 v73.4 入口頁功能基準，未調整功能流程。 -->
-  <!-- v53.4：移除入口頁系統健檢錯誤區，異常集中至管理頁 -->
+  <!-- v76.0：穩定化整理版；統一入口版本參數與審查狀態讀取失敗提示，不改入口功能流程。 -->
   <style>
     :root {
       --caesar-orange: #f28c28;
@@ -256,12 +255,12 @@
         <div class="portal-alert-title" id="lineReviewAlertTitle">有 LINE 申請需要審查</div>
         <div class="portal-alert-sub" id="lineReviewAlertSub">請進入管理頁查看待審查名單。</div>
       </div>
-      <a class="portal-alert-action" href="admin.html?v=admin-v75-49">查看管理頁 →</a>
+      <a class="portal-alert-action" href="admin.html?v=admin-v76-0">查看管理頁 →</a>
     </div>
 
 
     <section class="section grid">
-      <a class="card" id="dispatchCard" href="dispatch.html?v=dispatch-v75-49">
+      <a class="card" id="dispatchCard" href="dispatch.html?v=dispatch-v76-0">
         <div class="card-title-row">
           <h2>排車管理</h2>
           <span class="card-tag" id="dispatchTag">內部</span>
@@ -271,7 +270,7 @@
         <div class="card-action">進入排車頁 →</div>
       </a>
 
-      <a class="card" href="driver.html?v=driver-v75-49">
+      <a class="card" href="driver.html?v=driver-v76-0">
         <div class="card-title-row">
           <h2>司機工作</h2>
           <span class="card-tag">司機</span>
@@ -280,7 +279,7 @@
         <div class="card-action">進入司機頁 →</div>
       </a>
 
-      <a class="card" href="query.html?v=query-v75-49">
+      <a class="card" href="query.html?v=query-v76-0">
         <div class="card-title-row">
           <h2>配送查詢</h2>
           <span class="card-tag">客戶</span>
@@ -289,7 +288,7 @@
         <div class="card-action">進入查詢頁 →</div>
       </a>
 
-      <a class="card" id="adminCard" href="admin.html?v=admin-v75-49">
+      <a class="card" id="adminCard" href="admin.html?v=admin-v76-0">
         <div class="card-title-row">
           <h2>系統管理</h2>
           <span class="card-tag" id="adminTag">管理</span>
@@ -431,7 +430,7 @@
           alertBox.style.color = '#991b1b';
         }
         if (alertTitle) alertTitle.textContent = 'LINE 審查狀態讀取失敗';
-        if (alertSub) alertSub.textContent = '請進入管理頁確認；若仍失敗，請檢查程式碼.gs 是否為 v75.39 以上、GAS Web App 是否重新部署、LINE_DB 表頭是否正常。';
+        if (alertSub) alertSub.textContent = '請進入管理頁確認；若仍失敗，請檢查程式碼.gs 是否為目前正式版、GAS Web App 是否重新部署、LINE_DB 表頭是否正常。';
       }
     }
 
