@@ -15,6 +15,7 @@
   <!-- v75.25：調度快捷分類按鈕加入觸覺回饋與按下視覺回饋，提升修改排序時的按鍵確認感 -->
   <!-- v75.26：快捷分類後移入目標路線的站點加入上滑出現動畫，避免看起來像閃現 -->
   <!-- v75.28：排車頁工具列改為下滑時固定在上方，方便長頁面操作修改排序與儲存排車 -->
+  <!-- v75.40：修正路線司機下拉選單儲存後跳回舊司機；不新增頁面、不新增分頁，僅保留本次畫面司機選擇狀態 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
   <style>
@@ -996,6 +997,7 @@
     let pendingDispatchShiftAnimationStopKey = '';
     let routeMoveToastTimer = null;
     let driverOptions = [...DEFAULT_DRIVER_OPTIONS];
+    let routeDriverSelections = {};
     let pageLoadingTimer10 = null;
     let pageLoadingTimer30 = null;
 
@@ -1144,6 +1146,8 @@
           ...driverOptions.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`)
         ].join('');
         select.onchange = function() {
+          routeDriverSelections[groupName] = select.value || '';
+          applySnapshotToBoard_(buildSnapshotFromDOM());
           markUnsavedChanges();
           syncLocalBoardFromDOM();
         };
@@ -1239,6 +1243,7 @@
         dispatchBoard = normalizeDispatchBoardGroups_(json.data || { groups: {} });
         currentBatchId = dispatchBoard.batchId || '';
         lastLoadedDispatchBoard = cloneDispatchBoard_(dispatchBoard);
+        routeDriverSelections = extractRouteDriverSelectionsFromBoard_(dispatchBoard);
         hasUnsavedChanges = false;
         resetSortUndoState_();
         updateUnsavedNotice();
@@ -1297,6 +1302,34 @@
       return merged;
     }
 
+
+    function extractRouteDriverSelectionsFromBoard_(board) {
+      const selections = {};
+      const normalized = normalizeDispatchBoardGroups_(board || { groups: {} });
+      GROUP_NAMES.forEach(groupName => {
+        const list = Array.isArray(normalized.groups[groupName]) ? normalized.groups[groupName] : [];
+        selections[groupName] = list.length > 0 ? String(list[0].driverName || '') : '';
+      });
+      return selections;
+    }
+
+    function getRouteDriverSelection_(groupName, list) {
+      const preserved = routeDriverSelections && Object.prototype.hasOwnProperty.call(routeDriverSelections, groupName)
+        ? String(routeDriverSelections[groupName] || '')
+        : '';
+      if (preserved) return preserved;
+      const safeList = Array.isArray(list) ? list : [];
+      return safeList.length > 0 ? String(safeList[0].driverName || '') : '';
+    }
+
+    function captureRouteDriverSelectionsFromDOM_() {
+      GROUP_NAMES.forEach(groupName => {
+        const select = document.getElementById(`driver-${groupName}`);
+        if (select) routeDriverSelections[groupName] = select.value || '';
+      });
+      return { ...routeDriverSelections };
+    }
+
     function renderDispatchBoard() {
       document.getElementById('dispatchInfo').innerHTML = `目前查看：<b>${currentPeriod}</b>`;
 
@@ -1322,7 +1355,7 @@
           countBox.textContent = `${list.length} 站 / ${groupOrderCount} 張單`;
         }
 
-        const groupDriverName = list.length > 0 ? (list[0].driverName || '') : '';
+        const groupDriverName = getRouteDriverSelection_(groupName, list);
         if (driverSelect) {
           ensureDriverOption(driverSelect, groupDriverName);
           driverSelect.value = groupDriverName;
@@ -1525,6 +1558,12 @@
       });
 
       dispatchBoard = normalizeDispatchBoardGroups_(nextBoard);
+      GROUP_NAMES.forEach(groupName => {
+        const group = safeSnapshot.groups && safeSnapshot.groups[groupName]
+          ? safeSnapshot.groups[groupName]
+          : { driverName: '' };
+        routeDriverSelections[groupName] = String(group.driverName || '');
+      });
     }
 
     function updateUnsavedAfterUndo_() {
@@ -1731,12 +1770,14 @@
       // 取消排序時回到目前從後端讀取的排車資料，不套用本次未儲存的拖拉 / 快捷分類變更。
       clearLocalSnapshot(currentPeriod);
       dispatchBoard = cloneDispatchBoard_(lastLoadedDispatchBoard || dispatchBoard || { groups: {} });
+      routeDriverSelections = extractRouteDriverSelectionsFromBoard_(dispatchBoard);
       clearUnsavedChanges();
       renderDispatchBoard();
     }
 
     function syncLocalBoardFromDOM() {
       const snapshot = buildSnapshotFromDOM();
+      applySnapshotToBoard_(snapshot);
       saveLocalSnapshot(snapshot);
     }
 
@@ -1861,6 +1902,10 @@
         if (!json.ok) {
           throw new Error(json.message || json.error || '儲存排車失敗');
         }
+
+        const savedSnapshot = buildSnapshotFromDOM();
+        captureRouteDriverSelectionsFromDOM_();
+        applySnapshotToBoard_(savedSnapshot);
 
         sortMode = false;
         resetSortUndoState_();
@@ -2032,7 +2077,9 @@
 
     document.addEventListener('change', function(e) {
       const targetId = e.target && e.target.id ? e.target.id : '';
-      if (GROUP_NAMES.some(name => targetId === `driver-${name}`)) {
+      const changedGroup = GROUP_NAMES.find(name => targetId === `driver-${name}`);
+      if (changedGroup) {
+        routeDriverSelections[changedGroup] = e.target.value || '';
         syncLocalBoardFromDOM();
       }
     });
