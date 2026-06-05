@@ -4,18 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>凱撒衛浴查詢入口</title>
-  <!-- v75.49：分享追蹤連結加入 tracking-v75-49 版本參數，避免手機快取仍讀舊追蹤頁。 -->
-  <!-- v75.48：LINE App external 環境新增 line.me/R/share URL Scheme 分享，流程為 LIFF 內建分享 → LINE URL Scheme → 系統分享 → 複製備援。 -->
-  <!-- v75.47：移除一般備援面板常駐診斷內容；診斷僅在網址帶 debugShare=1 時顯示，避免客戶誤會。 -->
-  <!-- v75.46：分享流程改為 LINE 內建分享 → 手機系統分享 → 複製備援，避免 external LIFF 環境導致分享失敗。 -->
-  <!-- v75.45：LINE 內建分享不可用時，顯示 LIFF/LINE 環境診斷資訊，方便判斷 shareTargetPicker 失效原因。 -->
-  <!-- v75.44：LINE 內建分享不可用時，提供「重新登入」讓使用者重取 LIFF 狀態。 -->
-  <!-- v75.43：分享送貨進度主流程改用 LINE LIFF shareTargetPicker，複製面板僅作備援。 -->
-  <!-- v75.42：修正 v75.41 分享備援字串換行造成查詢頁 JavaScript 語法錯誤。 -->
-  <!-- v75.41：手機分享送貨進度曾改為 title/text/url 原生分享，v75.43 已改回 LINE 內建分享為主。 -->
-  <!-- v75.39：確認客戶查詢頁以 v75.23 功能基準合併 v75.3 視覺調整，不再保留多版本基準說法。 -->
-  <!-- v75.2：客戶查詢頁卡片層級精簡，進度條與訂單明細弱化框線 -->
-  <!-- v73.13：LINE 查詢權限申請送出中按鈕加入轉圈回饋 -->
+  <!-- v76.0：穩定化整理版；清理分享流程診斷雜訊、統一版本參數，保留 LINE 內建分享 / LINE URL Scheme / 系統分享 / 複製備援。 -->
   <!-- v71.8：移除店家名稱顯示，最後更新移至訂單 / 配送查詢標題列右側 -->
   <!-- v71.4：配送摘要字級放大，指送改為指定送貨 -->
   <!-- v71：客戶查詢頁 UI/UX 微調，訂單明細展開更明確、配送單號與欄位對齊 -->
@@ -723,23 +712,6 @@
       color: #166534;
       font-weight: 900;
     }
-    .share-diagnostic-box {
-      display: none;
-      margin-top: 10px;
-      padding: 10px;
-      border-radius: 12px;
-      border: 1px solid #e2e8f0;
-      background: #f8fafc;
-      color: #334155;
-      font-size: 12px;
-      line-height: 1.65;
-      white-space: pre-wrap;
-      word-break: break-word;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-    }
-    .share-diagnostic-box.show {
-      display: block;
-    }
 
     .line-relogin-btn {
       border: 1px solid #cbd5e1;
@@ -786,11 +758,9 @@
       <div class="share-fallback-title">分享內容已產生</div>
       <div class="share-fallback-note" id="shareFallbackNote">若剛才取消分享或手機沒有完成分享，請使用下方按鈕複製，或長按文字手動選取後貼到 LINE。</div>
       <textarea class="share-fallback-textarea" id="shareFallbackText" readonly></textarea>
-      <div class="share-diagnostic-box" id="shareDiagnosticBox"></div>
       <div class="share-fallback-actions">
         <button class="btn btn-primary" onclick="copyShareTextFromPanel()">複製完整文字</button>
         <button class="btn btn-secondary" onclick="copyShareUrlFromPanel()">只複製連結</button>
-        <button class="btn btn-secondary" onclick="reloginLine()">重新登入</button>
       </div>
       <button class="btn btn-secondary share-fallback-close" onclick="closeShareFallbackPanel()">關閉</button>
       <div class="share-copy-status" id="shareCopyStatus"></div>
@@ -808,7 +778,6 @@
     let currentUid = '';
     let currentDisplayName = '';
     let currentSharePayload = null;
-    let lastShareTargetPickerError = '';
     let lastPortalUpdatedAt = null;
     const MANUAL_REFRESH_COOLDOWN_MS = 60000;
     let manualRefreshCooldownUntil = 0;
@@ -1413,9 +1382,8 @@
       const min = Number(last.minute);
       if (Number.isNaN(h) || Number.isNaN(min) || h < 0 || h > 23 || min < 0 || min > 59) return null;
 
-      // v52：配送 ETA 常見格式為「11:52–12:02」且時段欄位為「上午」。
-      // 舊版會把沒有明確 AM/PM 的 12:02 套用上午並轉成凌晨 00:02，導致剛出發就被判定延遲。
-      // 若 AM/PM 是由「送貨時間=上午」推導而來，12:xx 應視為中午 12:xx，不轉凌晨。
+      // ETA 常見格式為「11:52–12:02」且時段欄位為「上午」。
+      // 若 AM/PM 是由「送貨時間=上午」推導而來，12:xx 應視為中午 12:xx，不轉凌晨，避免誤判延遲。
       if (meridiem === 'PM' && h < 12) h += 12;
       if (meridiem === 'AM' && h === 12 && meridiemFromEta) h = 0;
 
@@ -1821,7 +1789,7 @@
       const url = new URL('tracking-detail.html', window.location.href);
       url.search = '';
       url.hash = '';
-      url.searchParams.set('v', 'tracking-v75-49');
+      url.searchParams.set('v', 'tracking-v76-0');
       url.searchParams.set('shareToken', token || '');
       return url.toString();
     }
@@ -1872,9 +1840,7 @@
       const shareUrl = currentSharePayload.url || '';
       const nativeShareText = buildNativeShareText_(currentSharePayload);
 
-      // v75.48：分享流程改為「LIFF 內建分享 → LINE URL Scheme → 手機系統分享 → 複製備援」。
-      // 若頁面是 external LIFF / GitHub Pages 直開，liff.isInClient() 會是 false，
-      // 此時優先改走 LINE 官方 line.me/R/share URL Scheme，避免卡在 shareTargetPicker。
+      // v76.0：穩定分享流程：LIFF 內建分享 → LINE URL Scheme → 手機系統分享 → 複製備援。
       try {
         const canUseLinePicker =
           typeof liff !== 'undefined' &&
@@ -1897,7 +1863,6 @@
           return;
         }
       } catch (e) {
-        lastShareTargetPickerError = stringifyLiffError_(e) || String(e || '');
         console.warn('LINE shareTargetPicker failed, fallback to LINE URL Scheme:', e);
       }
 
@@ -1953,103 +1918,15 @@
       showShareFallbackPanel_(finalNote, ok ? '已先嘗試複製完整分享文字。' : '請手動複製。');
     }
 
-    function getSafeLiffValue_(label, getter) {
-      try {
-        const value = getter();
-        if (value === undefined) return label + '：undefined';
-        if (value === null) return label + '：null';
-        if (typeof value === 'object') return label + '：' + JSON.stringify(value);
-        return label + '：' + String(value);
-      } catch (err) {
-        return label + '：ERROR - ' + stringifyLiffError_(err);
-      }
-    }
-
-    function buildLineShareDiagnosticText_() {
-      const lines = [];
-      const ua = navigator.userAgent || '';
-      const hasLiff = (typeof liff !== 'undefined');
-      let context = null;
-
-      if (hasLiff && typeof liff.getContext === 'function') {
-        try { context = liff.getContext(); } catch (err) { context = null; }
-      }
-
-      lines.push('【CAESAR LINE 分享診斷 v75.47】');
-      lines.push('LIFF ID：' + LIFF_ID);
-      lines.push('目前網址：' + window.location.href);
-      lines.push('User Agent：' + ua);
-      lines.push('liff 物件：' + (hasLiff ? '存在' : '不存在'));
-
-      if (hasLiff) {
-        lines.push(getSafeLiffValue_('是否在 LINE App / liff.isInClient', function() {
-          return (typeof liff.isInClient === 'function') ? liff.isInClient() : '函式不存在';
-        }));
-        lines.push(getSafeLiffValue_('是否已登入 / liff.isLoggedIn', function() {
-          return (typeof liff.isLoggedIn === 'function') ? liff.isLoggedIn() : '函式不存在';
-        }));
-        lines.push(getSafeLiffValue_('shareTargetPicker 可用', function() {
-          return (typeof liff.isApiAvailable === 'function') ? liff.isApiAvailable('shareTargetPicker') : 'isApiAvailable 函式不存在';
-        }));
-        lines.push(getSafeLiffValue_('liff.shareTargetPicker 函式', function() {
-          return (typeof liff.shareTargetPicker === 'function') ? '存在' : '不存在';
-        }));
-        lines.push(getSafeLiffValue_('OS / liff.getOS', function() {
-          return (typeof liff.getOS === 'function') ? liff.getOS() : '函式不存在';
-        }));
-        lines.push(getSafeLiffValue_('LINE 版本 / liff.getLineVersion', function() {
-          return (typeof liff.getLineVersion === 'function') ? (liff.getLineVersion() || '') : '函式不存在';
-        }));
-
-        if (typeof liff.permission === 'object' && liff.permission && typeof liff.permission.query === 'function') {
-          lines.push('chat_message.write 權限：可查詢，請按分享後截圖最新狀態');
-        } else {
-          lines.push('chat_message.write 權限：此 LIFF SDK 無法直接查詢；請到 LINE Developers 後台確認 Scope。');
-        }
-      }
-
-      if (context) {
-        lines.push('Context.type：' + String(context.type || ''));
-        lines.push('Context.viewType：' + String(context.viewType || ''));
-        lines.push('Context.endpointUrl：' + String(context.endpointUrl || ''));
-        lines.push('Context.scope：' + String(context.scope || context.scopes || ''));
-      } else {
-        lines.push('Context：無法取得或不存在');
-      }
-
-      lines.push('最後 shareTargetPicker 錯誤：' + (lastShareTargetPickerError || '無'));
-      lines.push('判斷：LINE 內建分享僅在真正 LIFF 內嵌環境優先使用；若為 external，系統會改走手機一般分享或複製備援。');
-      return lines.join('\n');
-    }
-
-    function isShareDebugEnabled_() {
-      try {
-        const params = new URLSearchParams(window.location.search || '');
-        return params.get('debugShare') === '1' || params.get('shareDebug') === '1';
-      } catch (e) {
-        return false;
-      }
-    }
-
     function showShareFallbackPanel_(note, statusText) {
       const overlay = document.getElementById('shareFallbackOverlay');
       const textarea = document.getElementById('shareFallbackText');
       const noteEl = document.getElementById('shareFallbackNote');
       const statusEl = document.getElementById('shareCopyStatus');
-      const diagnosticEl = document.getElementById('shareDiagnosticBox');
       if (!overlay || !textarea || !currentSharePayload) return;
       textarea.value = currentSharePayload.text || currentSharePayload.url || '';
       if (noteEl) noteEl.textContent = note || '請複製下方分享內容。';
       if (statusEl) statusEl.textContent = statusText || '';
-      if (diagnosticEl) {
-        if (isShareDebugEnabled_()) {
-          diagnosticEl.textContent = buildLineShareDiagnosticText_();
-          diagnosticEl.classList.add('show');
-        } else {
-          diagnosticEl.textContent = '';
-          diagnosticEl.classList.remove('show');
-        }
-      }
       overlay.classList.add('show');
       setTimeout(() => {
         try {
@@ -2079,12 +1956,6 @@
       if (statusEl) statusEl.textContent = ok ? '已複製送貨進度連結。' : '複製失敗，請長按文字手動選取。';
     }
 
-    async function copyShareDiagnosticFromPanel() {
-      const text = buildLineShareDiagnosticText_();
-      const ok = await copyText(text);
-      const statusEl = document.getElementById('shareCopyStatus');
-      if (statusEl) statusEl.textContent = ok ? '已複製診斷資訊。' : '複製失敗，請截圖診斷資訊。';
-    }
 
     function renderRequestForm() {
       document.getElementById('app').innerHTML = `
