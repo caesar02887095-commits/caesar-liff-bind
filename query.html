@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>凱撒衛浴查詢入口</title>
+  <!-- v75.46：分享流程改為 LINE 內建分享 → 手機系統分享 → 複製備援，避免 external LIFF 環境導致分享失敗。 -->
   <!-- v75.45：LINE 內建分享不可用時，顯示 LIFF/LINE 環境診斷資訊，方便判斷 shareTargetPicker 失效原因。 -->
   <!-- v75.44：LINE 內建分享不可用時，提供「重新登入」讓使用者重取 LIFF 狀態。 -->
   <!-- v75.43：分享送貨進度主流程改用 LINE LIFF shareTargetPicker，複製面板僅作備援。 -->
@@ -1852,16 +1853,22 @@
       if (!currentSharePayload) return;
 
       const shareText = currentSharePayload.text || currentSharePayload.url || '';
+      const shareUrl = currentSharePayload.url || '';
+      const nativeShareText = buildNativeShareText_(currentSharePayload);
 
-      // v75.43：分享送貨進度的主流程改回 LINE LIFF 內建分享選擇器。
-      // 在 LINE App 內可跳出好友 / 群組選擇器；若環境不支援，才進入複製備援。
+      // v75.46：分享流程改為「LINE 內建分享 → 手機系統分享 → 複製備援」。
+      // 若頁面是 external LIFF / GitHub Pages 直開，liff.isInClient() 會是 false，
+      // 此時即使 shareTargetPicker 顯示可用，實際呼叫仍可能失敗，因此只在真正 LIFF 內嵌環境優先使用。
       try {
-        if (
+        const canUseLinePicker =
           typeof liff !== 'undefined' &&
+          typeof liff.isInClient === 'function' &&
+          liff.isInClient() &&
           typeof liff.isApiAvailable === 'function' &&
           typeof liff.shareTargetPicker === 'function' &&
-          liff.isApiAvailable('shareTargetPicker')
-        ) {
+          liff.isApiAvailable('shareTargetPicker');
+
+        if (canUseLinePicker) {
           const result = await liff.shareTargetPicker([
             {
               type: 'text',
@@ -1869,22 +1876,37 @@
             }
           ]);
 
-          // 使用者取消選擇時 result 可能為 null；這不視為錯誤，也不強迫跳出備援面板。
+          // 使用者取消選擇時 result 可能為 null；這不視為錯誤。
           if (result === null) return;
           return;
         }
       } catch (e) {
         lastShareTargetPickerError = stringifyLiffError_(e) || String(e || '');
-        console.warn('LINE shareTargetPicker failed, fallback to manual copy panel:', e);
+        console.warn('LINE shareTargetPicker failed, fallback to native share:', e);
       }
 
-      // 桌機或非 LINE 環境：維持原本複製流程。
+      // 手機環境優先用一般系統分享，讓使用者可選 LINE、訊息或其他 App。
+      try {
+        if (isMobileShareEnvironment_() && navigator.share) {
+          await navigator.share({
+            title: '凱撒衛浴配送進度',
+            text: nativeShareText,
+            url: shareUrl
+          });
+          return;
+        }
+      } catch (e) {
+        // 使用者取消分享不視為系統錯誤，但仍提供複製備援。
+        console.warn('Native share cancelled or failed, fallback to manual copy panel:', e);
+      }
+
+      // 桌機或所有分享方式失敗：維持穩定複製流程。
       if (!isMobileShareEnvironment_()) {
         await copyShareLink(false);
         return;
       }
 
-      await showManualShareFallback_('LINE 內建分享沒有開啟。\n可先按「重新登入」後再試；急用時請使用下方按鈕複製，或長按文字手動選取後貼到 LINE。');
+      await showManualShareFallback_('手機分享未完成。\n請使用下方按鈕複製，或長按文字手動選取後貼到 LINE。');
     }
 
     async function copyShareLink(showManualOnFail) {
@@ -1932,7 +1954,7 @@
         try { context = liff.getContext(); } catch (err) { context = null; }
       }
 
-      lines.push('【CAESAR LINE 分享診斷 v75.45】');
+      lines.push('【CAESAR LINE 分享診斷 v75.46】');
       lines.push('LIFF ID：' + LIFF_ID);
       lines.push('目前網址：' + window.location.href);
       lines.push('User Agent：' + ua);
@@ -1975,7 +1997,7 @@
       }
 
       lines.push('最後 shareTargetPicker 錯誤：' + (lastShareTargetPickerError || '無'));
-      lines.push('判斷：若 shareTargetPicker 可用=false，通常是 LIFF 後台功能、Scope、LINE App 開啟環境、LINE 版本或非同一 LIFF ID 問題。');
+      lines.push('判斷：LINE 內建分享僅在真正 LIFF 內嵌環境優先使用；若為 external，系統會改走手機一般分享或複製備援。');
       return lines.join('\n');
     }
 
