@@ -1767,8 +1767,7 @@
         '送達地址：' + (address || ''),
         '網址：',
         shareUrl || ''
-      ].join('
-');
+      ].join('\n');
     }
 
     function buildNativeShareText_(payload) {
@@ -1778,8 +1777,7 @@
         '店家名稱：' + (payload.storeName || ''),
         '單號：' + (payload.orderNo || '') + '（訂單追蹤）',
         '送達地址：' + (payload.address || '')
-      ].join('
-');
+      ].join('\n');
     }
 
     function isMobileShareEnvironment_() {
@@ -1811,8 +1809,7 @@
         console.warn('Native share failed, fallback to manual copy panel:', e);
       }
 
-      await showManualShareFallback_('手機沒有完成系統分享。
-請使用下方按鈕複製，或長按文字手動選取後貼到 LINE。');
+      await showManualShareFallback_('手機沒有完成系統分享。\n請使用下方按鈕複製，或長按文字手動選取後貼到 LINE。');
     }
 
     async function copyShareLink(showManualOnFail) {
@@ -1823,8 +1820,7 @@
         return;
       }
       if (showManualOnFail) {
-        showShareFallbackPanel_('複製失敗。
-請長按下方文字手動選取後複製。');
+        showShareFallbackPanel_('複製失敗。\n請長按下方文字手動選取後複製。');
       } else {
         alert('複製失敗，請手動複製連結');
       }
@@ -1834,10 +1830,8 @@
       if (!currentSharePayload) return;
       const ok = await copyText(currentSharePayload.text || currentSharePayload.url || '');
       const finalNote = ok
-        ? (note || '手機沒有完成系統分享。') + '
-系統已先嘗試複製完整分享文字；若沒有成功，請長按下方文字手動選取。'
-        : (note || '手機沒有完成系統分享。') + '
-自動複製未成功，請長按下方文字手動選取。';
+        ? (note || '手機沒有完成系統分享。') + '\n系統已先嘗試複製完整分享文字；若沒有成功，請長按下方文字手動選取。'
+        : (note || '手機沒有完成系統分享。') + '\n自動複製未成功，請長按下方文字手動選取。';
       showShareFallbackPanel_(finalNote, ok ? '已先嘗試複製完整分享文字。' : '請手動複製。');
     }
 
