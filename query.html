@@ -4,7 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>凱撒衛浴查詢入口</title>
-  <!-- v75.41：手機分享送貨進度改為 title/text/url 原生分享，失敗時顯示可手動複製備援面板。 -->
+  <!-- v75.43：分享送貨進度主流程改用 LINE LIFF shareTargetPicker，複製面板僅作備援。 -->
+  <!-- v75.42：修正 v75.41 分享備援字串換行造成查詢頁 JavaScript 語法錯誤。 -->
+  <!-- v75.41：手機分享送貨進度曾改為 title/text/url 原生分享，v75.43 已改回 LINE 內建分享為主。 -->
   <!-- v75.39：確認客戶查詢頁以 v75.23 功能基準合併 v75.3 視覺調整，不再保留多版本基準說法。 -->
   <!-- v75.2：客戶查詢頁卡片層級精簡，進度條與訂單明細弱化框線 -->
   <!-- v73.13：LINE 查詢權限申請送出中按鈕加入轉圈回饋 -->
@@ -742,7 +744,7 @@
   <div class="share-fallback-overlay" id="shareFallbackOverlay" onclick="closeShareFallbackPanel(event)">
     <div class="share-fallback-panel" onclick="event.stopPropagation()">
       <div class="share-fallback-title">分享內容已產生</div>
-      <div class="share-fallback-note" id="shareFallbackNote">若手機沒有跳出分享選單，請使用下方按鈕複製，或長按文字手動選取。</div>
+      <div class="share-fallback-note" id="shareFallbackNote">若 LINE 內建分享沒有開啟，請使用下方按鈕複製，或長按文字手動選取。</div>
       <textarea class="share-fallback-textarea" id="shareFallbackText" readonly></textarea>
       <div class="share-fallback-actions">
         <button class="btn btn-primary" onclick="copyShareTextFromPanel()">複製完整文字</button>
@@ -1788,28 +1790,39 @@
     async function shareViaSystem() {
       if (!currentSharePayload) return;
 
-      // 桌機版瀏覽器的系統分享支援度不穩，直接複製文字較可靠。
+      const shareText = currentSharePayload.text || currentSharePayload.url || '';
+
+      // v75.43：分享送貨進度的主流程改回 LINE LIFF 內建分享選擇器。
+      // 在 LINE App 內可跳出好友 / 群組選擇器；若環境不支援，才進入複製備援。
+      try {
+        if (
+          typeof liff !== 'undefined' &&
+          typeof liff.isApiAvailable === 'function' &&
+          typeof liff.shareTargetPicker === 'function' &&
+          liff.isApiAvailable('shareTargetPicker')
+        ) {
+          const result = await liff.shareTargetPicker([
+            {
+              type: 'text',
+              text: shareText
+            }
+          ]);
+
+          // 使用者取消選擇時 result 可能為 null；這不視為錯誤，也不強迫跳出備援面板。
+          if (result === null) return;
+          return;
+        }
+      } catch (e) {
+        console.warn('LINE shareTargetPicker failed, fallback to manual copy panel:', e);
+      }
+
+      // 桌機或非 LINE 環境：維持原本複製流程。
       if (!isMobileShareEnvironment_()) {
         await copyShareLink(false);
         return;
       }
 
-      // 手機版優先叫出原生分享選單；v75.41 同時帶 title / text / url，提高 iOS、Android 與 LINE WebView 相容性。
-      try {
-        if (navigator.share) {
-          const shareData = {
-            title: '凱撒衛浴配送進度',
-            text: buildNativeShareText_(currentSharePayload),
-            url: currentSharePayload.url || ''
-          };
-          await navigator.share(shareData);
-          return;
-        }
-      } catch (e) {
-        console.warn('Native share failed, fallback to manual copy panel:', e);
-      }
-
-      await showManualShareFallback_('手機沒有完成系統分享。\n請使用下方按鈕複製，或長按文字手動選取後貼到 LINE。');
+      await showManualShareFallback_('LINE 內建分享沒有開啟。\n請使用下方按鈕複製，或長按文字手動選取後貼到 LINE。');
     }
 
     async function copyShareLink(showManualOnFail) {
