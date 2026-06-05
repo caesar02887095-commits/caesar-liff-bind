@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>凱撒衛浴查詢入口</title>
+  <!-- v75.41：手機分享送貨進度改為 title/text/url 原生分享，失敗時顯示可手動複製備援面板。 -->
   <!-- v75.39：確認客戶查詢頁以 v75.23 功能基準合併 v75.3 視覺調整，不再保留多版本基準說法。 -->
   <!-- v75.2：客戶查詢頁卡片層級精簡，進度條與訂單明細弱化框線 -->
   <!-- v73.13：LINE 查詢權限申請送出中按鈕加入轉圈回饋 -->
@@ -643,6 +644,77 @@
       cursor: not-allowed;
       pointer-events: none;
     }
+
+    .share-fallback-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      z-index: 120;
+      background: rgba(15, 23, 42, 0.46);
+      padding: 18px;
+      align-items: center;
+      justify-content: center;
+    }
+    .share-fallback-overlay.show { display: flex; }
+    .share-fallback-panel {
+      width: min(520px, 100%);
+      max-height: min(82vh, 680px);
+      overflow: auto;
+      background: #ffffff;
+      border-radius: 18px;
+      border: 1px solid #dbe4ef;
+      box-shadow: 0 18px 45px rgba(15, 23, 42, 0.24);
+      padding: 16px;
+      text-align: left;
+    }
+    .share-fallback-title {
+      font-size: 18px;
+      line-height: 1.45;
+      font-weight: 900;
+      color: #1f2937;
+      margin-bottom: 8px;
+    }
+    .share-fallback-note {
+      font-size: 14px;
+      line-height: 1.7;
+      color: #475569;
+      font-weight: 700;
+      margin-bottom: 10px;
+      white-space: pre-line;
+    }
+    .share-fallback-textarea {
+      width: 100%;
+      min-height: 168px;
+      box-sizing: border-box;
+      border: 1px solid #cbd5e1;
+      border-radius: 12px;
+      padding: 12px;
+      font-size: 15px;
+      line-height: 1.55;
+      resize: vertical;
+      color: #111827;
+      background: #f8fafc;
+      font-family: Arial, "Microsoft JhengHei", sans-serif;
+    }
+    .share-fallback-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .share-fallback-actions .btn {
+      font-size: 15px;
+      padding: 11px 8px;
+    }
+    .share-fallback-close { margin-top: 8px; }
+    .share-copy-status {
+      min-height: 20px;
+      margin-top: 8px;
+      font-size: 13px;
+      line-height: 1.5;
+      color: #166534;
+      font-weight: 900;
+    }
   </style>
 </head>
 <body>
@@ -667,6 +739,19 @@
     </div>
   </div>
 
+  <div class="share-fallback-overlay" id="shareFallbackOverlay" onclick="closeShareFallbackPanel(event)">
+    <div class="share-fallback-panel" onclick="event.stopPropagation()">
+      <div class="share-fallback-title">分享內容已產生</div>
+      <div class="share-fallback-note" id="shareFallbackNote">若手機沒有跳出分享選單，請使用下方按鈕複製，或長按文字手動選取。</div>
+      <textarea class="share-fallback-textarea" id="shareFallbackText" readonly></textarea>
+      <div class="share-fallback-actions">
+        <button class="btn btn-primary" onclick="copyShareTextFromPanel()">複製完整文字</button>
+        <button class="btn btn-secondary" onclick="copyShareUrlFromPanel()">只複製連結</button>
+      </div>
+      <button class="btn btn-secondary share-fallback-close" onclick="closeShareFallbackPanel()">關閉</button>
+      <div class="share-copy-status" id="shareCopyStatus"></div>
+    </div>
+  </div>
 
   <script>
     const LIFF_ID = '2009380550-ow9SlJK4';
@@ -1682,7 +1767,19 @@
         '送達地址：' + (address || ''),
         '網址：',
         shareUrl || ''
-      ].join('\n');
+      ].join('
+');
+    }
+
+    function buildNativeShareText_(payload) {
+      if (!payload) return '凱撒衛浴配送進度';
+      return [
+        '凱撒衛浴配送進度',
+        '店家名稱：' + (payload.storeName || ''),
+        '單號：' + (payload.orderNo || '') + '（訂單追蹤）',
+        '送達地址：' + (payload.address || '')
+      ].join('
+');
     }
 
     function isMobileShareEnvironment_() {
@@ -1695,31 +1792,91 @@
 
       // 桌機版瀏覽器的系統分享支援度不穩，直接複製文字較可靠。
       if (!isMobileShareEnvironment_()) {
-        await copyShareLink();
+        await copyShareLink(false);
         return;
       }
 
-      // 手機版優先叫出原生分享選單；若 LINE 內建瀏覽器 / 系統分享失敗，立即退回複製分享文字。
+      // 手機版優先叫出原生分享選單；v75.41 同時帶 title / text / url，提高 iOS、Android 與 LINE WebView 相容性。
       try {
         if (navigator.share) {
           const shareData = {
             title: '凱撒衛浴配送進度',
-            text: currentSharePayload.text || ''
+            text: buildNativeShareText_(currentSharePayload),
+            url: currentSharePayload.url || ''
           };
           await navigator.share(shareData);
           return;
         }
       } catch (e) {
-        console.warn('Native share failed, fallback to clipboard:', e);
+        console.warn('Native share failed, fallback to manual copy panel:', e);
       }
 
-      await copyShareLink();
+      await showManualShareFallback_('手機沒有完成系統分享。
+請使用下方按鈕複製，或長按文字手動選取後貼到 LINE。');
     }
 
-    async function copyShareLink() {
+    async function copyShareLink(showManualOnFail) {
       if (!currentSharePayload) return;
       const ok = await copyText(currentSharePayload.text || currentSharePayload.url || '');
-      alert(ok ? '已複製分享內容' : '複製失敗，請手動複製連結');
+      if (ok) {
+        alert('已複製分享內容');
+        return;
+      }
+      if (showManualOnFail) {
+        showShareFallbackPanel_('複製失敗。
+請長按下方文字手動選取後複製。');
+      } else {
+        alert('複製失敗，請手動複製連結');
+      }
+    }
+
+    async function showManualShareFallback_(note) {
+      if (!currentSharePayload) return;
+      const ok = await copyText(currentSharePayload.text || currentSharePayload.url || '');
+      const finalNote = ok
+        ? (note || '手機沒有完成系統分享。') + '
+系統已先嘗試複製完整分享文字；若沒有成功，請長按下方文字手動選取。'
+        : (note || '手機沒有完成系統分享。') + '
+自動複製未成功，請長按下方文字手動選取。';
+      showShareFallbackPanel_(finalNote, ok ? '已先嘗試複製完整分享文字。' : '請手動複製。');
+    }
+
+    function showShareFallbackPanel_(note, statusText) {
+      const overlay = document.getElementById('shareFallbackOverlay');
+      const textarea = document.getElementById('shareFallbackText');
+      const noteEl = document.getElementById('shareFallbackNote');
+      const statusEl = document.getElementById('shareCopyStatus');
+      if (!overlay || !textarea || !currentSharePayload) return;
+      textarea.value = currentSharePayload.text || currentSharePayload.url || '';
+      if (noteEl) noteEl.textContent = note || '請複製下方分享內容。';
+      if (statusEl) statusEl.textContent = statusText || '';
+      overlay.classList.add('show');
+      setTimeout(() => {
+        try {
+          textarea.focus();
+          textarea.setSelectionRange(0, textarea.value.length);
+        } catch (e) {}
+      }, 60);
+    }
+
+    function closeShareFallbackPanel(event) {
+      if (event && event.target && event.currentTarget && event.target !== event.currentTarget) return;
+      const overlay = document.getElementById('shareFallbackOverlay');
+      if (overlay) overlay.classList.remove('show');
+    }
+
+    async function copyShareTextFromPanel() {
+      if (!currentSharePayload) return;
+      const ok = await copyText(currentSharePayload.text || currentSharePayload.url || '');
+      const statusEl = document.getElementById('shareCopyStatus');
+      if (statusEl) statusEl.textContent = ok ? '已複製完整分享文字。' : '複製失敗，請長按文字手動選取。';
+    }
+
+    async function copyShareUrlFromPanel() {
+      if (!currentSharePayload) return;
+      const ok = await copyText(currentSharePayload.url || '');
+      const statusEl = document.getElementById('shareCopyStatus');
+      if (statusEl) statusEl.textContent = ok ? '已複製送貨進度連結。' : '複製失敗，請長按文字手動選取。';
     }
 
     function renderRequestForm() {
