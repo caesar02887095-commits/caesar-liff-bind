@@ -15,6 +15,7 @@
   <!-- v75.25：調度快捷分類按鈕加入觸覺回饋與按下視覺回饋，提升修改排序時的按鍵確認感 -->
   <!-- v75.26：快捷分類後移入目標路線的站點加入上滑出現動畫，避免看起來像閃現 -->
   <!-- v75.28：排車頁工具列改為下滑時固定在上方，方便長頁面操作修改排序與儲存排車 -->
+  <!-- v76.1：儲存排車前檢查同一司機被指派到多條有任務路線，改為提醒確認，不強制阻擋 -->
   <!-- v75.40：修正路線司機下拉選單儲存後跳回舊司機；不新增頁面、不新增分頁，僅保留本次畫面司機選擇狀態 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
@@ -1818,6 +1819,41 @@
       };
     }
 
+    function buildDuplicateDriverAssignmentWarnings_() {
+      const driverRouteMap = {};
+
+      GROUP_NAMES.forEach(groupName => {
+        if (groupName === '調度') return;
+
+        const box = document.getElementById(`group-${groupName}`);
+        const rows = box ? Array.from(box.querySelectorAll('.row')) : [];
+        if (!rows.length) return;
+
+        const driverSelect = document.getElementById(`driver-${groupName}`);
+        const driverName = driverSelect ? String(driverSelect.value || '').trim() : '';
+        if (!driverName) return;
+
+        if (!driverRouteMap[driverName]) driverRouteMap[driverName] = [];
+        driverRouteMap[driverName].push(groupName);
+      });
+
+      return Object.keys(driverRouteMap)
+        .filter(driverName => driverRouteMap[driverName].length > 1)
+        .map(driverName => `${driverName}：${driverRouteMap[driverName].join('、')}`);
+    }
+
+    function confirmDuplicateDriverAssignmentsBeforeSave_() {
+      const warnings = buildDuplicateDriverAssignmentWarnings_();
+      if (!warnings.length) return true;
+
+      return window.confirm(
+        '以下司機同時被指派到多條路線：\n\n' +
+        warnings.join('\n') +
+        '\n\n若是刻意合併路線，可繼續儲存。\n若不是，請按「取消」後修改司機。\n\n是否仍要儲存排車？'
+      );
+    }
+
+
     function clearSaveProgressTimer_() {
       if (saveProgressTimer) {
         window.clearTimeout(saveProgressTimer);
@@ -1866,6 +1902,7 @@
 
     async function saveDispatchBoard() {
       if (isSaving) return;
+      if (!confirmDuplicateDriverAssignmentsBeforeSave_()) return;
       lastSavePayload = buildDispatchSavePayload_();
       await submitDispatchSave_(lastSavePayload);
     }
