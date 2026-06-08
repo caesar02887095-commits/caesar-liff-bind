@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>凱撒衛浴查詢入口</title>
+  <!-- v76.2：載入失敗一鍵重新嘗試；按鈕背後執行 LINE 重新登入，並提醒使用者稍候不要切出畫面。 -->
   <!-- v76.0：穩定化整理版；清理分享流程診斷雜訊、統一版本參數，保留 LINE 內建分享 / LINE URL Scheme / 系統分享 / 複製備援。 -->
   <!-- v71.8：移除店家名稱顯示，最後更新移至訂單 / 配送查詢標題列右側 -->
   <!-- v71.4：配送摘要字級放大，指送改為指定送貨 -->
@@ -792,7 +793,7 @@
       scheduleLoadingMessage(2000, '正在確認查詢權限...', '');
       scheduleLoadingMessage(5000, '資料較多，系統正在整理送貨進度，請稍候...', '');
       scheduleLoadingMessage(10000, '系統仍在讀取中，請不要關閉頁面。', '系統仍在處理資料，通常再等一下就會完成。');
-      scheduleLoadingMessage(30000, '讀取時間較長，系統仍在處理中。', '若仍未完成，可按下方按鈕重新讀取配送資料。', true);
+      scheduleLoadingMessage(30000, '讀取時間較長，系統仍在處理中。', '若仍未完成，請按「重新嘗試」。系統會重新登入 LINE，請稍候並不要切出畫面。', true);
     }
 
     function renderLoadingState(mainText, hintText, showRetry) {
@@ -804,7 +805,7 @@
             <div class="loading-spinner"></div>
             <div id="loadingText" class="loading-main">${escapeHtml(mainText || '正在讀取配送資料...')}</div>
             <div id="loadingHint" class="loading-hint">${escapeHtml(hintText || '')}</div>
-            ${showRetry ? `<button class="btn btn-secondary loading-retry" onclick="retryInitialPortalLoad()">重新讀取配送資料</button>` : ''}
+            ${showRetry ? `<button class="btn btn-primary loading-retry" onclick="retryInitialPortalLoad()">重新嘗試</button>` : ''}
           </div>
         </div>
       `;
@@ -823,9 +824,7 @@
     }
 
     function retryInitialPortalLoad() {
-      stopLoadingSequence();
-      startPortalLoadingSequence();
-      loadPortal().catch(err => renderMessage('載入失敗：' + ((err && err.message) ? err.message : err), 'bad'));
+      reloginLine();
     }
 
 
@@ -881,11 +880,26 @@
       stopLoadingSequence();
       document.getElementById('app').innerHTML = `
         <div class="card">
-          <div class="status warn">登入狀態已過期</div>
+          <div class="status warn">資料暫時讀取失敗</div>
           <div class="muted" style="margin-top:10px; line-height:1.8;">
-            LINE 驗證資訊已過期，請重新驗證後再查詢配送進度。
+            請按下方按鈕重新嘗試。系統會重新登入 LINE，請稍候並不要切出畫面。
           </div>
-          <button class="btn btn-primary" style="margin-top:14px;" onclick="retryLineVerification()">重新驗證</button>
+          <button class="btn btn-primary" style="margin-top:14px;" onclick="retryLineVerification()">重新嘗試</button>
+        </div>
+      `;
+    }
+
+    function renderLoadFailedRetryMessage_(detailText) {
+      stopLoadingSequence();
+      document.getElementById('app').innerHTML = `
+        <div class="card">
+          <div class="status bad">資料暫時讀取失敗</div>
+          <div class="muted" style="margin-top:10px; line-height:1.8;">
+            請按下方按鈕重新嘗試。系統會重新登入 LINE，請稍候並不要切出畫面。
+          </div>
+          <button class="btn btn-primary" style="margin-top:14px;" onclick="reloginLine()">重新嘗試</button>
+          <a class="contact-btn" style="margin-top:10px;" href="tel:035530523">聯絡凱撒衛浴</a>
+          ${detailText ? `<div class="muted" style="margin-top:10px; font-size:12px;">錯誤代碼：${escapeHtml(detailText).substring(0, 120)}</div>` : ''}
         </div>
       `;
     }
@@ -922,7 +936,7 @@
           renderTokenExpiredMessage_();
           return;
         }
-        renderMessage('載入失敗：' + (err.message || err), 'bad');
+        renderLoadFailedRetryMessage_((err && err.message) ? err.message : String(err || ''));
       }
     }
 
@@ -1034,7 +1048,7 @@
       const json = await resp.json();
 
       if (!json.ok) {
-        renderMessage(json.error || '讀取失敗', 'bad');
+        renderLoadFailedRetryMessage_(json.error || '讀取失敗');
         return;
       }
 
