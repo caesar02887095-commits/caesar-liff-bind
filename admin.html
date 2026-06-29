@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>CAESAR 系統管理</title>
+  <!-- v77.2：ERP 匯入文案改為 Excel / CSV，後端支援 .xlsx / .xls / .csv。 -->
   <!-- v75.39：檔頭版本校正；沿用 v75.23 管理頁功能基準，未調整功能流程。 -->
   <!-- v58.4：系統管理頁文案改為操作人員友善說明 -->
   <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
@@ -625,14 +626,14 @@
       <div id="erpCsvAlertBox" class="erp-alert-box">
         <div class="erp-alert-head">
           <div>
-            <div class="erp-alert-title" id="erpCsvAlertTitle">ERP CSV 匯入狀態讀取中...</div>
-            <div class="erp-alert-sub" id="erpCsvAlertSub">此區會顯示今日上午 / 下午 CSV 是否已成功匯入。</div>
+            <div class="erp-alert-title" id="erpCsvAlertTitle">ERP Excel / CSV 匯入狀態讀取中...</div>
+            <div class="erp-alert-sub" id="erpCsvAlertSub">此區會顯示今日上午 / 下午 Excel / CSV 是否已成功匯入。</div>
           </div>
         </div>
         <div class="erp-status-grid" id="erpCsvStatusGrid"></div>
         <div class="erp-action-row">
-          <button class="erp-action-btn" type="button" onclick="runAdminErpCsvImport('上午')">立即匯入上午 CSV</button>
-          <button class="erp-action-btn secondary" type="button" onclick="runAdminErpCsvImport('下午')">立即匯入下午 CSV</button>
+          <button class="erp-action-btn" type="button" onclick="runAdminErpCsvImport('上午')">立即匯入上午 Excel</button>
+          <button class="erp-action-btn secondary" type="button" onclick="runAdminErpCsvImport('下午')">立即匯入下午 Excel</button>
           <button class="btn btn-secondary" type="button" onclick="loadErpCsvImportStatus()">重新整理匯入狀態</button>
         </div>
       </div>
@@ -645,7 +646,7 @@
         </div>
 
         <div class="section-note">
-          此頁給管理人員查看系統狀況、客戶配送資料與司機工作。ERP CSV 匯入按鈕會執行正式流程：匯入成功後會清空任務看板、覆蓋發送通知、產生任務並自動發送通知。
+          此頁給管理人員查看系統狀況、客戶配送資料與司機工作。ERP Excel / CSV 匯入按鈕會執行正式流程：匯入成功後會清空任務看板、覆蓋發送通知、產生任務並自動發送通知。
         </div>
       </div>
 
@@ -662,8 +663,8 @@
         </div>
         <div class="btn-row">
           <button class="btn btn-primary" onclick="loadAdminSystemIssues()">重新整理系統狀況</button>
-          <button class="btn btn-secondary" onclick="runAdminErpCsvImport('上午')">立即匯入上午 CSV</button>
-          <button class="btn btn-secondary" onclick="runAdminErpCsvImport('下午')">立即匯入下午 CSV</button>
+          <button class="btn btn-secondary" onclick="runAdminErpCsvImport('上午')">立即匯入上午 Excel</button>
+          <button class="btn btn-secondary" onclick="runAdminErpCsvImport('下午')">立即匯入下午 Excel</button>
           <button class="btn btn-secondary" onclick="runAdminSystemLogCleanup()">清理舊紀錄</button>
           <button class="btn btn-secondary" onclick="clearResult()">清除結果</button>
         </div>
@@ -793,7 +794,7 @@
       const s = String(status || '').trim();
       if (s === 'SUCCESS') return '已成功';
       if (s === 'NO_FILE') return '找不到檔案';
-      if (s === 'EMPTY_FILE') return 'CSV 空白';
+      if (s === 'EMPTY_FILE') return 'ERP 檔案空白';
       if (s === 'READ_ERROR') return '讀取失敗';
       if (s === 'ERROR') return '匯入失敗';
       if (s === 'NOT_RUN') return '尚未執行';
@@ -812,10 +813,10 @@
       box.classList.add('show');
       box.classList.toggle('urgent', urgent);
 
-      title.textContent = urgent ? 'ERP CSV 匯入需要處理' : 'ERP CSV 匯入正常';
+      title.textContent = urgent ? 'ERP Excel / CSV 匯入需要處理' : 'ERP Excel / CSV 匯入正常';
       sub.textContent = urgent
-        ? '若指定 CSV 未成功匯入，系統不會清空任務看板、不會覆蓋發送通知、不會產生任務、不會發送通知。請確認檔案後按立即匯入。'
-        : '今日上午 / 下午 CSV 狀態如下。若需要補跑，可按立即匯入。';
+        ? '若指定 Excel / CSV 未成功匯入，系統不會清空任務看板、不會覆蓋發送通知、不會產生任務、不會發送通知。請確認檔案後按立即匯入。'
+        : '今日上午 / 下午 Excel / CSV 狀態如下。若需要補跑，可按立即匯入。';
 
       grid.innerHTML = statuses.map(item => {
         const ok = String(item.status || '') === 'SUCCESS';
@@ -837,8 +838,8 @@
       const sub = document.getElementById('erpCsvAlertSub');
       const grid = document.getElementById('erpCsvStatusGrid');
       if (box) box.classList.add('show');
-      if (title) title.textContent = 'ERP CSV 匯入狀態讀取中...';
-      if (sub) sub.textContent = '正在讀取今日上午 / 下午 CSV 匯入狀態。';
+      if (title) title.textContent = 'ERP Excel / CSV 匯入狀態讀取中...';
+      if (sub) sub.textContent = '正在讀取今日上午 / 下午 Excel / CSV 匯入狀態。';
       if (grid) grid.innerHTML = '<div class="erp-status-card"><div class="erp-status-title">讀取中...</div></div>';
 
       try {
@@ -850,7 +851,7 @@
       } catch (err) {
         if (box) {
           box.classList.add('show', 'urgent');
-          if (title) title.textContent = 'ERP CSV 匯入狀態讀取失敗';
+          if (title) title.textContent = 'ERP Excel / CSV 匯入狀態讀取失敗';
           if (sub) sub.textContent = '請重新整理管理頁，或確認 GAS / 管理員權限是否正常。';
           if (grid) grid.innerHTML = `<div class="erp-status-card bad"><div class="erp-status-line">錯誤：${escapeHtml(err.message || err)}</div></div>`;
         }
@@ -863,7 +864,7 @@
       const suffix = p === '上午' ? 'AM' : 'PM';
       const today = todayDateText();
       const expected = `delivery_${today}_${suffix}.csv`;
-      const message = `即將執行正式流程：立即匯入${p} CSV。
+      const message = `即將執行正式流程：立即匯入${p} Excel / CSV。
 
 預期檔名：${expected}
 
@@ -872,7 +873,7 @@
 找不到檔案或檔案空白時，系統不會清空、不會覆蓋、不會通知。是否繼續？`;
       if (!window.confirm(message)) return;
 
-      renderLoading(`正在匯入${p} CSV，請不要關閉頁面...`);
+      renderLoading(`正在匯入${p} Excel / CSV，請不要關閉頁面...`);
       try {
         const url = `${GAS_WEBAPP_URL}?action=run_admin_erp_csv_import` +
           `&adminUid=${encodeURIComponent(currentAdminUid)}` +
@@ -883,18 +884,18 @@
         renderResult(renderErpCsvImportResult(data));
       } catch (err) {
         await loadErpCsvImportStatus();
-        renderResult(`<div class="status bad">${escapeHtml(p)} CSV 匯入執行失敗：${escapeHtml(err.message || err)}</div>`);
+        renderResult(`<div class="status bad">${escapeHtml(p)} Excel / CSV 匯入執行失敗：${escapeHtml(err.message || err)}</div>`);
       }
     }
 
     function renderErpCsvImportResult(data) {
       const ok = !!data.success;
       return `
-        <div class="result-title">ERP CSV 匯入結果</div>
+        <div class="result-title">ERP Excel / CSV 匯入結果</div>
         <div class="status ${ok ? 'ok' : 'bad'}">${escapeHtml(data.period || '')}｜${escapeHtml(data.statusText || getErpStatusLabel(data.status))}</div>
         <div class="row"><span class="tag">預期檔名</span>${escapeHtml(data.expectedFileName || '')}</div>
         <div class="row"><span class="tag">狀態</span>${escapeHtml(getErpStatusLabel(data.status))}</div>
-        ${data.csvRows ? `<div class="row"><span class="tag">CSV列數</span>${escapeHtml(data.csvRows)}</div>` : ''}
+        ${data.csvRows ? `<div class="row"><span class="tag">檔案列數</span>${escapeHtml(data.csvRows)}</div>` : ''}
         ${data.clearedRows !== undefined ? `<div class="row"><span class="tag">清空任務</span>${escapeHtml(data.clearedRows || 0)} 列</div>` : ''}
         ${data.created !== undefined ? `<div class="row"><span class="tag">產生任務</span>${escapeHtml(data.created || 0)} 筆</div>` : ''}
         ${data.autoNotifyRan !== undefined ? `<div class="row"><span class="tag">自動通知</span>${data.autoNotifyRan ? '已執行' : '未執行'}</div>` : ''}
